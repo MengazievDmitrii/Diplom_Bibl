@@ -1,0 +1,227 @@
+﻿<Page x:Class="Diplom_Bibl.InformationServicePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplom_Bibl"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="InformationServicePage">
+
+    <Page.Resources>
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#0056B3"/>
+            <Setter Property="Margin" Value="0,0,0,24"/>
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="InputFieldStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                          Margin="0" 
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#007BFF"/>
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#007BFF"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DatePickerStyle" TargetType="DatePicker">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,0"/>
+        </Style>
+
+        <Style x:Key="SaveButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="160"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#007BFF"/>
+            <Setter Property="BorderBrush" Value="#0056B3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0056B3"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#004080"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для кнопки удаления -->
+        <Style x:Key="DeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource SaveButtonStyle}">
+            <Setter Property="Background" Value="Red"/>
+            <Setter Property="BorderBrush" Value="DarkRed"/>
+        </Style>
+    </Page.Resources>
+
+    <Grid Margin="24">
+        <!-- Заголовок -->
+        <TextBlock Text="Информационное обслуживание"
+                   Style="{StaticResource SectionTitleStyle}"/>
+
+        <!-- Скрытый Label для ID записи -->
+        <Label x:Name="IdRecordLabel" Visibility="Collapsed" />
+
+        <!-- Основная форма -->
+        <Grid Margin="0,60,0,0">
+            <!-- Увеличим отступ, чтобы учесть скрытый Label -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Левая колонка: Дата -->
+            <StackPanel Grid.Column="0" Width="300" Margin="0,0,24,0">
+                <TextBlock Text="Дата" Style="{StaticResource LabelStyle}"/>
+                <DatePicker x:Name="DatePicker"
+                            Style="{StaticResource DatePickerStyle}"
+                            Language="ru-RU"
+                            SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                <!-- Добавлен обработчик -->
+            </StackPanel>
+
+            <!-- Правая колонка: Поля ввода -->
+            <StackPanel Grid.Column="1" Width="400">
+                <!-- Выдано книг -->
+                <StackPanel Margin="0,0,0,20">
+                    <TextBlock Text="Выдано книг" Style="{StaticResource LabelStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="BooksCountBox"
+                                 Style="{StaticResource InputFieldStyle}"
+                                 PreviewTextInput="NumberValidationTextBox" />
+                        <TextBlock Grid.Column="1"
+                                   Text="экз."
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"
+                                   Foreground="#666666"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Выдано справок -->
+                <StackPanel Margin="0,0,0,20">
+                    <TextBlock Text="Выдано справок" Style="{StaticResource LabelStyle}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ReferencesCountBox"
+                                 Style="{StaticResource InputFieldStyle}"
+                                 PreviewTextInput="NumberValidationTextBox"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="шт."
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"
+                                   Foreground="#666666"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Информационное обслуживание (мероприятия) -->
+                <StackPanel Margin="0,0,0,30">
+                    <TextBlock Text="Информационное обслуживание (мероприятия)" 
+                               Style="{StaticResource LabelStyle}"
+                               TextWrapping="Wrap"
+                               MaxWidth="380"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="EventsCountBox"
+                                 Style="{StaticResource InputFieldStyle}"
+                                 PreviewTextInput="NumberValidationTextBox"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="чел."
+                                   VerticalAlignment="Center"
+                                   Margin="8,0,0,0"
+                                   Foreground="#666666"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Кнопки -->
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="SaveNewRecordButton" 
+                            Content="Сохранить новую запись"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="SaveNewRecordButton_Click"
+                            Margin="0,0,10,0" Width="195"/>
+                    <!-- Отступ между кнопками -->
+                    <Button x:Name="SaveChangesButton" 
+                            Content="Сохранить изменения"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="SaveChangesButton_Click"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,10,0" 
+                            Visibility="Collapsed"/>
+                    <!-- Скрыта по умолчанию -->
+                    <Button x:Name="DeleteButton" 
+                            Content="Удалить"
+                            Style="{StaticResource DeleteButtonStyle}" 
+                        Click="DeleteButton_Click"
+                            HorizontalAlignment="Left"
+                            Background="Red"    
+                        Foreground="White"
+                            Visibility="Collapsed"/>
+
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>
