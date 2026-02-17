@@ -4,7 +4,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input; // Для TextCompositionEventArgs, KeyEventArgs
 
-namespace Diplom_Bibl
+namespace Diplom_Bibl.Pages
+
 {
     /// <summary>
     /// Логика взаимодействия для InformationServicePage.xaml
@@ -12,7 +13,7 @@ namespace Diplom_Bibl
     public partial class InformationServicePage : Page
     {
         // --- Поля ---
-        private string connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=DiplomBibl; Integrated Security=true;"; // ЗАМЕНИТЬ!
+        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
         private int? currentRecordId = null; // Переменная для хранения ID текущей загруженной записи
 
         public InformationServicePage()

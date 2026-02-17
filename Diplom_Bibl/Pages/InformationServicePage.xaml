@@ -1,111 +1,13 @@
-﻿<Page x:Class="Diplom_Bibl.InformationServicePage"
+﻿<Page x:Class="Diplom_Bibl.Pages.InformationServicePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplom_Bibl"
       mc:Ignorable="d" 
-      d:DesignHeight="450" d:DesignWidth="800"
+      d:DesignHeight="500" d:DesignWidth="800"
       Title="InformationServicePage">
 
-    <Page.Resources>
-        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#0056B3"/>
-            <Setter Property="Margin" Value="0,0,0,24"/>
-        </Style>
-
-        <Style x:Key="LabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="Margin" Value="0,0,0,6"/>
-        </Style>
-
-        <Style x:Key="InputFieldStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="10,0"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
-                            <ScrollViewer x:Name="PART_ContentHost" 
-                                          Margin="0" 
-                                          VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#007BFF"/>
-                </Trigger>
-                <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="#007BFF"/>
-                    <Setter Property="BorderThickness" Value="2"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="DatePickerStyle" TargetType="DatePicker">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,0"/>
-        </Style>
-
-        <Style x:Key="SaveButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="160"/>
-            <Setter Property="Height" Value="42"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#007BFF"/>
-            <Setter Property="BorderBrush" Value="#0056B3"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#0056B3"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#004080"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Стиль для кнопки удаления -->
-        <Style x:Key="DeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource SaveButtonStyle}">
-            <Setter Property="Background" Value="Red"/>
-            <Setter Property="BorderBrush" Value="DarkRed"/>
-        </Style>
-    </Page.Resources>
 
     <Grid Margin="24">
         <!-- Заголовок -->
@@ -134,7 +36,7 @@
             </StackPanel>
 
             <!-- Правая колонка: Поля ввода -->
-            <StackPanel Grid.Column="1" Width="400">
+            <StackPanel Grid.Column="0" Width="400" Margin="0,65,0,0">
                 <!-- Выдано книг -->
                 <StackPanel Margin="0,0,0,20">
                     <TextBlock Text="Выдано книг" Style="{StaticResource LabelStyle}"/>

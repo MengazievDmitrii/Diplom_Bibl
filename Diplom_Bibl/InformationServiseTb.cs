@@ -19,7 +19,5 @@ namespace Diplom_Bibl
         public Nullable<int> delivery_book { get; set; }
         public Nullable<int> delivery_certificate { get; set; }
         public Nullable<int> events_count { get; set; }
-
-        
     }
 }

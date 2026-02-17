@@ -12,20 +12,25 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace Diplom_Bibl
+namespace Diplom_Bibl.Windows
 {
     /// <summary>
     /// Логика взаимодействия для MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-        public MainWindow()
+        public MainWindow(int userId, string fullName, List<string> roles)
         {
             InitializeComponent();
+//…        // Отобразить ФИО в шапке
+//        WelcomeTextBlock.Text = $"Добро пожаловать, {fullName}!";
         }
 
         private void BtnLogout_Click(object sender, RoutedEventArgs e)
         {
+            
+            AutorisationWindow autorisationWindow = new AutorisationWindow();
+            autorisationWindow.Show();
             this.Close();
         }
 
@@ -46,20 +51,24 @@ namespace Diplom_Bibl
                 {
                     case "Информационное обслуживание":
                         // Создаём экземпляр страницы
-                        InformationServicePage informationServicePage = new InformationServicePage();
+                        Pages.InformationServicePage informationServicePage = new Pages.InformationServicePage();
                         // Навигируем по Frame к этой странице
                         MainFrame.Navigate(informationServicePage);
                         break;
-                    // Здесь можно добавить другие case для других кнопок, если они будут раскомментированы
-                    // case "Читатели":
-                    //     MainFrame.Navigate(new ReadersPage());
-                    //     break;
-                    // case "Библиотечный фонд":
-                    //     MainFrame.Navigate(new LibraryFundPage());
-                    //     break;
-                    // case "Отчёты":
-                    //     MainFrame.Navigate(new ReportsPage());
-                    //     break;
+                        //Здесь можно добавить другие case для других кнопок, если они будут раскомментированы
+                     case "Читатели":
+                        MainFrame.Navigate(new Pages.Readers());
+                        break;
+                    case "Библиотечный фонд":
+                        MainFrame.Navigate(new Pages.LibraryFundPage());
+                        break;
+                    case "Отчёты":
+                        MainFrame.Navigate(new Pages.ReportsPage());
+                        break;
+                    case "Настройки":
+                        MainFrame.Navigate(new Pages.Settings());
+                        break;
+                    
                     default:
                         // Можно добавить логику для непредусмотренных случаев, если нужно
                         break;
@@ -69,9 +78,9 @@ namespace Diplom_Bibl
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            MainFrame.Navigate(new InformationServicePage());
+            MainFrame.Navigate(new Pages.InformationServicePage());
         }
-        // ... остальная часть класса
+        
     }
 }
 

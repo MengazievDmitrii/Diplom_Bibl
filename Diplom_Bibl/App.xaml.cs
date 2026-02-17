@@ -13,5 +13,10 @@ namespace Diplom_Bibl
     /// </summary>
     public partial class App : Application
     {
+        // Установка лицензии НЕ нужна для Microsoft.Office.Interop.Excel
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            base.OnStartup(e);
+        }
     }
 }
