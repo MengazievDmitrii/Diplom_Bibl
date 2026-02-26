@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Windows;
@@ -13,13 +14,21 @@ namespace Diplom_Bibl.Pages
             "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
 
         private int? _currentReceiptId = null;
-        private System.Collections.ObjectModel.ObservableCollection<dynamic> _allReceipts;
+        private ObservableCollection<dynamic> _allReceipts;
+
+        // Модель для ComboBox
+        private class UserItem
+        {
+            public int ID_User { get; set; }
+            public string FullName { get; set; } // Surname + Name + Patronymic
+        }
 
         public AdmissionBook()
         {
             InitializeComponent();
+            LoadResponsibleUsers(); // ← загружаем список пользователей
             LoadReceipts();
-            PrepareNewReceipt(); // Подготавливаем форму для новой записи
+            PrepareNewReceipt();
         }
 
         // ===========================================================
@@ -28,6 +37,39 @@ namespace Diplom_Bibl.Pages
         private string GenerateReceiptNumber(int nextId)
         {
             return $"ПН-{nextId:D4}"; // D4 = 0001, 0002, ...
+        }
+
+        // ===========================================================
+        // ЗАГРУЗКА СПИСКА ПОЛЬЗОВАТЕЛЕЙ ДЛЯ ComboBox
+        // ===========================================================
+        private void LoadResponsibleUsers()
+        {
+            const string sql = @"
+                SELECT ID_User,
+                       Surname + ' ' + Name + ISNULL(' ' + Patronymic, '') AS FullName
+                FROM Users
+                ORDER BY Surname, Name";
+
+            var users = new ObservableCollection<UserItem>();
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        users.Add(new UserItem
+                        {
+                            ID_User = Convert.ToInt32(reader["ID_User"]),
+                            FullName = reader["FullName"].ToString()
+                        });
+                    }
+                }
+            }
+
+            CbResponsible.ItemsSource = users;
         }
 
         // ===========================================================
@@ -54,7 +96,11 @@ namespace Diplom_Bibl.Pages
 
             TbReceiptNumber.Text = GenerateReceiptNumber(nextId);
             TbReceiptDate.Text = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
-            TbResponsiblePerson.Clear();
+
+            // Устанавливаем первого пользователя (если есть)
+            if (CbResponsible.Items.Count > 0)
+                CbResponsible.SelectedIndex = 0;
+
             TbComment.Clear();
 
             _currentReceiptId = null;
@@ -64,16 +110,19 @@ namespace Diplom_Bibl.Pages
         }
 
         // ===========================================================
-        // ЗАГРУЗКА СПИСКА
+        // ЗАГРУЗКА СПИСКА АКТОВ
         // ===========================================================
         private void LoadReceipts()
         {
             try
             {
                 const string query = @"
-                    SELECT IDReceipt, ReceiptNumber, ReceiptDate, ResponsiblePerson, Comment
-                    FROM ReceiptBooks
-                    ORDER BY ReceiptDate DESC";
+                    SELECT r.IDReceipt, r.ReceiptNumber, r.ReceiptDate, 
+                           u.Surname + ' ' + u.Name + ISNULL(' ' + u.Patronymic, '') AS ResponsiblePerson,
+                           r.Comment
+                    FROM ReceiptBooks r
+                    LEFT JOIN Users u ON r.ID_ResponsibleUser = u.ID_User
+                    ORDER BY r.ReceiptDate DESC";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -81,7 +130,7 @@ namespace Diplom_Bibl.Pages
                     using (var cmd = new SqlCommand(query, conn))
                     using (var reader = cmd.ExecuteReader())
                     {
-                        var list = new System.Collections.ObjectModel.ObservableCollection<dynamic>();
+                        var list = new ObservableCollection<dynamic>();
                         while (reader.Read())
                         {
                             list.Add(new
@@ -89,7 +138,7 @@ namespace Diplom_Bibl.Pages
                                 IDReceipt = reader["IDReceipt"],
                                 ReceiptNumber = reader["ReceiptNumber"].ToString(),
                                 ReceiptDate = Convert.ToDateTime(reader["ReceiptDate"]),
-                                ResponsiblePerson = reader["ResponsiblePerson"]?.ToString() ?? "",
+                                ResponsiblePerson = reader["ResponsiblePerson"].ToString(),
                                 Comment = reader["Comment"]?.ToString() ?? ""
                             });
                         }
@@ -121,7 +170,7 @@ namespace Diplom_Bibl.Pages
                        comm.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0;
             }).ToList();
 
-            LvReceipts.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<dynamic>(filtered);
+            LvReceipts.ItemsSource = new ObservableCollection<dynamic>(filtered);
         }
 
         // ===========================================================
@@ -129,22 +178,22 @@ namespace Diplom_Bibl.Pages
         // ===========================================================
         private void BtnSaveNew_Click(object sender, RoutedEventArgs e)
         {
-            string person = TbResponsiblePerson.Text?.Trim();
-            string comment = TbComment.Text?.Trim();
-
-            // Валидация (можно расширить)
-            if (string.IsNullOrWhiteSpace(person))
+            // Проверка выбора ответственного лица
+            if (CbResponsible.SelectedValue == null)
             {
-                MessageBox.Show("Укажите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            int responsibleId = (int)CbResponsible.SelectedValue;
+            string comment = TbComment.Text?.Trim();
 
             string number = TbReceiptNumber.Text;
             DateTime date = DateTime.Now;
 
             const string insertQuery = @"
-                INSERT INTO ReceiptBooks (ReceiptNumber, ReceiptDate, ResponsiblePerson, Comment)
-                VALUES (@Number, @Date, @Person, @Comment);";
+                INSERT INTO ReceiptBooks (ReceiptNumber, ReceiptDate, ID_ResponsibleUser, Comment)
+                VALUES (@Number, @Date, @ResponsibleID, @Comment);";
 
             try
             {
@@ -155,13 +204,13 @@ namespace Diplom_Bibl.Pages
                     {
                         cmd.Parameters.AddWithValue("@Number", number);
                         cmd.Parameters.AddWithValue("@Date", date);
-                        cmd.Parameters.AddWithValue("@Person", person);
+                        cmd.Parameters.AddWithValue("@ResponsibleID", responsibleId);
                         cmd.Parameters.AddWithValue("@Comment", comment ?? (object)DBNull.Value);
 
                         cmd.ExecuteNonQuery();
                         MessageBox.Show("Накладная успешно создана.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
                         LoadReceipts();
-                        PrepareNewReceipt(); // Готовим следующую
+                        PrepareNewReceipt();
                     }
                 }
             }
@@ -182,18 +231,18 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            string person = TbResponsiblePerson.Text?.Trim();
-            string comment = TbComment.Text?.Trim();
-
-            if (string.IsNullOrWhiteSpace(person))
+            if (CbResponsible.SelectedValue == null)
             {
-                MessageBox.Show("Укажите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            int responsibleId = (int)CbResponsible.SelectedValue;
+            string comment = TbComment.Text?.Trim();
+
             const string updateQuery = @"
                 UPDATE ReceiptBooks 
-                SET ResponsiblePerson = @Person, Comment = @Comment
+                SET ID_ResponsibleUser = @ResponsibleID, Comment = @Comment
                 WHERE IDReceipt = @Id;";
 
             try
@@ -203,7 +252,7 @@ namespace Diplom_Bibl.Pages
                     conn.Open();
                     using (var cmd = new SqlCommand(updateQuery, conn))
                     {
-                        cmd.Parameters.AddWithValue("@Person", person);
+                        cmd.Parameters.AddWithValue("@ResponsibleID", responsibleId);
                         cmd.Parameters.AddWithValue("@Comment", comment ?? (object)DBNull.Value);
                         cmd.Parameters.AddWithValue("@Id", _currentReceiptId.Value);
 
@@ -281,12 +330,38 @@ namespace Diplom_Bibl.Pages
             _currentReceiptId = item.IDReceipt;
             TbReceiptNumber.Text = item.ReceiptNumber;
             TbReceiptDate.Text = ((DateTime)item.ReceiptDate).ToString("dd.MM.yyyy HH:mm");
-            TbResponsiblePerson.Text = item.ResponsiblePerson;
+
+            // Установка выбранного пользователя по ID
+            CbResponsible.SelectedValue = item.ResponsiblePerson == "" ? null :
+                GetUserIdByName(item.ResponsiblePerson); // см. ниже
+
             TbComment.Text = item.Comment;
 
             BtnSaveNew.Visibility = Visibility.Collapsed;
             BtnSaveChanges.Visibility = Visibility.Visible;
             BtnDelete.Visibility = Visibility.Visible;
+        }
+
+        // Вспомогательный метод: получить ID пользователя по ФИО (для редактирования)
+        private int? GetUserIdByName(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName)) return null;
+
+            const string sql = @"
+                SELECT TOP 1 ID_User 
+                FROM Users 
+                WHERE Surname + ' ' + Name + ISNULL(' ' + Patronymic, '') = @FullName";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@FullName", fullName);
+                    var result = cmd.ExecuteScalar();
+                    return result == null ? null : (int?)Convert.ToInt32(result);
+                }
+            }
         }
 
         // ===========================================================

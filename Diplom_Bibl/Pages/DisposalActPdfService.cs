@@ -14,12 +14,14 @@ namespace Diplom_Bibl.Services
         {
             try
             {
+                //var book = LoadItems(writeOffId);
+                //string booktitle = LoadItems(book.TitleBook);
+
                 var act = LoadAct(writeOffId);
                 if (act == null) throw new ArgumentException("Акт списания не найден.");
 
                 // Получаем текст причины по ID
                 string reasonText = GetReasonName(act.ReasonID);
-
                 var items = LoadItems(writeOffId);
                 int totalCopies = 0;
                 decimal totalSum = 0;
@@ -70,7 +72,7 @@ namespace Diplom_Bibl.Services
                     document.Add(new Paragraph(" "));
 
                     // === Основание списания ===
-                    document.Add(new Paragraph($"о списании из библиотеки {reasonText}", fontNormal));
+                    document.Add(new Paragraph($"о списании из библиотеки  {reasonText}", fontNormal));
                     document.Add(new Paragraph("(вид документа и основание: ветхость, утрата и т.п.)", fontNormal));
                     document.Add(new Paragraph(" "));
 

@@ -1,121 +1,144 @@
-﻿using System;
+﻿using iTextSharp.text;
+using iTextSharp.text.pdf;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Globalization;
 using System.IO;
-using System.Windows;
-
-using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
+using System.Linq;
 
 namespace Diplom_Bibl.Services
 {
-    public static class DocumentService
+    public static class ReceiptActPdfService
     {
+        private const string ConnectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+
         /// <summary>
-        /// Генерирует акт о поступлении книг по ID акта.
+        /// Генерирует акт о поступлении книг в формате PDF по ID акта.
         /// </summary>
-        /// <param name="receiptId">ID записи в таблице ReceiptBooks</param>
-        /// <param name="connectionString">Строка подключения к БД</param>
-        public static void GenerateReceiptAct(int receiptId, string connectionString)
+        public static byte[] GenerateReceiptActPdf(int receiptId)
         {
             try
             {
-                // 1. Загружаем данные акта
-                var act = LoadReceiptData(receiptId, connectionString);
-                if (act == null)
-                {
-                    MessageBox.Show("Акт не найден.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
+                // 1. Загружаем данные акта + ФИО ответственного лица
+                var act = LoadReceiptData(receiptId);
+                if (act == null) throw new ArgumentException("Акт не найден.");
 
                 // 2. Загружаем книги
-                var books = LoadBooksByReceipt(receiptId, connectionString);
+                var books = LoadBooksByReceipt(receiptId);
+                int totalCopies = books.Sum(b => b.Quantity);
+                decimal totalSum = books.Sum(b => b.TotalPrice);
 
-                // 3. Формируем путь для сохранения
-                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string safeNumber = string.Join("", act.ReceiptNumber.Split(Path.GetInvalidFileNameChars()));
-                string fileName = Path.Combine(desktop, $"Акт_поступления_{safeNumber}.docx");
-
-                // 4. Создаём документ
-                using (WordprocessingDocument doc = WordprocessingDocument.Create(fileName, WordprocessingDocumentType.Document))
+                // 3. Создаём PDF
+                using (var ms = new MemoryStream())
                 {
-                    MainDocumentPart mainPart = doc.AddMainDocumentPart();
-                    mainPart.Document = new Document();
-                    Body body = mainPart.Document.AppendChild(new Body());
+                    Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+                    PdfWriter writer = PdfWriter.GetInstance(document, ms);
+                    document.Open();
 
-                    // === Шапка акта ===
-                    AddParagraph(body, $"Акт N {act.ReceiptNumber}", bold: true, fontSize: "24");
-                    AddParagraph(body, "");
+                    // Шрифт: Arial (встроенный, поддержка кириллицы)
+                    BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\arial.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    Font fontNormal = new Font(baseFont, 11);
+                    Font fontBold = new Font(baseFont, 11, Font.BOLD);
+                    Font fontHeader = new Font(baseFont, 16, Font.BOLD);
 
-                    // Дата прописью: "__" ________ 19__ г.
-                    string day = act.ReceiptDate.Day.ToString("D2");
+                    // === Шапка ===
+                    Paragraph title = new Paragraph($"Акт N {act.ReceiptNumber}", fontHeader);
+                    title.Alignment = Element.ALIGN_LEFT;
+                    document.Add(title);
+                    document.Add(new Paragraph(""));
+
+                    // Дата прописью
                     string month = GetMonthNameRu(act.ReceiptDate.Month);
-                    string year = act.ReceiptDate.Year.ToString();
-                    AddParagraph(body, $"Настоящий акт составлен \"{day}\" {month} {year} г.");
+                    string dateLine = $"Настоящий акт составлен \"{act.ReceiptDate.Day}\" {month} {act.ReceiptDate.Year} г.";
+                    document.Add(new Paragraph(dateLine, fontNormal));
+                    document.Add(new Paragraph(""));
 
-                    AddParagraph(body, "");
-                    AddParagraph(body, act.ResponsiblePerson ?? "");
-                    AddParagraph(body, "(фамилии, имена, отчества и должности лиц, участвующих");
-                    AddParagraph(body, "в составлении акта)");
-                    AddParagraph(body, "");
-                    AddParagraph(body, $"о приеме в библиотеку {act.Comment ?? "(не указано)"}");
-                    AddParagraph(body, "(вид документа и от кого получено)");
-                    AddParagraph(body, "");
+                    // Ответственное лицо
+                    document.Add(new Paragraph(act.ResponsiblePerson, fontNormal));
+                    document.Add(new Paragraph("(фамилии, имена, отчества и должности лиц, участвующих", fontNormal));
+                    document.Add(new Paragraph("в составлении акта)", fontNormal));
+                    document.Add(new Paragraph(""));
+
+                    // О приеме
+                    document.Add(new Paragraph($"о приеме в библиотеку {act.Comment ?? "(не указано)"}", fontNormal));
+                    document.Add(new Paragraph("(вид документа и от кого получено)", fontNormal));
+                    document.Add(new Paragraph(""));
 
                     // Итоговая сумма
-                    decimal totalSum = 0;
-                    int totalCopies = 0;
-                    foreach (var book in books)
-                    {
-                        totalSum += book.TotalPrice;
-                        totalCopies += book.Quantity;
-                    }
-
                     string totalRub = Math.Floor(totalSum).ToString("N0");
                     string totalKop = ((int)(totalSum * 100) % 100).ToString("D2");
                     string totalWords = NumberToWordsRubles((int)totalSum);
 
-                    AddParagraph(body, $"в количестве {totalCopies} экземпляров на общую сумму {totalRub} руб. {totalKop} коп.");
-                    AddParagraph(body, $"({totalWords})");
-                    AddParagraph(body, "");
-                    AddParagraph(body, "Список книг (или других документов) прилагается.");
-                    AddParagraph(body, "");
+                    document.Add(new Paragraph($"в количестве {totalCopies} экземпляров на общую сумму {totalRub} руб. {totalKop} коп.", fontNormal));
+                    document.Add(new Paragraph($"({totalWords})", fontNormal));
+                    document.Add(new Paragraph(""));
+
+                    // Примечание
+                    document.Add(new Paragraph("Список книг (или других документов) прилагается.", fontNormal));
+                    document.Add(new Paragraph(""));
 
                     // Подписи
-                    AddParagraph(body, "Подписи ________________________________________ (руководителя)");
-                    AddParagraph(body, "________________________________________ (сотрудника)");
-                    AddParagraph(body, "________________________________________ (лица, сдавшего книги или другие документы)");
-                    AddParagraph(body, "");
+                    document.Add(new Paragraph("Подписи ________________________________________ (руководителя)", fontNormal));
+                    document.Add(new Paragraph("________________________________________ (сотрудника)", fontNormal));
+                    document.Add(new Paragraph("________________________________________ (лица, сдавшего книги или другие документы)", fontNormal));
+                    document.Add(new Paragraph(""));
+
+                    // Таблица заголовок
+                    document.Add(new Paragraph($"Список книг или других документов к акту N {act.ReceiptNumber}*", fontBold));
+                    document.Add(new Paragraph(""));
 
                     // Таблица
-                    AddParagraph(body, $"Список книг или других документов к акту N {act.ReceiptNumber}*");
+                    PdfPTable table = new PdfPTable(6);
+                    table.WidthPercentage = 100;
+                    table.SetWidths(new float[] { 5f, 30f, 5f, 5f, 8f, 10f });
 
-                    Table table = CreateBooksTable(books);
-                    body.Append(table);
+                    // Заголовки
+                    table.AddCell(new PdfPCell(new Phrase("N п/п", fontBold)));
+                    table.AddCell(new PdfPCell(new Phrase("Автор, заглавие книги или вид документа", fontBold)));
+                    table.AddCell(new PdfPCell(new Phrase("руб.", fontBold)));
+                    table.AddCell(new PdfPCell(new Phrase("коп.", fontBold)));
+                    table.AddCell(new PdfPCell(new Phrase("Кол-во экз.", fontBold)));
+                    table.AddCell(new PdfPCell(new Phrase("Сумма", fontBold)));
 
-                    mainPart.Document.Save();
+                    // Данные
+                    for (int i = 0; i < books.Count; i++)
+                    {
+                        var b = books[i];
+                        table.AddCell(new PdfPCell(new Phrase((i + 1).ToString(), fontNormal)));
+                        table.AddCell(new PdfPCell(new Phrase(b.Title, fontNormal)));
+                        table.AddCell(new PdfPCell(new Phrase(b.PriceRub.ToString(), fontNormal)));
+                        table.AddCell(new PdfPCell(new Phrase(b.PriceKop.ToString(), fontNormal)));
+                        table.AddCell(new PdfPCell(new Phrase(b.Quantity.ToString(), fontNormal)));
+                        table.AddCell(new PdfPCell(new Phrase($"{b.TotalPrice:N2}", fontNormal)));
+                    }
+
+                    document.Add(table);
+                    document.Close();
+
+                    return ms.ToArray();
                 }
-
-                MessageBox.Show($"Акт успешно сформирован:\n{fileName}", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании акта:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                throw new Exception($"Ошибка генерации PDF: {ex.Message}", ex);
             }
         }
 
         // =============== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===============
 
-        private static ReceiptData LoadReceiptData(int receiptId, string connectionString)
+        private static ActData LoadReceiptData(int receiptId)
         {
             const string sql = @"
-                SELECT ReceiptNumber, ReceiptDate, ResponsiblePerson, Comment 
-                FROM ReceiptBooks 
-                WHERE IDReceipt = @Id";
+                SELECT 
+                    r.ReceiptNumber,
+                    r.ReceiptDate,
+                    u.Surname + ' ' + u.Name + ISNULL(' ' + u.Patronymic, '') AS ResponsiblePerson,
+                    r.Comment
+                FROM ReceiptBooks r
+                LEFT JOIN Users u ON r.ID_ResponsibleUser = u.ID_User
+                WHERE r.IDReceipt = @Id";
 
-            using (var conn = new SqlConnection(connectionString))
+            using (var conn = new SqlConnection(ConnectionString))
             {
                 conn.Open();
                 using (var cmd = new SqlCommand(sql, conn))
@@ -125,12 +148,12 @@ namespace Diplom_Bibl.Services
                     {
                         if (reader.Read())
                         {
-                            return new ReceiptData
+                            return new ActData
                             {
                                 ReceiptNumber = reader["ReceiptNumber"].ToString(),
                                 ReceiptDate = Convert.ToDateTime(reader["ReceiptDate"]),
-                                ResponsiblePerson = reader["ResponsiblePerson"]?.ToString(),
-                                Comment = reader["Comment"]?.ToString()
+                                ResponsiblePerson = reader["ResponsiblePerson"].ToString(),
+                                Comment = reader["Comment"]?.ToString() ?? ""
                             };
                         }
                     }
@@ -139,18 +162,18 @@ namespace Diplom_Bibl.Services
             return null;
         }
 
-        private static List<BookItem> LoadBooksByReceipt(int receiptId, string connectionString)
+        private static List<BookItem> LoadBooksByReceipt(int receiptId)
         {
             var list = new List<BookItem>();
             const string sql = @"
                 SELECT 
                     b.TitleBook,
                     ISNULL(b.Price, 0) AS Price,
-                    1 AS Quantity -- Если у вас нет поля количества, считаем 1 экз.
+                    1 AS Quantity
                 FROM Books b
                 WHERE b.IDReceip = @Id";
 
-            using (var conn = new SqlConnection(connectionString))
+            using (var conn = new SqlConnection(ConnectionString))
             {
                 conn.Open();
                 using (var cmd = new SqlCommand(sql, conn))
@@ -179,74 +202,6 @@ namespace Diplom_Bibl.Services
             return list;
         }
 
-        private static Table CreateBooksTable(List<BookItem> books)
-        {
-            Table table = new Table();
-
-            // Свойства таблицы
-            table.AppendChild(new TableProperties(
-                new TableBorders(
-                    new TopBorder() { Val = BorderValues.Single, Size = 12 },
-                    new BottomBorder() { Val = BorderValues.Single, Size = 12 },
-                    new LeftBorder() { Val = BorderValues.Single, Size = 12 },
-                    new RightBorder() { Val = BorderValues.Single, Size = 12 },
-                    new InsideHorizontalBorder() { Val = BorderValues.Single, Size = 12 },
-                    new InsideVerticalBorder() { Val = BorderValues.Single, Size = 12 }
-                )
-            ));
-
-            // Заголовки
-            TableRow header = new TableRow();
-            AddTableCell(header, "N п/п", bold: true);
-            AddTableCell(header, "Автор, заглавие книги или вид документа", bold: true);
-            AddTableCell(header, "Цена\nруб.", bold: true);
-            AddTableCell(header, "коп.", bold: true);
-            AddTableCell(header, "Кол-во экз.", bold: true);
-            AddTableCell(header, "Сумма", bold: true);
-            table.AppendChild(header);
-
-            // Строки
-            for (int i = 0; i < books.Count; i++)
-            {
-                var b = books[i];
-                TableRow row = new TableRow();
-                AddTableCell(row, (i + 1).ToString());
-                AddTableCell(row, b.Title);
-                AddTableCell(row, b.PriceRub.ToString());
-                AddTableCell(row, b.PriceKop.ToString());
-                AddTableCell(row, b.Quantity.ToString());
-                AddTableCell(row, $"{b.TotalPrice:N2}");
-                table.AppendChild(row);
-            }
-
-            return table;
-        }
-
-        private static void AddParagraph(Body body, string text, bool bold = false, string fontSize = "22")
-        {
-            var runProperties = new RunProperties();
-            if (bold) runProperties.Append(new Bold());
-            runProperties.Append(new FontSize() { Val = fontSize });
-
-            var para = new Paragraph(
-                new Run(
-                    runProperties,
-                    new Text(text)
-                )
-            );
-            body.Append(para);
-        }
-
-        private static void AddTableCell(TableRow row, string text, bool bold = false)
-        {
-            var cell = new TableCell();
-            var runProps = new RunProperties();
-            if (bold) runProps.Append(new Bold());
-            cell.Append(new Paragraph(new Run(runProps, new Text(text))));
-            cell.Append(new TableCellProperties(new TableCellWidth() { Width = "1200" }));
-            row.Append(cell);
-        }
-
         private static string GetMonthNameRu(int month)
         {
             var months = new[]
@@ -257,80 +212,60 @@ namespace Diplom_Bibl.Services
             return months[month - 1];
         }
 
-        // Простая реализация прописи суммы (до 99 999 999 рублей)
+        // Пропись суммы (до 99 999 999)
         private static string NumberToWordsRubles(int number)
         {
-            if (number == 0)
-                return "ноль рублей 00 копеек";
-
-            if (number < 0 || number > 99999999)
-                return $"{number:N0} руб. 00 копеек"; // fallback для некорректных значений
+            if (number == 0) return "ноль рублей 00 копеек";
+            if (number < 0 || number > 99999999) return $"{number:N0} руб. 00 копеек";
 
             string[] units = { "", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять" };
             string[] teens = { "десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать" };
             string[] tens = { "", "", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто" };
             string[] hundreds = { "", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот" };
 
-            // Специальные формы для тысяч
             string[] unitsForThousands = { "", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять" };
 
             List<string> parts = new List<string>();
 
-            // === Миллионы (до 99) ===
+            // Миллионы
             if (number >= 1000000)
             {
                 int millions = number / 1000000;
                 number %= 1000000;
-
-                string millionPart = ConvertHundreds(millions, units, teens, tens, hundreds);
-                parts.Add(millionPart);
-
-                // Склонение "миллион"
-                string millionWord = GetPluralForm(millions, "миллион", "миллиона", "миллионов");
-                parts.Add(millionWord);
+                parts.Add(ConvertHundreds(millions, units, teens, tens, hundreds));
+                parts.Add(GetPluralForm(millions, "миллион", "миллиона", "миллионов"));
             }
 
-            // === Тысячи (до 999) ===
+            // Тысячи
             if (number >= 1000)
             {
                 int thousands = number / 1000;
                 number %= 1000;
-
-                string thousandPart = ConvertHundreds(thousands, unitsForThousands, teens, tens, hundreds);
-                parts.Add(thousandPart);
-
-                // Склонение "тысяча"
-                string thousandWord = GetPluralForm(thousands, "тысяча", "тысячи", "тысяч");
-                parts.Add(thousandWord);
+                parts.Add(ConvertHundreds(thousands, unitsForThousands, teens, tens, hundreds));
+                parts.Add(GetPluralForm(thousands, "тысяча", "тысячи", "тысяч"));
             }
 
-            // === Остаток (рубли, до 999) ===
+            // Рубли
             if (number > 0)
             {
-                string rublePart = ConvertHundreds(number, units, teens, tens, hundreds);
-                parts.Add(rublePart);
+                parts.Add(ConvertHundreds(number, units, teens, tens, hundreds));
             }
 
             // Склонение "рубль"
-            string rubleWord = GetPluralForm(number, "рубль", "рубля", "рублей");
-            parts.Add(rubleWord);
-
+            parts.Add(GetPluralForm(number, "рубль", "рубля", "рублей"));
             parts.Add("00 копеек");
 
             return string.Join(" ", parts).Trim();
         }
 
-        // Вспомогательный метод: преобразует число 0–999 в слова
         private static string ConvertHundreds(int n, string[] units, string[] teens, string[] tens, string[] hundreds)
         {
             List<string> words = new List<string>();
-
             if (n >= 100)
             {
                 words.Add(hundreds[n / 100]);
                 n %= 100;
             }
-
             if (n >= 20)
             {
                 words.Add(tens[n / 10]);
@@ -341,32 +276,23 @@ namespace Diplom_Bibl.Services
                 words.Add(teens[n - 10]);
                 n = 0;
             }
-
             if (n > 0)
             {
                 words.Add(units[n]);
             }
-
             return string.Join(" ", words);
         }
 
-        // Вспомогательный метод: возвращает правильную форму слова
         private static string GetPluralForm(int n, string form1, string form2, string form5)
         {
             int lastTwo = n % 100;
-            if (lastTwo >= 11 && lastTwo <= 19)
-                return form5;
-
+            if (lastTwo >= 11 && lastTwo <= 19) return form5;
             int last = n % 10;
-            if (last == 1)
-                return form1;
-            if (last >= 2 && last <= 4)
-                return form2;
-            return form5;
+            return last == 1 ? form1 : (last >= 2 && last <= 4 ? form2 : form5);
         }
 
         // =============== DTO ===============
-        private class ReceiptData
+        private class ActData
         {
             public string ReceiptNumber { get; set; }
             public DateTime ReceiptDate { get; set; }

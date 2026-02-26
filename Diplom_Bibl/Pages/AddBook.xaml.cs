@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Security.Policy;
 using System.Windows;
@@ -707,7 +708,19 @@ Price = @Price
         {
             if (CbReceipt.SelectedValue is int receiptId)
             {
-                DocumentService.GenerateReceiptAct(receiptId, _connectionString);
+                try
+                {
+                    byte[] pdfBytes = ReceiptActPdfService.GenerateReceiptActPdf(receiptId); // ✅ Только 1 аргумент
+                    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                    string fileName = $"Акт_поступления_{receiptId}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+                    string fullPath = Path.Combine(desktop, fileName);
+                    File.WriteAllBytes(fullPath, pdfBytes);
+                    MessageBox.Show($"PDF сохранён:\n{fullPath}", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка генерации PDF: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             else
             {

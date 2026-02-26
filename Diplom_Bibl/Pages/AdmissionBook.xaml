@@ -33,7 +33,14 @@
 
                 <StackPanel Margin="0,0,0,15">
                     <TextBlock Text="Ответственное лицо" Style="{StaticResource LabelStyle}"/>
-                    <TextBox x:Name="TbResponsiblePerson" Style="{StaticResource InputFieldStyle}"/>
+                    <StackPanel Orientation="Horizontal"> <ComboBox x:Name="CbResponsible"
+          DisplayMemberPath="FullName"
+          SelectedValuePath="ID_User"
+          Style="{StaticResource InputFieldStyleCb}"
+          Height="36" Width="365"/>
+                    <Button Content="+" Width="36"/>
+                    </StackPanel>
+                    
                 </StackPanel>
 
                 <StackPanel Margin="0,0,0,15">
