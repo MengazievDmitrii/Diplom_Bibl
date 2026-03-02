@@ -1,0 +1,145 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.AddUser"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplom_Bibl.Pages"
+      mc:Ignorable="d" 
+      Title="Управление пользователями">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" Text="Управление пользователями"
+                   Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
+
+        <!-- Основной контент: форма слева + таблица справа -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <!-- Форма: 2 части -->
+                <ColumnDefinition Width="3*"/>
+                <!-- Таблица: 3 части -->
+            </Grid.ColumnDefinitions>
+
+            <!-- === ЛЕВАЯ ЧАСТЬ: ФОРМА ВВОДА === -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,10,0">
+                <StackPanel>
+                    <!-- Фамилия -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Фамилия *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbSurname" Style="{StaticResource InputFieldStyle}" MaxLength="50"/>
+                    </StackPanel>
+
+                    <!-- Имя -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Имя *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbName" Style="{StaticResource InputFieldStyle}" MaxLength="50"/>
+                    </StackPanel>
+
+                    <!-- Отчество -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Отчество" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbPatronymic" Style="{StaticResource InputFieldStyle}" MaxLength="50"/>
+                    </StackPanel>
+
+                    <!-- Логин -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Логин *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbLogin" Style="{StaticResource InputFieldStyle}" MaxLength="30"/>
+                    </StackPanel>
+
+                    <!-- Пароль -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Пароль *" Style="{StaticResource LabelStyle}"/>
+                        <PasswordBox x:Name="PbPassword" MaxLength="255"/>
+                    </StackPanel>
+
+                    <!-- Роли -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Роли *" Style="{StaticResource LabelStyle}"/>
+                        <ListBox x:Name="LbRoles"
+                                 SelectionMode="Multiple"
+                                 Height="120">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding RoleName}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Margin="2"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- === ПРАВАЯ ЧАСТЬ: СПИСОК ПОЛЬЗОВАТЕЛЕЙ === -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Заголовок списка -->
+                <TextBlock Grid.Row="0" Text="Список пользователей"
+                           Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
+
+                <!-- Таблица -->
+                <DataGrid Grid.Row="1"
+                          x:Name="LvUsers"
+                          SelectionChanged="LvUsers_SelectionChanged"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          SelectionMode="Single"
+                          RowHeight="32"
+                          AlternatingRowBackground="{StaticResource LightGray}"
+                          IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" Binding="{Binding ID_User}" Width="60"/>
+                        <DataGridTextColumn Header="Фамилия" Binding="{Binding Surname}" Width="120"/>
+                        <DataGridTextColumn Header="Имя" Binding="{Binding Name}" Width="100"/>
+                        <DataGridTextColumn Header="Отчество" Binding="{Binding Patronymic}" Width="120"/>
+                        <DataGridTextColumn Header="Логин" Binding="{Binding Login}" Width="120"/>
+                        <DataGridTextColumn Header="Роли" Binding="{Binding RoleNames}" Width="200"/>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="White"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20">
+            <Button x:Name="BtnSaveNew" Content="Сохранить нового пользователя"
+                    Style="{StaticResource SaveButtonStyle}"
+                    Width="220" Margin="0,0,10,0"
+                    Click="BtnSaveNew_Click"/>
+
+            <Button x:Name="BtnSaveChanges" Content="Сохранить изменения"
+                    Style="{StaticResource SaveButtonStyle}"
+                    Width="220" Margin="0,0,10,0"
+                    Visibility="Collapsed"
+                    Click="BtnSaveChanges_Click"/>
+
+            <Button x:Name="BtnDelete" Content="Удалить"
+                    Style="{StaticResource DeleteButtonStyle}"
+                    Width="100"
+                    Visibility="Collapsed"
+                    Click="BtnDelete_Click"/>
+
+            <Button Content="Закрыть" Style="{StaticResource SaveButtonStyle}" Width="100"
+                    Click="BtnClose_Click"/>
+        </StackPanel>
+    </Grid>
+</Page>

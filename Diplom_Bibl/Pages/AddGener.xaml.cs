@@ -21,7 +21,6 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddGener : Page
     {
-        DiplomBiblEntities db = new DiplomBiblEntities();
         private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
         private int? _currentGenerId = null; // Переменная для хранения ID текущей загруженной записи
         private System.Collections.ObjectModel.ObservableCollection<object> _allGeners;

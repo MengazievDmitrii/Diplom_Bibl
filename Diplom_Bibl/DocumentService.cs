@@ -23,12 +23,16 @@ namespace Diplom_Bibl.Services
                 var act = LoadReceiptData(receiptId);
                 if (act == null) throw new ArgumentException("Акт не найден.");
 
-                // 2. Загружаем книги
+                // 2. Загружаем книги с информацией о виде документа и издательстве
                 var books = LoadBooksByReceipt(receiptId);
                 int totalCopies = books.Sum(b => b.Quantity);
                 decimal totalSum = books.Sum(b => b.TotalPrice);
 
-                // 3. Создаём PDF
+                // 3. Получаем информацию о виде документа и издательстве из первой книги
+                string viewBookName = books.FirstOrDefault()?.ViewBookName ?? "";
+                string publisherName = books.FirstOrDefault()?.PublisherName ?? "";
+
+                // 4. Создаём PDF
                 using (var ms = new MemoryStream())
                 {
                     Document document = new Document(PageSize.A4, 50, 50, 50, 50);
@@ -59,17 +63,22 @@ namespace Diplom_Bibl.Services
                     document.Add(new Paragraph("в составлении акта)", fontNormal));
                     document.Add(new Paragraph(""));
 
-                    // О приеме
-                    document.Add(new Paragraph($"о приеме в библиотеку {act.Comment ?? "(не указано)"}", fontNormal));
+                    // О приеме - исправлено: теперь выводим вид документа и издательство
+                    string receiptText = $"о приеме в библиотеку {viewBookName}";
+                    if (!string.IsNullOrEmpty(publisherName))
+                    {
+                        receiptText += $" \"{publisherName}\"";
+                    }
+                    document.Add(new Paragraph(receiptText, fontNormal));
                     document.Add(new Paragraph("(вид документа и от кого получено)", fontNormal));
                     document.Add(new Paragraph(""));
 
-                    // Итоговая сумма
-                    string totalRub = Math.Floor(totalSum).ToString("N0");
-                    string totalKop = ((int)(totalSum * 100) % 100).ToString("D2");
-                    string totalWords = NumberToWordsRubles((int)totalSum);
+                    // Итоговая сумма - исправлено: теперь правильно считаем копейки
+                    int totalRub = (int)Math.Floor(totalSum);
+                    int totalKop = (int)((totalSum - totalRub) * 100 + 0.5m); // Округление до целых копеек
+                    string totalWords = NumberToWordsRublesWithKopecks(totalRub, totalKop);
 
-                    document.Add(new Paragraph($"в количестве {totalCopies} экземпляров на общую сумму {totalRub} руб. {totalKop} коп.", fontNormal));
+                    document.Add(new Paragraph($"в количестве {totalCopies} экземпляров на общую сумму {totalRub:N0} руб. {totalKop:D2} коп.", fontNormal));
                     document.Add(new Paragraph($"({totalWords})", fontNormal));
                     document.Add(new Paragraph(""));
 
@@ -169,8 +178,12 @@ namespace Diplom_Bibl.Services
                 SELECT 
                     b.TitleBook,
                     ISNULL(b.Price, 0) AS Price,
-                    1 AS Quantity
+                    1 AS Quantity,
+                    ISNULL(vb.View_Book, '') AS ViewBookName,
+                    ISNULL(ph.TitlePublishingHouse, '') AS PublisherName
                 FROM Books b
+                LEFT JOIN ViewBook vb ON b.ID_View_Book = vb.ID_View_Book
+                LEFT JOIN PublishingHouse ph ON b.PublishingHouse = ph.IDPublishingHouse
                 WHERE b.IDReceip = @Id";
 
             using (var conn = new SqlConnection(ConnectionString))
@@ -184,8 +197,8 @@ namespace Diplom_Bibl.Services
                         while (reader.Read())
                         {
                             decimal price = Convert.ToDecimal(reader["Price"]);
-                            int rub = (int)price;
-                            int kop = (int)((price - rub) * 100 + 0.5m);
+                            int rub = (int)Math.Floor(price);
+                            int kop = (int)((price - rub) * 100 + 0.5m); // Округление до целых копеек
 
                             list.Add(new BookItem
                             {
@@ -193,7 +206,9 @@ namespace Diplom_Bibl.Services
                                 PriceRub = rub,
                                 PriceKop = kop,
                                 Quantity = Convert.ToInt32(reader["Quantity"]),
-                                TotalPrice = price * Convert.ToInt32(reader["Quantity"])
+                                TotalPrice = price * Convert.ToInt32(reader["Quantity"]),
+                                ViewBookName = reader["ViewBookName"]?.ToString() ?? "",
+                                PublisherName = reader["PublisherName"]?.ToString() ?? ""
                             });
                         }
                     }
@@ -212,20 +227,26 @@ namespace Diplom_Bibl.Services
             return months[month - 1];
         }
 
-        // Пропись суммы (до 99 999 999)
-        private static string NumberToWordsRubles(int number)
+        // Новая функция для формирования суммы прописью с копейками
+        private static string NumberToWordsRublesWithKopecks(int rubles, int kopecks)
         {
-            if (number == 0) return "ноль рублей 00 копеек";
-            if (number < 0 || number > 99999999) return $"{number:N0} руб. 00 копеек";
+            string rublesWords = NumberToWords(rubles, true);
+            return $"{rublesWords} {kopecks:D2} копеек";
+        }
+
+        // Универсальная функция для преобразования числа в пропись
+        private static string NumberToWords(int number, bool isRubles)
+        {
+            if (number == 0) return "ноль рублей";
 
             string[] units = { "", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять" };
+            string[] unitsForThousands = { "", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять" };
             string[] teens = { "десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать" };
             string[] tens = { "", "", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто" };
             string[] hundreds = { "", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот" };
 
-            string[] unitsForThousands = { "", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять" };
-
             List<string> parts = new List<string>();
+            int originalNumber = number;
 
             // Миллионы
             if (number >= 1000000)
@@ -245,15 +266,17 @@ namespace Diplom_Bibl.Services
                 parts.Add(GetPluralForm(thousands, "тысяча", "тысячи", "тысяч"));
             }
 
-            // Рубли
+            // Остаток
             if (number > 0)
             {
                 parts.Add(ConvertHundreds(number, units, teens, tens, hundreds));
             }
 
-            // Склонение "рубль"
-            parts.Add(GetPluralForm(number, "рубль", "рубля", "рублей"));
-            parts.Add("00 копеек");
+            // Добавляем слово "рубль" в правильной форме
+            if (isRubles)
+            {
+                parts.Add(GetPluralForm(originalNumber, "рубль", "рубля", "рублей"));
+            }
 
             return string.Join(" ", parts).Trim();
         }
@@ -307,6 +330,8 @@ namespace Diplom_Bibl.Services
             public int PriceKop { get; set; }
             public int Quantity { get; set; }
             public decimal TotalPrice { get; set; }
+            public string ViewBookName { get; set; }
+            public string PublisherName { get; set; }
         }
     }
 }

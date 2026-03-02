@@ -30,19 +30,15 @@ namespace Diplom_Bibl.Pages
             LoadReceipts();
             PrepareNewReceipt();
         }
-
-        // ===========================================================
+       
         // ГЕНЕРАЦИЯ НОМЕРА НАКЛАДНОЙ: ПН-0001, ПН-0002, ...
-        // ===========================================================
-        private string GenerateReceiptNumber(int nextId)
+              private string GenerateReceiptNumber(int nextId)
         {
             return $"ПН-{nextId:D4}"; // D4 = 0001, 0002, ...
         }
 
-        // ===========================================================
-        // ЗАГРУЗКА СПИСКА ПОЛЬЗОВАТЕЛЕЙ ДЛЯ ComboBox
-        // ===========================================================
-        private void LoadResponsibleUsers()
+      // ЗАГРУЗКА СПИСКА ПОЛЬЗОВАТЕЛЕЙ ДЛЯ ComboBox
+       private void LoadResponsibleUsers()
         {
             const string sql = @"
                 SELECT ID_User,
@@ -72,9 +68,7 @@ namespace Diplom_Bibl.Pages
             CbResponsible.ItemsSource = users;
         }
 
-        // ===========================================================
-        // ПОДГОТОВКА ФОРМЫ ДЛЯ НОВОЙ ЗАПИСИ
-        // ===========================================================
+       // ПОДГОТОВКА ФОРМЫ ДЛЯ НОВОЙ ЗАПИСИ
         private void PrepareNewReceipt()
         {
             // Получаем следующий ID (MAX(IDReceipt) + 1)
@@ -108,10 +102,8 @@ namespace Diplom_Bibl.Pages
             BtnSaveChanges.Visibility = Visibility.Collapsed;
             BtnDelete.Visibility = Visibility.Collapsed;
         }
-
-        // ===========================================================
+               
         // ЗАГРУЗКА СПИСКА АКТОВ
-        // ===========================================================
         private void LoadReceipts()
         {
             try
@@ -152,7 +144,6 @@ namespace Diplom_Bibl.Pages
                 MessageBox.Show($"Ошибка загрузки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void ApplyFilter(string term)
         {
             if (_allReceipts == null)
@@ -172,10 +163,7 @@ namespace Diplom_Bibl.Pages
 
             LvReceipts.ItemsSource = new ObservableCollection<dynamic>(filtered);
         }
-
-        // ===========================================================
-        // СОХРАНЕНИЕ НОВОЙ НАКЛАДНОЙ
-        // ===========================================================
+   // СОХРАНЕНИЕ НОВОЙ НАКЛАДНОЙ
         private void BtnSaveNew_Click(object sender, RoutedEventArgs e)
         {
             // Проверка выбора ответственного лица
@@ -219,10 +207,8 @@ namespace Diplom_Bibl.Pages
                 MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // ===========================================================
+               
         // РЕДАКТИРОВАНИЕ
-        // ===========================================================
         private void BtnSaveChanges_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentReceiptId.HasValue)
@@ -275,11 +261,9 @@ namespace Diplom_Bibl.Pages
                 MessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // ===========================================================
+               
         // УДАЛЕНИЕ
-        // ===========================================================
-        private void BtnDelete_Click(object sender, RoutedEventArgs e)
+             private void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentReceiptId.HasValue) return;
 
@@ -319,9 +303,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ===========================================================
-        // ДВОЙНОЙ КЛИК ПО СПИСКУ
-        // ===========================================================
+       // ДВОЙНОЙ КЛИК ПО СПИСКУ
         private void LvReceipts_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             dynamic item = LvReceipts.SelectedItem;
@@ -363,21 +345,26 @@ namespace Diplom_Bibl.Pages
                 }
             }
         }
-
-        // ===========================================================
         // ПОИСК
-        // ===========================================================
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             ApplyFilter(SearchBox.Text.Trim());
         }
 
-        // ===========================================================
-        // ЗАКРЫТИЕ
-        // ===========================================================
         private void ClosePage_Click(object sender, RoutedEventArgs e)
         {
             NavigationService?.GoBack();
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            Pages.AddUser addUser = new Pages.AddUser();
+            this.NavigationService?.Navigate(addUser);
+        }
+
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            LoadResponsibleUsers();
         }
     }
 }

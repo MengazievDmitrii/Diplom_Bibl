@@ -9,8 +9,6 @@
     <Window.Resources>
         <local:IsNullOrEmptyToVisibilityConverter x:Key="IsNullOrEmptyToVisibilityConverter"/>
     </Window.Resources>
-
-  
     <Grid Background="#F5F5F5">
         <Border 
         Width="356"

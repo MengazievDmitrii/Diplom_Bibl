@@ -67,5 +67,11 @@ namespace Diplom_Bibl.Pages
             Pages.AddViewBook addViewBookPage = new Pages.AddViewBook();
             this.NavigationService?.Navigate(addViewBookPage);
         }
+
+        private void AddUser_Click(object sender, RoutedEventArgs e)
+        {
+            Pages.AddUser addUser = new Pages.AddUser();
+            this.NavigationService?.Navigate(addUser);
+        }
     }
 }

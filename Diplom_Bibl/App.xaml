@@ -12,21 +12,21 @@
         <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
         <SolidColorBrush x:Key="LightGray" Color="#E9ECEF"/>
         <SolidColorBrush x:Key="BorderColor" Color="#DEE2E6"/>
-        
+
         <SolidColorBrush x:Key="PrimaryLightColor" Color="#E3F2FD"/>
-       
+
         <SolidColorBrush x:Key="TextColor" Color="#333333"/>
         <SolidColorBrush x:Key="MenuBgColor" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="MenuHoverColor" Color="#F0F8FF"/>
         <SolidColorBrush x:Key="MenuActiveColor" Color="#E3F2FD"/>
-  <!--Кнопки -->
+
+        <!-- Кнопки -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#007BFF"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="12,6"/>
-            <!--<Setter Property="CornerRadius" Value="6"/>-->
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -46,7 +46,8 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        <!--Кнопка сохранения-->
+
+        <!-- Кнопка сохранения -->
         <Style x:Key="SaveButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="160"/>
             <Setter Property="Height" Value="42"/>
@@ -80,18 +81,19 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <!--Кнопка удаления-->
+
+        <!-- Кнопка удаления -->
         <Style x:Key="DeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource SaveButtonStyle}">
             <Setter Property="Background" Value="Red"/>
             <Setter Property="BorderBrush" Value="DarkRed"/>
         </Style>
 
+        <!-- Стиль для TextBox -->
         <Style x:Key="TextBoxStyle" TargetType="TextBox">
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#CCCCCC"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
-            <!--<Setter Property="CornerRadius" Value="4"/>-->
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Height" Value="36"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -105,8 +107,8 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-       
-        <!--Выбор даты-->
+
+        <!-- Выбор даты -->
         <Style x:Key="DatePickerStyle" TargetType="DatePicker">
             <Setter Property="Height" Value="36"/>
             <Setter Property="FontSize" Value="14"/>
@@ -116,7 +118,8 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,0"/>
         </Style>
-<!--Поля ввода-->
+
+        <!-- Поля ввода -->
         <Style x:Key="InputFieldStyle" TargetType="TextBox">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="10,0"/>
@@ -149,6 +152,8 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Стиль для ComboBox -->
         <Style x:Key="InputFieldStyleCb" TargetType="ComboBox">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="10,0"/>
@@ -157,7 +162,6 @@
             <Setter Property="Background" Value="White"/>
             <Setter Property="BorderBrush" Value="#CCCCCC"/>
             <Setter Property="BorderThickness" Value="1"/>
-            
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="BorderBrush" Value="#007BFF"/>
@@ -168,16 +172,80 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-        
-   <!--Текст-->     
-        <!--Заголовок-->
+
+        <!-- ========== НОВЫЕ СТИЛИ ДЛЯ СПИСКОВ ========== -->
+
+        <!-- Базовый стиль для ListBox -->
+        <Style x:Key="ModernListBoxStyle" TargetType="ListBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer Padding="{TemplateBinding Padding}" 
+                                          Focusable="false">
+                                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для элемента списка -->
+        <Style x:Key="ModernListBoxItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="2,2,2,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource MenuHoverColor}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Текст -->
+        <!-- Заголовок -->
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="#0056B3"/>
             <Setter Property="Margin" Value="0,0,0,24"/>
         </Style>
-        <!--Подписи к полям ввода-->
+
+        <!-- Подписи к полям ввода -->
         <Style x:Key="LabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -191,7 +259,13 @@
             <Setter Property="Foreground" Value="#0056B3"/>
             <Setter Property="Margin" Value="0,0,0,24"/>
         </Style>
+        <!-- Стиль для ячеек DataGrid -->
+        <Style x:Key="DataGridCellStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="8,0"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
         <DropShadowEffect x:Key="DropShadowEffect" BlurRadius="10" ShadowDepth="3" Opacity="0.3" Direction="270"/>
     </Application.Resources>
-
 </Application>

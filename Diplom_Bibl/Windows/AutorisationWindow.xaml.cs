@@ -84,7 +84,6 @@ namespace Diplom_Bibl.Windows
                 return;
             }
 
-            string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
 
             try
             {
@@ -92,7 +91,7 @@ namespace Diplom_Bibl.Windows
                 int userId = -1;
                 string fullName = "";
 
-                using (var conn = new SqlConnection(connectionString))
+                using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
                     using (var cmd = new SqlCommand(@"
@@ -123,7 +122,7 @@ namespace Diplom_Bibl.Windows
 
                 // === Шаг 2: Загрузка ролей (в отдельном соединении!) ===
                 var roles = new List<string>();
-                using (var conn2 = new SqlConnection(connectionString))
+                using (var conn2 = new SqlConnection(_connectionString))
                 {
                     conn2.Open();
                     using (var cmd2 = new SqlCommand(@"

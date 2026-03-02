@@ -22,7 +22,6 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddGroup : Page
     {
-        DiplomBiblEntities db = new DiplomBiblEntities();
         private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
         private int? _currentGroupId = null; // Переменная для хранения ID текущей загруженной записи
         private System.Collections.ObjectModel.ObservableCollection<object> _allGroups;
@@ -245,11 +244,26 @@ namespace Diplom_Bibl.Pages
             }
 
             // Проверка уникальности (исключая текущую группу)
-            var existing = db.Groups
-                .FirstOrDefault(g => g.GroupCode == groupCode && g.GroupID != _currentGroupId.Value);
-            if (existing != null)
+            bool groupExists = false;
+            string checkQuery = "SELECT COUNT(*) FROM Groups WHERE GroupCode = @GroupCode AND GroupID != @GroupId";
+
+            using (var connection = new SqlConnection(connectionString))
             {
-                MessageBox.Show($"Группа с кодом '{groupCode}' уже существует.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                connection.Open();
+                using (var command = new SqlCommand(checkQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@GroupCode", groupCode);
+                    command.Parameters.AddWithValue("@GroupId", _currentGroupId.HasValue ? _currentGroupId.Value : 0);
+
+                    int count = (int)command.ExecuteScalar();
+                    groupExists = count > 0;
+                }
+            }
+
+            if (groupExists)
+            {
+                MessageBox.Show("Группа с таким кодом уже существует.", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -294,9 +308,9 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ===========================================================
+       
         // 5. УДАЛЕНИЕ ГРУППЫ
-        // ===========================================================
+       
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
 
@@ -350,9 +364,9 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ===========================================================
+       
         // 6. ЗАГРУЗКА ГРУППЫ ПО ДВОЙНОМУ КЛИКУ (предполагается, что у вас есть LvGroups)
-        // ===========================================================
+       
         // ⚠️ У вас сейчас LvSpecialities_MouseDoubleClick — но редактируем мы ГРУППЫ!
         // Если вы хотите редактировать ГРУППУ по двойному клику — переименуйте обработчик и привяжите к LvGroups.
         private void LvGroups_MouseDoubleClick(object sender, MouseButtonEventArgs e)

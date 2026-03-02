@@ -16,7 +16,7 @@ namespace Diplom_Bibl.Pages
     public partial class ReportsPage : Page
     {
         // --- Поля ---
-        private string connectionString = "Server=(localdb)\\MSSQLLocalDB;Database=DiplomBibl; Integrated Security=true;"; // ЗАМЕНИТЬ!
+        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;"; // ЗАМЕНИТЬ!
 
         public ReportsPage()
         {
@@ -308,14 +308,5 @@ namespace Diplom_Bibl.Pages
             }
             return null; // Не найден
         }
-
-        // Убираем ненужный обработчик
-        // private void Button_Click(object sender, RoutedEventArgs e)
-        // {
-        //     ReportViewWindow reportWindow = new ReportViewWindow(); // ОШИБКА: нет аргументов
-        //
-        //     // 2. Показываем новое окно
-        //     reportWindow.Show(); // ОШИБКА: нет аргументов
-        // }
     }
 }

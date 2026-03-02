@@ -1,19 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Diplom_Bibl.Pages
 {
@@ -22,22 +15,101 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddSpeciality : Page
     {
-        DiplomBiblEntities db = new DiplomBiblEntities();
-        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
-        private int? _currentSpecialityId = null; // Переменная для хранения ID текущей загруженной записи
-        private System.Collections.ObjectModel.ObservableCollection<object> _allSpecialities;
+        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;";
+        private int? _currentSpecialityId = null;
+        private ObservableCollection<SpecialityItem> _allSpecialities;
+
+        // Флаг для отслеживания состояния плейсхолдера
+        private bool _isPlaceholderActive = true;
+
+        // Класс для представления специальности
+        public class SpecialityItem
+        {
+            public int SpecialityID { get; set; }
+            public string SpecialityCode { get; set; }
+            public string NameSpeciality { get; set; }
+
+            // Для удобства отображения в ListBox можно добавить свойство Display
+            public string DisplayText => $"{SpecialityCode} - {NameSpeciality}";
+        }
+
         public AddSpeciality()
         {
             InitializeComponent();
+
+            // Устанавливаем плейсхолдер для поиска
+            SetSearchPlaceholder();
+
+            // Подписываемся на событие PreviewTextInput для очистки плейсхолдера при вводе
+            SearchBox.PreviewTextInput += SearchBox_PreviewTextInput;
+            SearchBox.PreviewKeyDown += SearchBox_PreviewKeyDown;
         }
+
+        private void SetSearchPlaceholder()
+        {
+            SearchBox.Text = "Поиск по коду или названию специальности...";
+            SearchBox.Foreground = Brushes.Gray;
+            _isPlaceholderActive = true;
+        }
+
+        private void ClearPlaceholder()
+        {
+            if (_isPlaceholderActive)
+            {
+                SearchBox.Text = "";
+                SearchBox.Foreground = Brushes.Black;
+                _isPlaceholderActive = false;
+            }
+        }
+
+        private void SearchBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            // Очищаем плейсхолдер при начале ввода
+            ClearPlaceholder();
+        }
+
+        private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Очищаем плейсхолдер при нажатии любой клавиши (кроме управляющих)
+            if (_isPlaceholderActive)
+            {
+                // Исключаем управляющие клавиши
+                if (e.Key != Key.Tab &&
+                    e.Key != Key.Enter &&
+                    e.Key != Key.Escape &&
+                    e.Key != Key.LeftShift &&
+                    e.Key != Key.RightShift &&
+                    e.Key != Key.LeftCtrl &&
+                    e.Key != Key.RightCtrl &&
+                    e.Key != Key.LeftAlt &&
+                    e.Key != Key.RightAlt &&
+                    e.Key != Key.CapsLock &&
+                    e.Key != Key.NumLock &&
+                    e.Key != Key.Scroll &&
+                    e.Key != Key.Home &&
+                    e.Key != Key.End &&
+                    e.Key != Key.Insert &&
+                    e.Key != Key.Delete &&
+                    e.Key != Key.Left &&
+                    e.Key != Key.Right &&
+                    e.Key != Key.Up &&
+                    e.Key != Key.Down &&
+                    e.Key != Key.PageUp &&
+                    e.Key != Key.PageDown)
+                {
+                    ClearPlaceholder();
+                }
+            }
+        }
+
         private void LoadSpecialities()
         {
             try
             {
                 const string query = @"
-            SELECT SpecialityID, SpecialityCode, NameSpeciality 
-            FROM Speciality 
-            ORDER BY SpecialityCode";
+                    SELECT SpecialityID, SpecialityCode, NameSpeciality 
+                    FROM Speciality 
+                    ORDER BY SpecialityCode";
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -45,31 +117,29 @@ namespace Diplom_Bibl.Pages
                     using (var command = new SqlCommand(query, connection))
                     using (var reader = command.ExecuteReader())
                     {
-                        var items = new System.Collections.ObjectModel.ObservableCollection<object>();
+                        var items = new ObservableCollection<SpecialityItem>();
 
                         while (reader.Read())
                         {
-                            items.Add(new
+                            items.Add(new SpecialityItem
                             {
-                                SpecialityID = reader["SpecialityID"] is int id ? id : 0,
+                                SpecialityID = reader["SpecialityID"] != DBNull.Value ? Convert.ToInt32(reader["SpecialityID"]) : 0,
                                 SpecialityCode = reader["SpecialityCode"]?.ToString() ?? "",
                                 NameSpeciality = reader["NameSpeciality"]?.ToString() ?? ""
                             });
                         }
 
-                        // 🔹 СОХРАНЯЕМ ПОЛНЫЙ СПИСОК — это важно!
                         _allSpecialities = items;
-
-                        // 🔹 Применяем фильтр (сначала — пустой, т.е. показываем все)
                         ApplySpecialityFilter("");
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка загрузки специальностей: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void ApplySpecialityFilter(string searchTerm)
         {
             if (_allSpecialities == null)
@@ -78,50 +148,51 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            var filtered = _allSpecialities
-                .Where(item =>
-                {
-                    // Получаем свойства анонимного объекта
-                    var code = item.GetType().GetProperty("SpecialityCode")?.GetValue(item)?.ToString() ?? "";
-                    var name = item.GetType().GetProperty("NameSpeciality")?.GetValue(item)?.ToString() ?? "";
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                // Если поисковый запрос пуст, показываем все
+                LvSpecialities.ItemsSource = _allSpecialities;
+                LvSpecialities.DisplayMemberPath = "DisplayText";
+            }
+            else
+            {
+                // Фильтруем по коду специальности ИЛИ по названию специальности
+                var filtered = _allSpecialities
+                    .Where(item =>
+                        (item.SpecialityCode?.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        (item.NameSpeciality?.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0))
+                    .ToList();
 
-                    // Ищем в коде ИЛИ названии (по желанию — можно только по коду)
-                    return string.IsNullOrEmpty(searchTerm)
-                        || code.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0
-                        || name.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0;
-                })
-                .ToList();
-
-            // 🔹 ВАЖНО: присваиваем НОВУЮ коллекцию!
-            LvSpecialities.ItemsSource = new System.Collections.ObjectModel.ObservableCollection<object>(filtered);
+                LvSpecialities.ItemsSource = new ObservableCollection<SpecialityItem>(filtered);
+                LvSpecialities.DisplayMemberPath = "DisplayText";
+            }
         }
+
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             LoadSpecialities();
         }
+
         private void ClearInputFields()
         {
-            // DatePicker.SelectedDate оставляем как есть
             CodeSpeciality.Clear();
             NameSpeciality.Clear();
-            SpecialityIDLabel.Content = ""; // или Visibility = Collapsed, если нужно скрыть
+            SpecialityIDLabel.Content = "";
+            _currentSpecialityId = null;
         }
 
         private void SaveNewRecordButton_Click(object sender, RoutedEventArgs e)
         {
-
-            // Проверка ввода (аналогично вашему SaveButton_Click)
-            string codespeciality = CodeSpeciality.Text?.Trim(); // Trim() — на случай пробелов
+            // Проверка ввода
+            string codespeciality = CodeSpeciality.Text?.Trim();
             string namespeciality = NameSpeciality.Text?.Trim();
 
             if (string.IsNullOrEmpty(codespeciality) || string.IsNullOrEmpty(namespeciality))
             {
-                MessageBox.Show("Пожалуйста, введите корректные значения.",
+                MessageBox.Show("Пожалуйста, введите код и название специальности.",
                                 "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-         
 
             string query = @"
                 INSERT INTO Speciality (SpecialityCode, NameSpeciality)
@@ -132,25 +203,25 @@ namespace Diplom_Bibl.Pages
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        // Добавляем параметры, чтобы избежать SQL-инъекций
-                        command.Parameters.AddWithValue("@SpecialityCodeV", codespeciality); // date уже в формате "ГГГГ-ММ-ДД"
+                        command.Parameters.AddWithValue("@SpecialityCodeV", codespeciality);
                         command.Parameters.AddWithValue("@NameSpecialityV", namespeciality);
-                        
 
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            MessageBox.Show($"Специальность {codespeciality +" " + namespeciality } успешно сохранены в базу данных:\n",
+                            MessageBox.Show($"Специальность '{codespeciality} {namespeciality}' успешно сохранена.",
                                             "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                            // После сохранения новой записи, можно перезагрузить её, чтобы ID появился
-                            // или просто сбросить currentRecordId, если не планируете сразу редактировать
-                            _currentSpecialityId = null; // Сбрасываем, так как это новая запись, ID которой мы не знаем
-                            // Или вызвать LoadFirstRecordForDate(DateTime.Parse(date)) для получения ID, если это важно
+
+                            ClearInputFields();
                             LoadSpecialities();
+
+                            // Переключаем кнопки
+                            SaveNewRecordButton.Visibility = Visibility.Visible;
+                            SaveChangesButton.Visibility = Visibility.Collapsed;
+                            DeleteButton.Visibility = Visibility.Collapsed;
                         }
                         else
                         {
@@ -162,42 +233,43 @@ namespace Diplom_Bibl.Pages
             }
             catch (SqlException sqlEx)
             {
-                // Обработка ошибок SQL Server (например, нарушение ограничений, проблемы с подключением)
-                MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (sqlEx.Number == 2627) // Нарушение уникальности
+                {
+                    MessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
+                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
-                // Обработка любых других ошибок
                 MessageBox.Show($"Произошла ошибка: {ex.Message}",
                                 "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // --- Обработчик сохранения изменений существующей записи ---
         private void SaveChangesButton_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentSpecialityId.HasValue)
             {
-                MessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-           
-            // Проверка ввода ()
-            string codespeciality = CodeSpeciality.Text?.Trim(); // Trim() — на случай пробелов
+            string codespeciality = CodeSpeciality.Text?.Trim();
             string namespeciality = NameSpeciality.Text?.Trim();
 
             if (string.IsNullOrEmpty(codespeciality) || string.IsNullOrEmpty(namespeciality))
             {
-                MessageBox.Show("Пожалуйста, введите корректные значения.",
+                MessageBox.Show("Пожалуйста, введите код и название специальности.",
                                 "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-          
-            // Обновляем также date_record, если пользователь может изменить дату
-            // Если дата не должна изменяться, уберите date_record из UPDATE
             string updateQuery = @"
                 UPDATE Speciality 
                 SET SpecialityCode = @SpecialityCode, NameSpeciality = @NameSpeciality
@@ -212,54 +284,63 @@ namespace Diplom_Bibl.Pages
                     {
                         command.Parameters.AddWithValue("@SpecialityCode", codespeciality);
                         command.Parameters.AddWithValue("@NameSpeciality", namespeciality);
-                        
-                        command.Parameters.AddWithValue("@Id", _currentSpecialityId.Value); // Используем ID текущей записи
+                        command.Parameters.AddWithValue("@Id", _currentSpecialityId.Value);
 
                         int rowsAffected = command.ExecuteNonQuery();
 
                         if (rowsAffected > 0)
                         {
-                            MessageBox.Show("Запись успешно обновлена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                            // После обновления можно перезагрузить запись, чтобы убедиться, что отображаются актуальные данные
-                            // LoadFirstRecordForDate(DateTime.Parse(date));
+                            MessageBox.Show("Запись успешно обновлена.", "Успешно",
+                                          MessageBoxButton.OK, MessageBoxImage.Information);
+
                             LoadSpecialities();
-                        }
-                        else
-                        {
-                            MessageBox.Show("Запись не была обновлена. Возможно, она была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            ClearInputFields();
-                            _currentSpecialityId = null;
-                            // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
+
+                            // Переключаем кнопки обратно на режим добавления
                             SaveNewRecordButton.Visibility = Visibility.Visible;
                             SaveChangesButton.Visibility = Visibility.Collapsed;
                             DeleteButton.Visibility = Visibility.Collapsed;
+
+                            ClearInputFields();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Запись не была обновлена. Возможно, она была удалена.",
+                                          "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            ClearInputFields();
                         }
                     }
                 }
             }
             catch (SqlException sqlEx)
             {
-                MessageBox.Show($"Ошибка базы данных при сохранении: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (sqlEx.Number == 2627) // Нарушение уникальности
+                {
+                    MessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
+                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Произошла ошибка при сохранении: {ex.Message}",
+                MessageBox.Show($"Произошла ошибка: {ex.Message}",
                                 "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // --- Обработчик удаления записи ---
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentSpecialityId.HasValue)
             {
-                MessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.",
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // Подтверждение удаления
-            var result = MessageBox.Show("Вы уверены, что хотите удалить выбранную запись?",
+            var result = MessageBox.Show("Вы уверены, что хотите удалить выбранную специальность?",
                                          "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
@@ -279,86 +360,117 @@ namespace Diplom_Bibl.Pages
 
                             if (rowsAffected > 0)
                             {
-                                MessageBox.Show("Запись успешно удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                                ClearInputFields(); // Очищаем поля после удаления
-                                _currentSpecialityId = null;
+                                MessageBox.Show("Запись успешно удалена.", "Успешно",
+                                              MessageBoxButton.OK, MessageBoxImage.Information);
+
+                                ClearInputFields();
                                 LoadSpecialities();
-                                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
+
                                 SaveNewRecordButton.Visibility = Visibility.Visible;
                                 SaveChangesButton.Visibility = Visibility.Collapsed;
                                 DeleteButton.Visibility = Visibility.Collapsed;
                             }
                             else
                             {
-                                MessageBox.Show("Запись не была удалена. Возможно, она уже была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                MessageBox.Show("Запись не была удалена. Возможно, она уже удалена.",
+                                              "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
                     }
                 }
                 catch (SqlException sqlEx)
                 {
-                    MessageBox.Show($"Ошибка базы данных при удалении: {sqlEx.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    if (sqlEx.Number == 547) // Нарушение внешнего ключа
+                    {
+                        MessageBox.Show("Невозможно удалить специальность, так как на неё ссылаются другие записи.",
+                                      "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                      "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Произошла ошибка при удалении: {ex.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Произошла ошибка: {ex.Message}",
+                                  "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
-            // Если пользователь нажал "Нет", ничего не делаем.
         }
 
         private void ClosePage_Click(object sender, RoutedEventArgs e)
         {
-            this.NavigationService.GoBack();
+            this.NavigationService?.GoBack();
         }
-
 
         private void LvSpecialities_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            var item = LvSpecialities.SelectedItem;
-            if (item == null) return;
-
-            try
+            if (LvSpecialities.SelectedItem is SpecialityItem selectedSpeciality)
             {
-                dynamic spec = item;
-                int specId = spec.SpecialityID;
-                string code = spec.SpecialityCode;
-                string name = spec.NameSpeciality;
+                try
+                {
+                    CodeSpeciality.Text = selectedSpeciality.SpecialityCode;
+                    NameSpeciality.Text = selectedSpeciality.NameSpeciality;
+                    _currentSpecialityId = selectedSpeciality.SpecialityID;
 
-                // Например, открываем диалог редактирования специальности
-                // Или просто заполняем поля на странице:
-                CodeSpeciality.Text = code;
-                NameSpeciality.Text = name;
-
-                _currentSpecialityId = specId; // ← если у вас есть такая переменная
-
-                //Переключаем кнопки(если нужно)
-                SaveNewRecordButton.Visibility = Visibility.Collapsed;
-                SaveChangesButton.Visibility = Visibility.Visible;
-                DeleteButton.Visibility = Visibility.Visible;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки специальности: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // Переключаем кнопки
+                    SaveNewRecordButton.Visibility = Visibility.Collapsed;
+                    SaveChangesButton.Visibility = Visibility.Visible;
+                    DeleteButton.Visibility = Visibility.Visible;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка загрузки специальности: {ex.Message}",
+                                  "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
+
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            string term = SearchBox.Text.Trim();
-            // Если используете placeholder:
-            if (term == "Поиск по коду..." || term == "") term = "";
+            // Если активен плейсхолдер, не выполняем поиск
+            if (_isPlaceholderActive)
+            {
+                return;
+            }
 
-            ApplySpecialityFilter(term); // ← или ApplyGroupFilter(term)
+            string searchText = SearchBox.Text;
+            ApplySpecialityFilter(searchText);
+        }
+
+        private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            // Очищаем плейсхолдер при получении фокуса
+            ClearPlaceholder();
+        }
+
+        private void SearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Если поле пустое при потере фокуса, возвращаем плейсхолдер
+            if (string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                SetSearchPlaceholder();
+
+                // При возврате плейсхолдера показываем все записи
+                ApplySpecialityFilter("");
+            }
+            else
+            {
+                // Если в поле есть текст, но плейсхолдер не активен, оставляем как есть
+                // Ничего не делаем
+            }
         }
 
         private void SearchBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
-                SearchBox.Text = "";
-                SearchBox.Foreground = Brushes.Gray;
+                // При нажатии Escape очищаем поиск и возвращаем плейсхолдер
+                SetSearchPlaceholder();
+                ApplySpecialityFilter("");
+                LvSpecialities.Focus();
+                e.Handled = true; // Предотвращаем дальнейшую обработку
             }
         }
     }

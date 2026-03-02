@@ -1,13 +1,19 @@
-﻿using DocumentFormat.OpenXml.VariantTypes;
-using Org.BouncyCastle.Asn1.X509;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
 namespace Diplom_Bibl.Pages
 {
+    // Класс для причины списания
+    public class ReasonDisposalBook
+    {
+        public int ID_Reason { get; set; }
+        public string ReasonName { get; set; }
+    }
+
     public partial class DisposalAct : Page
     {
         private readonly string _conn = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
@@ -22,7 +28,7 @@ namespace Diplom_Bibl.Pages
             LoadReasons();
             DpDate.SelectedDate = DateTime.Today;
 
-            // Генерируем следующий номер акта (СП-0001, СП-0002...)
+            // Генерируем следующий номер акта
             string nextNumber = GetNextDisposalNumber();
             TbActNumber.Text = nextNumber;
         }
@@ -31,7 +37,7 @@ namespace Diplom_Bibl.Pages
         {
             public int RowNum { get; set; }
             public string InventoryNumber { get; set; }
-            public string Author { get; set; }        // ← ДОБАВЛЕНО
+            public string Author { get; set; }
             public string Title { get; set; }
             public string PublishingHouse { get; set; }
             public int Year { get; set; }
@@ -42,39 +48,66 @@ namespace Diplom_Bibl.Pages
             public string PlaceYear => $"{PublishingHouse}, {Year}";
         }
 
-        private string GenerateDisposalNumber(int nextId)
-        {
-            return $"СП-{nextId:D4}"; // СП = Списание, D4 → 0001, 0002, ...
-        }
         private void LoadReasons()
         {
-            const string sql = "SELECT ID_Reason, ReasonName FROM  ReasonDisposalBook ORDER BY ReasonName";
-
-            var reasons = new ObservableCollection<ReasonDisposalBook>();
-
-            using (var conn = new SqlConnection(_conn))
+            try
             {
-                conn.Open();
-                using (var cmd = new SqlCommand(sql, conn))
-                using (var reader = cmd.ExecuteReader())
+                const string sql = "SELECT ID_Reason, ReasonName FROM ReasonDisposalBook ORDER BY ReasonName";
+                var reasons = new ObservableCollection<ReasonDisposalBook>();
+
+                using (var conn = new SqlConnection(_conn))
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        reasons.Add(new ReasonDisposalBook
+                        while (reader.Read())
                         {
-                            ID_Reason = Convert.ToInt32(reader["ID_Reason"]),
-                            ReasonName = reader["ReasonName"].ToString()
-                        });
+                            reasons.Add(new ReasonDisposalBook
+                            {
+                                ID_Reason = Convert.ToInt32(reader["ID_Reason"]),
+                                ReasonName = reader["ReasonName"].ToString()
+                            });
+                        }
                     }
                 }
-            }
 
-            CbReason.ItemsSource = reasons;
+                CbReason.ItemsSource = reasons;
+                CbReason.DisplayMemberPath = "ReasonName";
+                CbReason.SelectedValuePath = "ID_Reason";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки причин: {ex.Message}");
+            }
         }
+
         private void BtnFindBook_Click(object sender, RoutedEventArgs e)
         {
             string inv = TbSearchInv.Text.Trim();
-            if (string.IsNullOrEmpty(inv)) return;
+
+            if (string.IsNullOrEmpty(inv))
+            {
+                MessageBox.Show("Введите инвентарный номер книги!");
+                return;
+            }
+
+            // Проверка дубликатов в текущем акте
+            if (_items.Any(item => item.InventoryNumber == inv))
+            {
+                MessageBox.Show($"Книга {inv} уже добавлена в акт.");
+                TbSearchInv.Clear();
+                return;
+            }
+
+            // Проверка статуса книги
+            var bookCheckResult = CheckBookStatus(inv);
+            if (!bookCheckResult.CanBeDisposed)
+            {
+                MessageBox.Show(bookCheckResult.Message);
+                TbSearchInv.Clear();
+                return;
+            }
 
             var book = LoadBookByInventory(inv);
             if (book != null)
@@ -86,10 +119,60 @@ namespace Diplom_Bibl.Pages
                 PnBookDetails.Visibility = Visibility.Visible;
                 TbSearchInv.IsEnabled = false;
             }
-            else
+        }
+
+        private class BookStatusCheckResult
+        {
+            public bool CanBeDisposed { get; set; }
+            public string Message { get; set; }
+        }
+
+        private BookStatusCheckResult CheckBookStatus(string inventoryNumber)
+        {
+            const string sql = @"
+                SELECT 
+                    b.ID_Disposal,
+                    s.Title_Status AS StatusName
+                FROM Books b
+                LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
+                WHERE b.InventaryNumber = @Inv";
+
+            using (var conn = new SqlConnection(_conn))
             {
-                MessageBox.Show("Книга не найдена.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Inv", inventoryNumber);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // Проверяем ID_Disposal
+                            if (reader["ID_Disposal"] != DBNull.Value)
+                            {
+                                return new BookStatusCheckResult
+                                {
+                                    CanBeDisposed = false,
+                                    Message = $"Книга {inventoryNumber} уже списана."
+                                };
+                            }
+
+                            string statusName = reader["StatusName"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(statusName) && statusName.ToLower().Contains("списана"))
+                            {
+                                return new BookStatusCheckResult
+                                {
+                                    CanBeDisposed = false,
+                                    Message = $"Книга имеет статус '{statusName}'."
+                                };
+                            }
+
+                            return new BookStatusCheckResult { CanBeDisposed = true };
+                        }
+                    }
+                }
             }
+            return new BookStatusCheckResult { CanBeDisposed = false, Message = "Книга не найдена" };
         }
 
         private BookItem LoadBookByInventory(string inv)
@@ -101,8 +184,8 @@ namespace Diplom_Bibl.Pages
                     ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS Author,
                     ISNULL(p.TitlePublishingHouse, '') AS Pub,
                     b.YearPublishing AS Year,
-                    CAST(b.Price AS int) AS PriceRub,
-                    CAST((b.Price - FLOOR(b.Price)) * 100 AS int) AS PriceKop
+                    CAST(FLOOR(ISNULL(b.Price, 0)) AS int) AS PriceRub,
+                    CAST((ISNULL(b.Price, 0) - FLOOR(ISNULL(b.Price, 0))) * 100 AS int) AS PriceKop
                 FROM Books b
                 LEFT JOIN Authors a ON b.Author = a.ID_Autor
                 LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
@@ -137,33 +220,35 @@ namespace Diplom_Bibl.Pages
 
         private void BtnAddToAct_Click(object sender, RoutedEventArgs e)
         {
-            var item = new BookItem
+            try
             {
-                RowNum = _nextRowNum++,
-                InventoryNumber = LbInventory.Text,
-                Title = LbTitle.Text.Split('—')[1].Trim(),
-                PublishingHouse = LbPubYear.Text.Split(',')[0].Trim(),
-                Year = int.Parse(LbPubYear.Text.Split(',')[1].Trim()),
-                PriceRub = int.Parse(LbPrice.Text.Split('.')[0]),
-                PriceKop = int.Parse(LbPrice.Text.Split('.')[1].Substring(0, 2)),
-                Quantity = 1
-            };
+                var item = new BookItem
+                {
+                    RowNum = _nextRowNum++,
+                    InventoryNumber = LbInventory.Text,
+                    Title = LbTitle.Text.Split('—')[1].Trim(),
+                    PublishingHouse = LbPubYear.Text.Split(',')[0].Trim(),
+                    Year = int.Parse(LbPubYear.Text.Split(',')[1].Trim()),
+                    PriceRub = int.Parse(LbPrice.Text.Split('.')[0]),
+                    PriceKop = int.Parse(LbPrice.Text.Split('.')[1].Substring(0, 2)),
+                    Quantity = 1
+                };
 
-            _items.Add(item);
-            DgItems.Visibility = Visibility.Visible;
-            PnBookDetails.Visibility = Visibility.Collapsed;
-            TbSearchInv.Clear();
-            TbSearchInv.IsEnabled = true;
-            UpdateTotal();
+                _items.Add(item);
+                UpdateTotal();
+                PnBookDetails.Visibility = Visibility.Collapsed;
+                TbSearchInv.IsEnabled = true;
+                TbSearchInv.Clear();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}");
+            }
         }
 
         private void UpdateTotal()
         {
-            decimal total = 0;
-            foreach (var i in _items)
-            {
-                total += i.TotalPrice;
-            }
+            decimal total = _items.Sum(i => i.TotalPrice);
             TbTotal.Text = total.ToString("N2");
         }
 
@@ -171,122 +256,128 @@ namespace Diplom_Bibl.Pages
         {
             if (_items.Count == 0)
             {
-                MessageBox.Show("Добавьте хотя бы одну книгу.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Добавьте книги в акт.");
                 return;
             }
 
-            string actNumber = TbActNumber.Text?.Trim();
-            string participants = TbParticipants.Text?.Trim();
-            if (CbReason.SelectedItem == null || !(CbReason.SelectedItem is ReasonDisposalBook))
+            if (CbReason.SelectedItem == null)
             {
-                MessageBox.Show("Выберите основание списания.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Выберите причину списания.");
                 return;
             }
 
             var selectedReason = (ReasonDisposalBook)CbReason.SelectedItem;
-            string reason = selectedReason.ReasonName;
-            int reasonId = selectedReason.ID_Reason; // если нужно сохранить ID в БД
+            string actNumber = TbActNumber.Text.Trim();
+            string participants = TbParticipants.Text.Trim();
 
-            if (string.IsNullOrEmpty(actNumber) || string.IsNullOrEmpty(participants) || string.IsNullOrEmpty(reason))
+            if (string.IsNullOrEmpty(actNumber) || string.IsNullOrEmpty(participants))
             {
-                MessageBox.Show("Заполните номер акта, участников и основание.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Заполните все поля.");
                 return;
             }
 
             try
             {
-                int writeOffId;
                 using (var conn = new SqlConnection(_conn))
                 {
                     conn.Open();
-                    using (var cmd = new SqlCommand(@"
-                INSERT INTO DisposalBooks (DisposalNumber, DisposalDate, Participants, Reason)
-                VALUES (@Number, @Date, @Participants, @Reason);
-                SELECT SCOPE_IDENTITY();", conn))
+                    using (var transaction = conn.BeginTransaction())
                     {
-                        cmd.Parameters.AddWithValue("@Number", actNumber);
-                        cmd.Parameters.AddWithValue("@Date", DpDate.SelectedDate ?? DateTime.Today);
-                        cmd.Parameters.AddWithValue("@Participants", participants);
-                        cmd.Parameters.AddWithValue("@Reason", reasonId);
-                        writeOffId = Convert.ToInt32(cmd.ExecuteScalar());
-                    }
-
-                    foreach (var item in _items)
-                    {
-                        using (var cmd2 = new SqlCommand(@"
-                    INSERT INTO DisposalItems (IDDisposal, InventoryNumber, TitleBook, PriceRub, PriceKop, Quantity, TotalPrice)
-                    VALUES (@ID_Disposal, @Inv, @Title, @Rub, @Kop, @Qty, @Total);", conn))
+                        try
                         {
-                            cmd2.Parameters.AddWithValue("@ID_Disposal", writeOffId);
-                            cmd2.Parameters.AddWithValue("@Inv", item.InventoryNumber);
-                            cmd2.Parameters.AddWithValue("@Title", item.Title);
-                            cmd2.Parameters.AddWithValue("@Rub", item.PriceRub);
-                            cmd2.Parameters.AddWithValue("@Kop", item.PriceKop);
-                            cmd2.Parameters.AddWithValue("@Qty", item.Quantity);
-                            cmd2.Parameters.AddWithValue("@Total", item.TotalPrice);
-                            cmd2.ExecuteNonQuery();
-                        }
+                            // 1. Создаем акт списания
+                            int writeOffId;
+                            using (var cmd = new SqlCommand(@"
+                                INSERT INTO DisposalBooks (DisposalNumber, DisposalDate, Participants, Reason)
+                                VALUES (@Number, @Date, @Participants, @Reason);
+                                SELECT SCOPE_IDENTITY();", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@Number", actNumber);
+                                cmd.Parameters.AddWithValue("@Date", DpDate.SelectedDate ?? DateTime.Today);
+                                cmd.Parameters.AddWithValue("@Participants", participants);
+                                cmd.Parameters.AddWithValue("@Reason", selectedReason.ID_Reason);
 
-                        using (var cmd3 = new SqlCommand(@"
-                    UPDATE Books SET ID_Disposal = @ID_Disposal WHERE InventaryNumber = @Inv;", conn))
+                                writeOffId = Convert.ToInt32(cmd.ExecuteScalar());
+                                _currentWriteOffId = writeOffId;
+                            }
+
+                            // 2. Получаем ID статуса "Списана"
+                            int disposedStatusId = GetDisposedStatusId(conn, transaction);
+
+                            // 3. Добавляем книги в DisposalItems и обновляем Books
+                            foreach (var item in _items)
+                            {
+                                using (var cmd = new SqlCommand(@"
+                                    INSERT INTO DisposalItems (IDDisposal, InventoryNumber, TitleBook, PriceRub, PriceKop, Quantity, TotalPrice)
+                                    VALUES (@ID, @Inv, @Title, @Rub, @Kop, @Qty, @Total);
+                                    
+                                    UPDATE Books 
+                                    SET ID_Disposal = @ID, StatusBook = @StatusId
+                                    WHERE InventaryNumber = @Inv;", conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@ID", writeOffId);
+                                    cmd.Parameters.AddWithValue("@Inv", item.InventoryNumber);
+                                    cmd.Parameters.AddWithValue("@Title", item.Title);
+                                    cmd.Parameters.AddWithValue("@Rub", item.PriceRub);
+                                    cmd.Parameters.AddWithValue("@Kop", item.PriceKop);
+                                    cmd.Parameters.AddWithValue("@Qty", item.Quantity);
+                                    cmd.Parameters.AddWithValue("@Total", item.TotalPrice);
+                                    cmd.Parameters.AddWithValue("@StatusId", disposedStatusId);
+
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            MessageBox.Show("Акт списания создан!");
+                            ClearForm();
+                        }
+                        catch
                         {
-                            cmd3.Parameters.AddWithValue("@ID_Disposal", writeOffId);
-                            cmd3.Parameters.AddWithValue("@Inv", item.InventoryNumber);
-                            cmd3.ExecuteNonQuery();
+                            transaction.Rollback();
+                            throw;
                         }
                     }
                 }
-
-                // === ГЕНЕРАЦИЯ PDF ===
-                try
-                {
-                    byte[] pdfBytes = Diplom_Bibl.Services.DisposalActPdfService.GenerateDisposalActPdf(writeOffId);
-
-                    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                    string fileName = $"Акт_списания_{actNumber}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
-                    string fullPath = System.IO.Path.Combine(desktop, fileName);
-
-                    System.IO.File.WriteAllBytes(fullPath, pdfBytes);
-
-                    MessageBox.Show($"Акт списания '{actNumber}' успешно создан.\nPDF сохранён:\n{fullPath}",
-                                    "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception pdfEx)
-                {
-                    MessageBox.Show($"Акт создан, но PDF не сгенерирован:\n{pdfEx.Message}",
-                                    "Частичный успех", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
-
-                ClearForm();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании акта:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка: {ex.Message}");
+            }
+        }
+
+        private int GetDisposedStatusId(SqlConnection conn, SqlTransaction transaction)
+        {
+            using (var cmd = new SqlCommand(
+                "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Списана%'",
+                conn, transaction))
+            {
+                var result = cmd.ExecuteScalar();
+                return result != null ? Convert.ToInt32(result) : 1;
             }
         }
 
         private void ClearForm()
         {
-            TbActNumber.Clear();
+            TbActNumber.Text = GetNextDisposalNumber();
             DpDate.SelectedDate = DateTime.Today;
             TbParticipants.Clear();
-            CbReason.SelectedItem = -1;
+            CbReason.SelectedIndex = -1;
             _items.Clear();
-            DgItems.Visibility = Visibility.Collapsed;
-            PnBookDetails.Visibility = Visibility.Collapsed;
-            TbSearchInv.Clear();
-            TbSearchInv.IsEnabled = true;
             _nextRowNum = 1;
             TbTotal.Text = "0.00";
+            PnBookDetails.Visibility = Visibility.Collapsed;
+            TbSearchInv.IsEnabled = true;
         }
+
         private string GetNextDisposalNumber()
         {
-            const string sql = "SELECT ISNULL(MAX(CAST(SUBSTRING(DisposalNumber, 4, 4) AS INT)), 0) FROM DisposalBooks WHERE DisposalNumber LIKE 'СП-%'";
-
             using (var conn = new SqlConnection(_conn))
             {
                 conn.Open();
-                using (var cmd = new SqlCommand(sql, conn))
+                using (var cmd = new SqlCommand(
+                    "SELECT ISNULL(MAX(CAST(SUBSTRING(DisposalNumber, 4, 4) AS INT)), 0) FROM DisposalBooks",
+                    conn))
                 {
                     int lastNum = Convert.ToInt32(cmd.ExecuteScalar());
                     return $"СП-{(lastNum + 1):D4}";

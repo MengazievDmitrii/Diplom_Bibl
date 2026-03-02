@@ -410,13 +410,6 @@ namespace Diplom_Bibl.Pages
             // Если пользователь нажал "Нет", ничего не делаем.
         }
 
-        // --- УБРАНО: DatePicker_Loaded ---
-        // private void DatePicker_Loaded(object sender, RoutedEventArgs e)
-        // {
-        //     // Устанавливаем SelectedDate равным текущей дате системы
-        //     DatePicker.SelectedDate = DateTime.Today;
-        //     // УБРАНО: Не вызываем LoadFirstRecordForDate здесь!
-        //     // Это приводило к лишнему вызову и сообщению при загрузке страницы.
-        // }
+        
     }
 }

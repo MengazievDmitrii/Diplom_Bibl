@@ -25,13 +25,14 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Button x:Name="AddSpeciality" Content="Добавить специальность" Grid.Column="0" Grid.Row="0" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddSpeciality_Click"/>
-            <Button x:Name="AddGroup" Content="Добавить группу" Grid.Column="0" Grid.Row="1" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddGroup_Click"/>
+            <Button x:Name="AddSpeciality" Content="Добавить специальность" Grid.Column="0" Grid.Row="0" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddSpeciality_Click" Visibility="Collapsed"/>
+            <Button x:Name="AddGroup" Content="Добавить группу" Grid.Column="0" Grid.Row="1" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddGroup_Click" Cursor="Hand" Visibility="Collapsed"/>
             <Button x:Name="AddGener" Content="Добавить жанр" Grid.Column="0" Grid.Row="2" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddGener_Click"/>
             <Button x:Name="AddAuthor" Content="Добавить автора" Grid.Column="0" Grid.Row="3" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddAuthor_Click"/>
             <Button x:Name="AddPublishingHouse" Content="Добавить издательство" Grid.Column="0" Grid.Row="4" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddPublishingHouse_Click"/>
             <Button x:Name="AddStatusBook" Content="Добавить статус книги" Grid.Column="0" Grid.Row="5" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddStatusBook_Click"/>
             <Button x:Name="AddViewBook" Content="Добавить вид книги" Grid.Column="0" Grid.Row="6" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddViewBook_Click"/>
+            <Button x:Name="AddUser" Content="Добавить пользователя" Grid.Column="0" Grid.Row="7" Style="{StaticResource PrimaryButtonStyle}" Margin="5" Click="AddUser_Click"/>
 
         </Grid>
     </Grid>
