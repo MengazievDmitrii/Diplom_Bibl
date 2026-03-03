@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dadata.Model;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
@@ -1075,7 +1076,7 @@ namespace Diplom_Bibl.Pages
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                     Owner = Window.GetWindow(this),
                     WindowStyle = WindowStyle.ToolWindow,
-                   
+
                 };
 
                 var panel = new StackPanel { Margin = new Thickness(20) };
@@ -1132,6 +1133,42 @@ namespace Diplom_Bibl.Pages
                     {
                         byte[] pdfBytes;
 
+                        // Получаем данные читателя для формирования имени файла
+                        string readerFullName = "";
+                        string readerCardNumber = "";
+
+                        try
+                        {
+                            using (var conn = new SqlConnection(connectionString))
+                            {
+                                conn.Open();
+                                using (var cmd = new SqlCommand(
+                                    "SELECT LastName, FirstName, MiddleName, CardNumber FROM ReaderForm WHERE ReaderID = @ReaderId",
+                                    conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);
+                                    using (var reader = cmd.ExecuteReader())
+                                    {
+                                        if (reader.Read())
+                                        {
+                                            string lastName = reader["LastName"]?.ToString() ?? "";
+                                            string firstName = reader["FirstName"]?.ToString() ?? "";
+                                            string middleName = reader["MiddleName"]?.ToString() ?? "";
+                                            readerCardNumber = reader["CardNumber"]?.ToString() ?? "";
+
+                                            // Формируем ФИО (Фамилия Имя Отчество)
+                                            readerFullName = $"{lastName}_{firstName}_{middleName}".Replace(" ", "_").Replace("__", "_").Trim('_');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Если не удалось получить данные, используем ID
+                            readerFullName = $"reader_{_currentReaderId}";
+                        }
+
                         if (comboBox.SelectedIndex == 1) // 2 копии
                         {
                             pdfBytes = Services.ReaderCardPdfService.GenerateReaderCardPdfTwoCopies(_currentReaderId.Value);
@@ -1142,7 +1179,7 @@ namespace Diplom_Bibl.Pages
                         }
 
                         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                        string fileName = $"Читательский_билет_{_currentReaderId}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+                        string fileName = $"Читательский_билет_{readerFullName}_{readerCardNumber}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
                         string fullPath = System.IO.Path.Combine(desktop, fileName);
 
                         System.IO.File.WriteAllBytes(fullPath, pdfBytes);

@@ -342,5 +342,10 @@ namespace Diplom_Bibl.Pages
             LoadReaderTypes();
             LoadReaders();
         }
+
+        private void ImportReadersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new ImportReaders());
+        }
     }
 }

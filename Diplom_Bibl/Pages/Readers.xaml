@@ -34,6 +34,12 @@
                     Width="195" 
                     Click="AddReader_Click"
                     Margin="0,0,20,0"/>
+            <Button x:Name="ImportReadersBtn" 
+        Content="📥 Импорт из Excel" 
+        Style="{StaticResource SaveButtonStyle}" 
+        Width="180" 
+        Click="ImportReadersBtn_Click"
+        Margin="0,0,10,0"/>
         </StackPanel>
 
         <!-- Панель поиска и фильтрации -->
