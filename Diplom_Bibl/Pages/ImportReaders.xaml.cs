@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
+using ExcelDataReader;
 
 namespace Diplom_Bibl.Pages
 {
@@ -15,13 +15,16 @@ namespace Diplom_Bibl.Pages
         public ImportReaders()
         {
             InitializeComponent();
+
+            // Важно для поддержки русского языка в CSV
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         }
 
         private void BrowseButton_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                Filter = "Excel файлы|*.xls;*.xlsx|CSV файлы|*.csv|Все файлы|*.*",
+                Filter = "Excel файлы|*.xlsx;*.xls|CSV файлы|*.csv|Все файлы|*.*",
                 Title = "Выберите файл с данными читателей"
             };
 
@@ -58,27 +61,38 @@ namespace Diplom_Bibl.Pages
                 BrowseButton.IsEnabled = false;
                 ImportButton.Content = "⏳ Импорт...";
 
-                // Сохраняем путь к файлу в локальную переменную ДО запуска фонового потока
                 string filePath = FilePathTextBox.Text;
+                string fileExtension = Path.GetExtension(filePath).ToLower();
+
+                Services.ExcelImportService.ImportResult result = null;
 
                 // Выполняем импорт в фоновом потоке
-                var result = await System.Threading.Tasks.Task.Run(() =>
+                result = await System.Threading.Tasks.Task.Run(() =>
                 {
                     var service = new Services.ExcelImportService(_connectionString);
-                    return service.ImportFromFile(filePath); // Используем локальную переменную
+
+                    // Для CSV файлов используем специальную обработку
+                    if (fileExtension == ".csv")
+                    {
+                        return service.ImportFromCsv(filePath);
+                    }
+                    else
+                    {
+                        return service.ImportFromFile(filePath);
+                    }
                 });
 
-                // Отображаем результаты (уже в UI потоке)
+                // Отображаем результаты
                 DisplayResults(result);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при импорте: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка при импорте: {ex.Message}\n\nПопробуйте сохранить файл в формате CSV.",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
-                // Разблокируем кнопки (в UI потоке)
+                // Разблокируем кнопки
                 ImportButton.IsEnabled = true;
                 BrowseButton.IsEnabled = true;
                 ImportButton.Content = "📥 Импортировать";
@@ -165,7 +179,8 @@ namespace Diplom_Bibl.Pages
                 File.WriteAllText(filePath, template.ToString(), Encoding.UTF8);
 
                 MessageBox.Show($"CSV шаблон сохранён:\n{filePath}\n\n" +
-                               "Заполните данные и сохраните файл.",
+                               "Заполните данные и сохраните файл.\n\n" +
+                               "💡 Подсказка: Для Excel откройте этот CSV файл и сохраните как XLSX.",
                     "Шаблон создан", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)

@@ -546,5 +546,10 @@ namespace Diplom_Bibl.Pages
         {
             LoadBooks();
         }
+
+        private void BulkAddBook_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new BulkAddBooks());
+        }
     }
 }

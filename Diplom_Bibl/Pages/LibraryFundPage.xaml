@@ -41,6 +41,14 @@
                     Width="150" 
                     Click="AddBook_Click" 
                     Margin="0,0,10,0"/>
+            <!-- В панель кнопок добавьте: -->
+            <Button Content="📦 Массовое добавление" 
+        Name="BulkAddBook" 
+        Style="{StaticResource SaveButtonStyle}" 
+        Height="38" 
+        Width="170" 
+        Click="BulkAddBook_Click" 
+        Margin="5"/>
             <Button Content="🗑️ Списание" 
                     Name="DisposalBook" 
                     Style="{StaticResource SaveButtonStyle}" 

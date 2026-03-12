@@ -201,6 +201,7 @@
     </Compile>
     <Compile Include="DocumentService.cs" />
     <Compile Include="ExcelImportService.cs" />
+    <Compile Include="InfoRecord.cs" />
     <Compile Include="Interfaces\IAuthorRepository.cs" />
     <Compile Include="Interfaces\IBookRepository.cs" />
     <Compile Include="Interfaces\IGenreRepository.cs" />
@@ -242,6 +243,9 @@
     <Compile Include="Pages\AdmissionBook.xaml.cs">
       <DependentUpon>AdmissionBook.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\BulkAddBooks.xaml.cs">
+      <DependentUpon>BulkAddBooks.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\DisposalAct.xaml.cs">
       <DependentUpon>DisposalAct.xaml</DependentUpon>
     </Compile>
@@ -258,6 +262,7 @@
     <Compile Include="ReaderCardPdfService.cs" />
     <Compile Include="Services\AddressSuggestionService.cs" />
     <Compile Include="Services\AuthorService.cs" />
+    <Compile Include="Services\BookIssuanceService.cs" />
     <Compile Include="Services\BookService.cs" />
     <Compile Include="Services\GenreService.cs" />
     <Compile Include="Services\ReceiptNumberGenerator.cs" />
@@ -367,6 +372,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\AdmissionBook.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\BulkAddBooks.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

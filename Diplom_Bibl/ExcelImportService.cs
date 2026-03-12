@@ -55,24 +55,35 @@ namespace Diplom_Bibl.Services
 
             try
             {
-                // Настройка кодировки для поддержки русского языка
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
                 using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
                 {
                     // Автоматическое определение формата Excel
-                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    IExcelDataReader reader;
+
+                    try
+                    {
+                        reader = ExcelReaderFactory.CreateReader(stream);
+                    }
+                    catch
+                    {
+                        // Если не удалось прочитать как Excel, пробуем как CSV
+                        return ImportFromCsv(filePath);
+                    }
+
+                    using (reader)
                     {
                         var dataSet = reader.AsDataSet(new ExcelDataSetConfiguration()
                         {
                             ConfigureDataTable = _ => new ExcelDataTableConfiguration()
                             {
-                                UseHeaderRow = true // Первая строка - заголовки
+                                UseHeaderRow = true
                             }
                         });
 
                         // Берем первый лист
-                        DataTable dt = dataSet.Tables[0];
+                        System.Data.DataTable dt = dataSet.Tables[0];
 
                         if (dt.Rows.Count == 0)
                         {
@@ -80,32 +91,7 @@ namespace Diplom_Bibl.Services
                             return result;
                         }
 
-                        result.TotalRows = dt.Rows.Count;
-
-                        // Проверяем наличие необходимых колонок
-                        ValidateColumns(dt, result);
-                        if (result.HasErrors) return result;
-
-                        // Обрабатываем каждую строку
-                        for (int i = 0; i < dt.Rows.Count; i++)
-                        {
-                            try
-                            {
-                                var row = ParseRow(dt.Rows[i], i + 2); // +2 потому что строки в Excel с 1, а заголовок на 1
-                                row.RowNumber = i + 2;
-
-                                if (ValidateRow(row, result))
-                                {
-                                    ImportReader(row, result);
-                                    result.SuccessRows++;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                result.ErrorRows++;
-                                result.Errors.Add($"Строка {i + 2}: Ошибка обработки - {ex.Message}");
-                            }
-                        }
+                        ProcessDataTable(dt, result);
                     }
                 }
             }
@@ -431,6 +417,146 @@ namespace Diplom_Bibl.Services
                 return standardResult;
 
             return defaultValue;
+        }
+        public ImportResult ImportFromCsv(string filePath)
+        {
+            var result = new ImportResult();
+
+            try
+            {
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+                using (var reader = new StreamReader(filePath, Encoding.UTF8))
+                {
+                    // Читаем заголовки
+                    string headerLine = reader.ReadLine();
+                    if (string.IsNullOrEmpty(headerLine))
+                    {
+                        result.Errors.Add("Файл пуст");
+                        return result;
+                    }
+
+                    var headers = headerLine.Split(',');
+                    var rows = new List<string[]>();
+
+                    // Читаем все строки
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            rows.Add(ParseCsvLine(line));
+                        }
+                    }
+
+                    result.TotalRows = rows.Count;
+
+                    // Создаем DataTable в памяти
+                    var dt = new System.Data.DataTable();
+                    foreach (var header in headers)
+                    {
+                        dt.Columns.Add(header.Trim());
+                    }
+
+                    foreach (var row in rows)
+                    {
+                        if (row.Length >= headers.Length)
+                        {
+                            dt.Rows.Add(row);
+                        }
+                        else
+                        {
+                            var paddedRow = new string[headers.Length];
+                            Array.Copy(row, paddedRow, row.Length);
+                            for (int i = row.Length; i < headers.Length; i++)
+                            {
+                                paddedRow[i] = "";
+                            }
+                            dt.Rows.Add(paddedRow);
+                        }
+                    }
+
+                    // Обрабатываем как обычный DataTable
+                    ProcessDataTable(dt, result);
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Errors.Add($"Ошибка чтения CSV: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        private string[] ParseCsvLine(string line)
+        {
+            var result = new List<string>();
+            var current = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (c == '"')
+                {
+                    if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        // Экранированная кавычка
+                        current.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = !inQuotes;
+                    }
+                }
+                else if (c == ',' && !inQuotes)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+
+            result.Add(current.ToString());
+            return result.ToArray();
+        }
+
+        // Вынесите логику обработки DataTable в отдельный метод
+        private void ProcessDataTable(System.Data.DataTable dt, ImportResult result)
+        {
+            // Проверяем наличие необходимых колонок
+            ValidateColumns(dt, result);
+            if (result.HasErrors) return;
+
+            // Обрабатываем каждую строку
+            for (int i = 0; i < dt.Rows.Count; i++)
+            {
+                try
+                {
+                    var row = ParseRow(dt.Rows[i], i + 2);
+                    row.RowNumber = i + 2;
+
+                    if (ValidateRow(row, result))
+                    {
+                        ImportReader(row, result);
+                        result.SuccessRows++;
+                    }
+                    else
+                    {
+                        result.ErrorRows++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.ErrorRows++;
+                    result.Errors.Add($"Строка {i + 2}: Ошибка обработки - {ex.Message}");
+                }
+            }
         }
     }
 }

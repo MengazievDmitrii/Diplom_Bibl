@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.ObjectModel; // Для ObservableCollection
-using System.Data.SqlClient; // Или Microsoft.Data.SqlClient
-using System.Diagnostics; // Для Process.Start (если нужно открыть через ассоциацию)
-using System.IO; // Для Path, FileInfo
+using System.Collections.ObjectModel;
+using System.Data.SqlClient;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls; // Для Button, DatePicker
-using Microsoft.Win32; // Для SaveFileDialog
-using Excel = Microsoft.Office.Interop.Excel; // Создаём псевдоним для удобства
+using System.Windows.Controls;
+using Microsoft.Win32;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Diplom_Bibl.Pages
 {
@@ -16,23 +15,18 @@ namespace Diplom_Bibl.Pages
     public partial class ReportsPage : Page
     {
         // --- Поля ---
-        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;"; // ЗАМЕНИТЬ!
+        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
 
         public ReportsPage()
         {
-            // Установка лицензии НЕ нужна для Interop
             InitializeComponent();
         }
 
         // --- Обработчики для кнопок на карточке "Информационное обслуживание" ---
-        // Эти обработчики должны соответствовать Click="..." в XAML ReportsPage.xaml
-
         private void ViewReportButton_Click(object sender, RoutedEventArgs e)
         {
-            // Получаем выбранные даты из фильтров ИСПОЛЬЗУЯ x:Name из XAML
-            // Убедитесь, что в XAML вы добавили x:Name="StartDatePicker" и x:Name="EndDatePicker"
-            DatePicker startDatePicker = StartDatePicker; // Прямой доступ через имя
-            DatePicker endDatePicker = EndDatePicker;   // Прямой доступ через имя
+            DatePicker startDatePicker = StartDatePicker;
+            DatePicker endDatePicker = EndDatePicker;
 
             if (startDatePicker?.SelectedDate == null || endDatePicker?.SelectedDate == null)
             {
@@ -49,16 +43,14 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            // Открываем окно просмотра отчёта с переданными датами
             Windows.ReportViewWindow reportWindow = new Windows.ReportViewWindow(start, end);
-            reportWindow.ShowDialog(); // Показываем модально
+            reportWindow.ShowDialog();
         }
 
         private void ExportExcelButton_Click(object sender, RoutedEventArgs e)
         {
-            // Получаем выбранные даты из фильтров ИСПОЛЬЗУЯ x:Name из XAML
-            DatePicker startDatePicker = StartDatePicker; // Прямой доступ через имя
-            DatePicker endDatePicker = EndDatePicker;   // Прямой доступ через имя
+            DatePicker startDatePicker = StartDatePicker;
+            DatePicker endDatePicker = EndDatePicker;
 
             if (startDatePicker?.SelectedDate == null || endDatePicker?.SelectedDate == null)
             {
@@ -75,14 +67,13 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            // --- ВАЖНО: Экспорт выполняется ВНУТРИ ReportsPage ---
             ExportReportToExcel(start, end);
         }
 
         // --- Метод загрузки данных для отчёта ---
-        private ObservableCollection<InformationServicePage.InfoRecord> LoadReportData(DateTime start, DateTime end)
+        private ObservableCollection<InfoRecord> LoadReportData(DateTime start, DateTime end)
         {
-            var data = new ObservableCollection<InformationServicePage.InfoRecord>();
+            var data = new ObservableCollection<InfoRecord>();
             string query = @"
                 SELECT id_record, date_record, delivery_book, delivery_certificate, events_count 
                 FROM InformationServiseTb 
@@ -103,14 +94,14 @@ namespace Diplom_Bibl.Pages
                         {
                             while (reader.Read())
                             {
-                                var record = new InformationServicePage.InfoRecord
-                                (
-                                    id: (int)reader["id_record"],
-                                    date: (DateTime)reader["date_record"],
-                                    books: (int)reader["delivery_book"],
-                                    refs: (int)reader["delivery_certificate"],
-                                    events: (int)reader["events_count"] // Убедитесь, что столбец events_count существует
-                                );
+                                var record = new InfoRecord
+                                {
+                                    IdRecord = (int)reader["id_record"],
+                                    DateRecord = (DateTime)reader["date_record"],
+                                    DeliveryBook = (int)reader["delivery_book"],
+                                    DeliveryCertificate = (int)reader["delivery_certificate"],
+                                    EventsCount = (int)reader["events_count"]
+                                };
                                 data.Add(record);
                             }
                         }
@@ -121,33 +112,28 @@ namespace Diplom_Bibl.Pages
             {
                 MessageBox.Show($"Ошибка базы данных при загрузке данных для экспорта: {sqlEx.Message}",
                                 "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return null; // Возвращаем null в случае ошибки
+                return null;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Произошла ошибка при загрузке данных для экспорта: {ex.Message}",
                                 "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return null; // Возвращаем null в случае ошибки
+                return null;
             }
 
-            return data; // Возвращаем загруженные данные
+            return data;
         }
 
-        // --- Метод экспорта данных в Excel и открытия в Excel ---
-        // --- Метод экспорта данных в Excel и открытия в Excel ---
         private void ExportReportToExcel(DateTime start, DateTime end)
         {
             var reportData = LoadReportData(start, end);
 
             if (reportData == null || reportData.Count == 0)
             {
-                // LoadReportData уже покажет сообщение об ошибке, если произошла ошибка.
-                // Если данных нет, покажем соответствующее сообщение.
-                if (reportData != null) // Если не null, значит, просто пусто
+                if (reportData != null)
                 {
                     MessageBox.Show("Нет данных за выбранный период для экспорта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                // Если reportData == null, сообщение об ошибке уже показано в LoadReportData
                 return;
             }
 
@@ -161,26 +147,11 @@ namespace Diplom_Bibl.Pages
             {
                 try
                 {
-                    // Вызываем метод экспорта (теперь с Interop)
-                    // Этот метод теперь полностью закрывает все свои ресурсы COM
                     ExportToExcel(reportData, saveFileDialog.FileName);
 
-                    // --- Открываем СОЗДАННЫЙ файл в НОВОМ Excel ---
-                    // Создаём НОВЫЙ экземпляр Excel приложения
                     Excel.Application excelApp = new Excel.Application();
-                    excelApp.Visible = true; // Показываем Excel пользователю
-
-                    // Открываем книгу из файла
+                    excelApp.Visible = true;
                     Excel.Workbook workbook = excelApp.Workbooks.Open(saveFileDialog.FileName);
-
-                    // ПРИМЕЧАНИЕ: ВАЖНО!
-                    // Не освобождаем excelApp и workbook здесь через Marshal.ReleaseComObject,
-                    // так как мы хотим, чтобы Excel остался открытым с книгой.
-                    // Пользователь сам закроет Excel.
-                    // Это означает, что процесс EXCEL.EXE останется в памяти до тех пор,
-                    // пока пользователь не закроет Excel вручную.
-                    // Это компромисс для удобства пользователя.
-
                 }
                 catch (Exception ex)
                 {
@@ -189,9 +160,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // --- Метод экспорта с использованием Interop ---
-        // Теперь этот метод полностью создает/перезаписывает файл и освобождает свои ресурсы COM.
-        private void ExportToExcel(ObservableCollection<InformationServicePage.InfoRecord> data, string filePath)
+        private void ExportToExcel(ObservableCollection<InfoRecord> data, string filePath)
         {
             Excel.Application excelApp = null;
             Excel.Workbook workbook = null;
@@ -199,25 +168,22 @@ namespace Diplom_Bibl.Pages
 
             try
             {
-                // Создаём экземпляр Excel приложения
                 excelApp = new Excel.Application();
-                excelApp.Visible = false; // Не показываем Excel пользователю
+                excelApp.Visible = false;
 
-                // Создаём новую книгу
                 workbook = excelApp.Workbooks.Add();
-                // Получаем первый лист (Worksheet)
                 worksheet = workbook.ActiveSheet;
                 worksheet.Name = "Отчёт";
 
-                // Заголовки (первая строка)
+                // Заголовки
                 worksheet.Cells[1, 1].Value = "ID";
                 worksheet.Cells[1, 2].Value = "Дата";
                 worksheet.Cells[1, 3].Value = "Книги";
                 worksheet.Cells[1, 4].Value = "Справки";
                 worksheet.Cells[1, 5].Value = "Мероприятия (чел.)";
 
-                // Данные (начиная со второй строки)
-                int row = 2; // Начинаем с 2 строки
+                // Данные
+                int row = 2;
                 foreach (var record in data)
                 {
                     worksheet.Cells[row, 1].Value = record.IdRecord;
@@ -228,21 +194,16 @@ namespace Diplom_Bibl.Pages
                     row++;
                 }
 
-                // --- Добавляем строку Итог ---
-                int summaryRow = row; // Номер строки для "Итог"
+                // Итог
+                int summaryRow = row;
                 worksheet.Cells[summaryRow, 1].Value = "Итого:";
-
-                // Формулы суммы для столбцов 3 (Книги), 4 (Справки), 5 (Мероприятия)
-                int lastDataRow = summaryRow - 1; // Номер последней строки с данными
+                int lastDataRow = summaryRow - 1;
                 worksheet.Cells[summaryRow, 3].Formula = $"=SUM(C2:C{lastDataRow})";
                 worksheet.Cells[summaryRow, 4].Formula = $"=SUM(D2:D{lastDataRow})";
                 worksheet.Cells[summaryRow, 5].Formula = $"=SUM(E2:E{lastDataRow})";
 
-                // Автоширина столбцов (опционально)
                 worksheet.Columns.AutoFit();
 
-                // Сохраняем книгу по указанному пути
-                // Проверяем, существует ли файл, и если да, то спрашиваем пользователя *до* сохранения через Interop
                 if (File.Exists(filePath))
                 {
                     var result = MessageBox.Show($"Файл {filePath} уже существует. Перезаписать?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -250,45 +211,35 @@ namespace Diplom_Bibl.Pages
                     {
                         throw new Exception("Операция отменена пользователем.");
                     }
-                    // Если файл существует и пользователь согласен, Interop попытается его перезаписать.
-                    // Убедитесь, что файл не открыт в другом экземпляре Excel.
                 }
-                workbook.SaveAs(filePath, Excel.XlFileFormat.xlOpenXMLWorkbook); // Указываем формат .xlsx
-                                                                                 // ВАЖНО: SaveAs завершает операцию записи.
+                workbook.SaveAs(filePath, Excel.XlFileFormat.xlOpenXMLWorkbook);
             }
             catch (Exception ex)
             {
-                // Перебрасываем исключение, чтобы оно было поймано в ExportReportToExcel
                 throw new Exception($"Ошибка Interop: {ex.Message}", ex);
             }
             finally
             {
-                // Обязательно освобождаем ресурсы COM, связанные с созданием/записью файла
                 if (worksheet != null)
                 {
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
-                    worksheet = null; // Очищаем ссылку
+                    worksheet = null;
                 }
                 if (workbook != null)
                 {
-                    workbook.Close(false); // Закрываем книгу без сохранения (мы уже сохранили)
+                    workbook.Close(false);
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
-                    workbook = null; // Очищаем ссылку
+                    workbook = null;
                 }
                 if (excelApp != null)
                 {
-                    excelApp.Quit(); // Завершаем приложение
+                    excelApp.Quit();
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
-                    excelApp = null; // Очищаем ссылку
+                    excelApp = null;
                 }
             }
-            // Метод завершён, все ресурсы, связанные с созданием файла, освобождены.
-            // Процесс EXCEL.EXE, созданный для записи, должен завершиться.
         }
-        
 
-        // Вспомогательный метод для поиска DatePicker по Grid.Column
-        // Убедитесь, что в XAML ReportsPage.xaml у Border с фильтрами есть x:Name="FilterBorder"
         private DatePicker FindDatePickerByColumn(int column)
         {
             var filterBorder = this.FindName("FilterBorder") as Border;
@@ -306,7 +257,7 @@ namespace Diplom_Bibl.Pages
                     }
                 }
             }
-            return null; // Не найден
+            return null;
         }
     }
 }

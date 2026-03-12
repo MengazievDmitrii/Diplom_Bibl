@@ -266,6 +266,7 @@
             <Setter Property="TextWrapping" Value="NoWrap"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         </Style>
+        
         <DropShadowEffect x:Key="DropShadowEffect" BlurRadius="10" ShadowDepth="3" Opacity="0.3" Direction="270"/>
     </Application.Resources>
 </Application>

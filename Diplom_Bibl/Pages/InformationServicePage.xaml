@@ -3,127 +3,544 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-      xmlns:local="clr-namespace:Diplom_Bibl"
+      xmlns:local="clr-namespace:Diplom_Bibl.Pages"
+      xmlns:System="clr-namespace:System;assembly=mscorlib"
       mc:Ignorable="d" 
-      d:DesignHeight="500" d:DesignWidth="800"
-      Title="InformationServicePage">
+      d:DesignHeight="700" d:DesignWidth="1000"
+      Title="InformationServicePage" Loaded="Page_Loaded"
+      Background="#F5F5F5">
 
+    <Page.Resources>
+        <Style x:Key="SectionBoxStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Effect" Value="{StaticResource DropShadowEffect}"/>
+        </Style>
 
-    <Grid Margin="24">
-        <!-- Заголовок -->
-        <TextBlock Text="Информационное обслуживание"
-                   Style="{StaticResource SectionTitleStyle}"/>
+        <Style x:Key="StatBoxStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+    </Page.Resources>
 
-        <!-- Скрытый Label для ID записи -->
-        <Label x:Name="IdRecordLabel" Visibility="Collapsed" />
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Основная форма -->
-        <Grid Margin="0,60,0,0">
-            <!-- Увеличим отступ, чтобы учесть скрытый Label -->
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+            <!-- Заголовок -->
+            <TextBlock Grid.Row="0" 
+                       Text="Информационное обслуживание"
+                       Style="{StaticResource SectionTitleStyle}"/>
 
-            <!-- Левая колонка: Дата -->
-            <StackPanel Grid.Column="0" Width="300" Margin="0,0,24,0">
-                <TextBlock Text="Дата" Style="{StaticResource LabelStyle}"/>
-                <DatePicker x:Name="DatePicker"
-                            Style="{StaticResource DatePickerStyle}"
-                            Language="ru-RU"
-                            SelectedDateChanged="DatePicker_SelectedDateChanged"/>
-                <!-- Добавлен обработчик -->
-            </StackPanel>
+            <!-- Основной контент -->
+            <Grid Grid.Row="1" Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- Правая колонка: Поля ввода -->
-            <StackPanel Grid.Column="0" Width="400" Margin="0,65,0,0">
-                <!-- Выдано книг -->
-                <StackPanel Margin="0,0,0,20">
-                    <TextBlock Text="Выдано книг" Style="{StaticResource LabelStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="BooksCountBox"
-                                 Style="{StaticResource InputFieldStyle}"
-                                 PreviewTextInput="NumberValidationTextBox" />
-                        <TextBlock Grid.Column="1"
-                                   Text="экз."
-                                   VerticalAlignment="Center"
-                                   Margin="8,0,0,0"
-                                   Foreground="#666666"/>
-                    </Grid>
+                <!-- ЛЕВАЯ КОЛОНКА: Статистика -->
+                <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                    <!-- Дата -->
+                    <Border Style="{StaticResource SectionBoxStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Дата" Style="{StaticResource LabelStyle}"/>
+                            <DatePicker x:Name="DatePicker"
+                    Style="{StaticResource DatePickerStyle}"
+                    SelectedDateChanged="DatePicker_SelectedDateChanged"
+                    DisplayDateStart="2024-01-01"
+                    DisplayDateEnd="{x:Static System:DateTime.Today}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Статистика -->
+                    <Border Style="{StaticResource SectionBoxStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Статистика за день" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource PrimaryColor}"
+                                       Margin="0,0,0,15"/>
+
+                            <!-- Выдано книг -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Выдано книг:" 
+                                           VerticalAlignment="Center"
+                                           FontSize="14"/>
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource StatBoxStyle}">
+                                    <TextBlock x:Name="BooksCountStat" 
+                                               Text="0" 
+                                               FontSize="18" 
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource PrimaryColor}"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Выдано справок -->
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Выдано справок:" 
+                                           VerticalAlignment="Center"
+                                           FontSize="14"/>
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource StatBoxStyle}">
+                                    <TextBlock x:Name="ReferencesCountStat" 
+                                               Text="0" 
+                                               FontSize="18" 
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource SuccessColor}"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Мероприятия -->
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Участники мероприятий:" 
+                                           VerticalAlignment="Center"
+                                           FontSize="14"/>
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource StatBoxStyle}">
+                                    <TextBlock x:Name="EventsCountStat" 
+                                               Text="0" 
+                                               FontSize="18" 
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource WarningColor}"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Сохранение записи -->
+                    <Border Style="{StaticResource SectionBoxStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Запись за день" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource PrimaryColor}"
+                                       Margin="0,0,0,15"/>
+
+                            <StackPanel Margin="0,0,0,15">
+                                <TextBlock Text="Выдано книг" Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="BooksCountBox"
+                                             Style="{StaticResource InputFieldStyle}"
+                                             PreviewTextInput="NumberValidationTextBox"
+                                             Text="0"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="экз."
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,0,0"
+                                               Foreground="#666666"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,15">
+                                <TextBlock Text="Выдано справок" Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ReferencesCountBox"
+                                             Style="{StaticResource InputFieldStyle}"
+                                             PreviewTextInput="NumberValidationTextBox"
+                                             Text="0"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="шт."
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,0,0"
+                                               Foreground="#666666"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,20">
+                                <TextBlock Text="Участники мероприятий" 
+                                           Style="{StaticResource LabelStyle}"
+                                           TextWrapping="Wrap"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="EventsCountBox"
+                                             Style="{StaticResource InputFieldStyle}"
+                                             PreviewTextInput="NumberValidationTextBox"
+                                             Text="0"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="чел."
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,0,0"
+                                               Foreground="#666666"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="SaveNewRecordButton" 
+                                        Content="➕ Сохранить запись"
+                                        Style="{StaticResource SaveButtonStyle}"
+                                        Click="SaveNewRecordButton_Click"
+                                        Width="160"
+                                        Margin="0,0,5,0"/>
+                                <Button x:Name="SaveChangesButton" 
+                                        Content="💾 Сохранить изменения"
+                                        Style="{StaticResource SaveButtonStyle}"
+                                        Click="SaveChangesButton_Click"
+                                        Width="160"
+                                        Margin="0,0,5,0" 
+                                        Visibility="Collapsed"/>
+                                <Button x:Name="DeleteButton" 
+                                        Content="🗑️ Удалить"
+                                        Style="{StaticResource DeleteButtonStyle}"
+                                        Click="DeleteButton_Click"
+                                        Width="100"
+                                        Visibility="Collapsed"/>
+                            </StackPanel>
+
+                            <Label x:Name="IdRecordLabel" 
+                                   Content="ID записи: 0"
+                                   Foreground="Gray"
+                                   FontSize="11"
+                                   HorizontalAlignment="Right"
+                                   Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
-                <!-- Выдано справок -->
-                <StackPanel Margin="0,0,0,20">
-                    <TextBlock Text="Выдано справок" Style="{StaticResource LabelStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="ReferencesCountBox"
-                                 Style="{StaticResource InputFieldStyle}"
-                                 PreviewTextInput="NumberValidationTextBox"/>
-                        <TextBlock Grid.Column="1"
-                                   Text="шт."
-                                   VerticalAlignment="Center"
-                                   Margin="8,0,0,0"
-                                   Foreground="#666666"/>
-                    </Grid>
-                </StackPanel>
+                <!-- ПРАВАЯ КОЛОНКА: Выдача книг -->
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Тип выдачи -->
+                        <Border Style="{StaticResource SectionBoxStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Тип выдачи" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           Margin="0,0,0,15"/>
 
-                <!-- Информационное обслуживание (мероприятия) -->
-                <StackPanel Margin="0,0,0,30">
-                    <TextBlock Text="Информационное обслуживание (мероприятия)" 
-                               Style="{StaticResource LabelStyle}"
-                               TextWrapping="Wrap"
-                               MaxWidth="380"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="EventsCountBox"
-                                 Style="{StaticResource InputFieldStyle}"
-                                 PreviewTextInput="NumberValidationTextBox"/>
-                        <TextBlock Grid.Column="1"
-                                   Text="чел."
-                                   VerticalAlignment="Center"
-                                   Margin="8,0,0,0"
-                                   Foreground="#666666"/>
-                    </Grid>
-                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="ReaderTypeRadio" 
+                                                 Content="Читателю" 
+                                                 GroupName="IssueType"
+                                                 IsChecked="True"
+                                                 Checked="IssueType_Checked"
+                                                 Margin="0,0,30,0"
+                                                 FontSize="14"/>
+                                    <RadioButton x:Name="GroupTypeRadio" 
+                                                 Content="Группе (на урок)"
+                                                 GroupName="IssueType"
+                                                 Checked="IssueType_Checked"
+                                                 FontSize="14"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
-                <!-- Кнопки -->
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="SaveNewRecordButton" 
-                            Content="Сохранить новую запись"
-                            Style="{StaticResource SaveButtonStyle}"
-                            Click="SaveNewRecordButton_Click"
-                            Margin="0,0,10,0" Width="195"/>
-                    <!-- Отступ между кнопками -->
-                    <Button x:Name="SaveChangesButton" 
-                            Content="Сохранить изменения"
-                            Style="{StaticResource SaveButtonStyle}"
-                            Click="SaveChangesButton_Click"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,10,0" 
-                            Visibility="Collapsed"/>
-                    <!-- Скрыта по умолчанию -->
-                    <Button x:Name="DeleteButton" 
-                            Content="Удалить"
-                            Style="{StaticResource DeleteButtonStyle}" 
-                        Click="DeleteButton_Click"
-                            HorizontalAlignment="Left"
-                            Background="Red"    
-                        Foreground="White"
-                            Visibility="Collapsed"/>
+                        <!-- Поиск читателя (для выдачи читателю) -->
+                        <Border x:Name="ReaderSearchSection" 
+                                Style="{StaticResource SectionBoxStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Поиск читателя" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           Margin="0,0,0,15"/>
 
-                </StackPanel>
-            </StackPanel>
+                                <TextBox x:Name="ReaderSearchBox"
+                                         Text="Введите фамилию или номер билета..."
+                                         Style="{StaticResource InputFieldStyle}"
+                                         GotFocus="ReaderSearchBox_GotFocus"
+                                         LostFocus="ReaderSearchBox_LostFocus"
+                                         TextChanged="ReaderSearchBox_TextChanged"
+                                         Margin="0,0,0,10"/>
+
+                                <ListBox x:Name="ReadersListBox"
+                                         Height="150"
+                                         Style="{StaticResource ModernListBoxStyle}"
+                                         ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                                         SelectionChanged="ReadersListBox_SelectionChanged"
+                                         Visibility="Collapsed">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayInfo}" 
+                                                       Foreground="{StaticResource PrimaryColor}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Поиск группы (для выдачи группе) -->
+                        <!-- Поиск группы (для выдачи группе) -->
+                        <Border x:Name="GroupSearchSection" 
+        Style="{StaticResource SectionBoxStyle}"
+        Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Поиск группы" 
+                   FontSize="16" 
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource PrimaryColor}"
+                   Margin="0,0,0,15"/>
+
+                                <TextBox x:Name="GroupSearchBox"
+                 Text="Введите код группы..."
+                 Style="{StaticResource InputFieldStyle}"
+                 GotFocus="GroupSearchBox_GotFocus"
+                 LostFocus="GroupSearchBox_LostFocus"
+                 TextChanged="GroupSearchBox_TextChanged"
+                 Margin="0,0,0,10"/>
+
+                                <ListBox x:Name="GroupsListBox"
+                 Height="150"
+                 Style="{StaticResource ModernListBoxStyle}"
+                 ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                 SelectionChanged="GroupsListBox_SelectionChanged"
+                 Visibility="Collapsed"
+                 DisplayMemberPath="GroupCode"/>
+
+                                <TextBlock Text="Преподаватель" 
+                   Style="{StaticResource LabelStyle}"
+                   Margin="0,10,0,0"/>
+
+                                <TextBox x:Name="TeacherSearchBox"
+                 Text="Введите фамилию преподавателя..."
+                 Style="{StaticResource InputFieldStyle}"
+                 GotFocus="TeacherSearchBox_GotFocus"
+                 LostFocus="TeacherSearchBox_LostFocus"
+                 TextChanged="TeacherSearchBox_TextChanged"
+                 Margin="0,0,0,10"/>
+
+                                <ListBox x:Name="TeachersListBox"
+                 Height="150"
+                 Style="{StaticResource ModernListBoxStyle}"
+                 ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                 SelectionChanged="TeachersListBox_SelectionChanged"
+                 Visibility="Collapsed">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FullName}" 
+                               Foreground="{StaticResource PrimaryColor}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <TextBlock Text="Студент" 
+                   Style="{StaticResource LabelStyle}"
+                   Margin="0,10,0,0"/>
+
+                                <TextBox x:Name="StudentSearchBox"
+                 Text="Введите фамилию или номер билета..."
+                 Style="{StaticResource InputFieldStyle}"
+                 GotFocus="StudentSearchBox_GotFocus"
+                 LostFocus="StudentSearchBox_LostFocus"
+                 TextChanged="StudentSearchBox_TextChanged"
+                 Margin="0,0,0,10"/>
+
+                                <ListBox x:Name="StudentsListBox"
+                 Height="150"
+                 Style="{StaticResource ModernListBoxStyle}"
+                 ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                 SelectionChanged="StudentsListBox_SelectionChanged"
+                 Visibility="Collapsed">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayInfo}" 
+                               Foreground="{StaticResource PrimaryColor}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Поиск книги -->
+                        <Border Style="{StaticResource SectionBoxStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Выберите книгу" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           Margin="0,0,0,15"/>
+
+                                <TextBox x:Name="BookSearchBox"
+                                         Text="Введите название или автора..."
+                                         Style="{StaticResource InputFieldStyle}"
+                                         GotFocus="BookSearchBox_GotFocus"
+                                         LostFocus="BookSearchBox_LostFocus"
+                                         TextChanged="BookSearchBox_TextChanged"
+                                         Margin="0,0,0,10"/>
+
+                                <ListBox x:Name="BooksListBox"
+         Height="150"
+         Style="{StaticResource ModernListBoxStyle}"
+         ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+         SelectionChanged="BooksListBox_SelectionChanged"
+         Visibility="Collapsed">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="5">
+                                                <TextBlock Text="{Binding TitleBook}" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource PrimaryColor}"
+                                                   FontSize="14"/>
+                                                <TextBlock Text="{Binding AuthorName}" 
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextColor}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="Доступно: " 
+                               FontSize="11"
+                               Foreground="{StaticResource TextColor}"
+                               Opacity="0.7"/>
+                                                    <TextBlock Text="{Binding AvailableCopies}" 
+                               FontSize="11"
+                               Foreground="{StaticResource SuccessColor}"
+                               FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="SelectedBookPanel"
+        Background="{StaticResource PrimaryLightColor}"
+        CornerRadius="6"
+        Padding="10"
+        Margin="0,10,0,0"
+        Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="SelectedBookTitle" 
+                       FontWeight="Bold"
+                       Foreground="{StaticResource PrimaryColor}"/>
+                                    <TextBlock x:Name="SelectedBookAuthor" 
+                       FontSize="11"/>
+                                    <!--<StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                        <TextBlock Text="Доступно: " 
+                           FontSize="11"
+                           Foreground="{StaticResource TextColor}"
+                           Opacity="0.7"/>
+                                        <TextBlock x:Name="AvailableQuantityText1" 
+                           Text="0"
+                           FontSize="11"
+                           Foreground="{StaticResource SuccessColor}"
+                           FontWeight="Bold"/>
+                                    </StackPanel>-->
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                Content="✕"
+                Width="20"
+                Height="20"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                Foreground="{StaticResource DangerColor}"
+                FontWeight="Bold"
+                Click="ClearSelectedBook_Click"/>
+                            </Grid>
+                        </Border>
+                        <!-- Количество и создание выдачи -->
+                        <Border Style="{StaticResource SectionBoxStyle}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock Text="Количество" Style="{StaticResource LabelStyle}"/>
+                                        <TextBox x:Name="QuantityBox"
+                                                 Text="1"
+                                                 Style="{StaticResource InputFieldStyle}"
+                                                 PreviewTextInput="NumberValidationTextBox"
+                                                 IsEnabled="False"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                        <TextBlock Text="Доступно" Style="{StaticResource LabelStyle}"/>
+                                        <Border Background="{StaticResource LightGray}"
+                                                CornerRadius="4"
+                                                Padding="8"
+                                                Height="36">
+                                            <TextBlock x:Name="AvailableQuantityText" 
+                                                       Text="0"
+                                                       VerticalAlignment="Center"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource PrimaryColor}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Button x:Name="CreateIssueButton"
+                                        Content="📤 Создать выдачу"
+                                        Style="{StaticResource SaveButtonStyle}"
+                                        Height="45"
+                                        FontSize="15"
+                                        Margin="0,15,0,0"
+                                        Click="CreateIssueButton_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- История выдач за день -->
+                        <Border Style="{StaticResource SectionBoxStyle}">
+                            <StackPanel>
+                                <TextBlock Text="Выдачи за сегодня" 
+                                           FontSize="16" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           Margin="0,0,0,15"/>
+
+                                <DataGrid x:Name="IssuesDataGrid"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          RowHeight="30"
+                                          MaxHeight="200"
+                                          Background="White"
+                                          BorderBrush="{StaticResource BorderColor}"
+                                          BorderThickness="1">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Время" Binding="{Binding IssueTime}" Width="80"/>
+                                        <DataGridTextColumn Header="Читатель/Группа" Binding="{Binding IssuanceItem.Recipient}" Width="150"/>
+                                        <DataGridTextColumn Header="Книга" Binding="{Binding BookTitle}" Width="200"/>
+                                        <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="60"/>
+                                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Grid>
-    </Grid>
+    </ScrollViewer>
 </Page>

@@ -1,415 +1,1024 @@
-﻿using System;
-using System.Data.SqlClient; // Или Microsoft.Data.SqlClient
+﻿using Diplom_Bibl.Services;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Data.SqlClient;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input; // Для TextCompositionEventArgs, KeyEventArgs
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Diplom_Bibl.Pages
-
 {
-    /// <summary>
-    /// Логика взаимодействия для InformationServicePage.xaml
-    /// </summary>
     public partial class InformationServicePage : Page
     {
-        // --- Поля ---
-        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
-        private int? currentRecordId = null; // Переменная для хранения ID текущей загруженной записи
+        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
+        private BookIssuanceService _issuanceService;
+
+        private ObservableCollection<BookIssuanceService.ReaderInfo> _readers;
+        private ObservableCollection<BookIssuanceService.ReaderInfo> _students;
+        private ObservableCollection<BookIssuanceService.GroupInfo> _groups;
+        private ObservableCollection<BookIssuanceService.TeacherInfo> _teachers;
+        private ObservableCollection<BookIssuanceService.BookInfo> _books;
+        private ObservableCollection<BookIssuanceService.IssuanceItem> _todayIssues;
+
+        private int? _currentRecordId = null;
+        private bool _isPlaceholderActive = true;
+
+        // Выбранные элементы
+        private BookIssuanceService.BookInfo _selectedBook;
+        private BookIssuanceService.ReaderInfo _selectedReader;
+        private BookIssuanceService.GroupInfo _selectedGroup;
+        private BookIssuanceService.TeacherInfo _selectedTeacher;
+        private BookIssuanceService.ReaderInfo _selectedStudent;
 
         public InformationServicePage()
         {
             InitializeComponent();
-            // Устанавливаем SelectedDate равным текущей дате системы В КОНСТРУКТОРЕ
-            // Это произойдёт до загрузки элемента управления
+
+            _issuanceService = new BookIssuanceService(_connectionString);
+
+            // Инициализируем коллекции
+            _readers = new ObservableCollection<BookIssuanceService.ReaderInfo>();
+            _students = new ObservableCollection<BookIssuanceService.ReaderInfo>();
+            _groups = new ObservableCollection<BookIssuanceService.GroupInfo>();
+            _teachers = new ObservableCollection<BookIssuanceService.TeacherInfo>();
+            _books = new ObservableCollection<BookIssuanceService.BookInfo>();
+            _todayIssues = new ObservableCollection<BookIssuanceService.IssuanceItem>();
+
             DatePicker.SelectedDate = DateTime.Today;
+
+            // Загружаем данные
+            LoadTodayStats();
+            LoadTodayIssues();
+            LoadReaders();
+            LoadGroups();
+            LoadTeachers();
+            LoadBooks();
+
+            // Подписываемся на события
+            this.Loaded += (s, e) => UpdateInventoryPreview();
         }
 
-        public class InfoRecord
+        private void LoadTodayStats()
         {
-            public int IdRecord { get; set; } // Primary Key
-            public DateTime DateRecord { get; set; }
-            public int DeliveryBook { get; set; }
-            public int DeliveryCertificate { get; set; }
-            public int EventsCount { get; set; } // Добавлено, если используется
-
-            // Конструктор (необязательно, но полезно)
-            public InfoRecord() { }
-
-            public InfoRecord(int id, DateTime date, int books, int refs, int events) // events по умолчанию 0
-            {
-                IdRecord = id;
-                DateRecord = date;
-                DeliveryBook = books;
-                DeliveryCertificate = refs;
-                EventsCount = events; // Если events_count не нужен для редактирования, можно не включать
-            }
-        }
-
-        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
-        {
-            e.Handled = !IsTextAllowed(e.Text);
-        }
-
-        private static bool IsTextAllowed(string text)
-        {
-            return System.Text.RegularExpressions.Regex.IsMatch(text, @"^[0-9]+$");
-        }
-
-        // Разрешить Backspace, Delete и т.д.
-        private void TextBox_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Space)
-                e.Handled = true;
-        }
-
-        // --- Обработчик изменения даты ---
-        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Событие SelectedDateChanged срабатывает и при программной установке SelectedDate
-            // Но в нашем случае, в конструкторе мы устанавливаем дату ДО подключения обработчика.
-            // Если обработчик подключён в XAML, он может сработать при установке SelectedDate в конструкторе.
-            // Однако, если мы установим SelectedDate в конструкторе ПОСЛЕ InitializeComponent(),
-            // то событие сработает. Чтобы избежать этого, можно проверить e.RemovedItems.Count.
-            // Но проще установить дату в конструкторе ДО InitializeComponent, что невозможно из XAML.
-            // Поэтому, если DatePicker_Loaded не вызывает SelectedDateChanged напрямую,
-            // то это событие будет срабатывать только при пользовательском выборе.
-            // Однако, если SelectedDate изменяется программно где-то ещё, это событие тоже сработает.
-            // В текущем контексте, если DatePicker_Loaded просто устанавливал дату и вызывал SelectedDateChanged,
-            // и этот вызов происходил до инициализации, то проблем быть не должно.
-            // Но если дата устанавливается программно после, это может вызвать лишние сообщения.
-            // ВАЖНО: Убедитесь, что в DatePicker_Loaded НЕ вызывается LoadFirstRecordForDate.
-
-            DateTime? selectedDate = DatePicker.SelectedDate;
-
-            // Загружаем запись ТОЛЬКО если дата выбрана (а не сброшена)
-            if (selectedDate.HasValue)
-            {
-                LoadFirstRecordForDate(selectedDate.Value.Date);
-            }
-            else
-            {
-                // Если дата снята, очищаем поля
-                ClearInputFields();
-                currentRecordId = null;
-                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
-                SaveNewRecordButton.Visibility = Visibility.Visible;
-                SaveChangesButton.Visibility = Visibility.Collapsed;
-                DeleteButton.Visibility = Visibility.Collapsed;
-                // Не показываем сообщение, если дата снята пользователем
-            }
-        }
-
-        // --- Метод загрузки первой записи по дате ---
-        private void LoadFirstRecordForDate(DateTime date)
-        {
-            // Изменил запрос, чтобы использовать EventsCount, если он есть в таблице
-            // Если столбца events_count нет, уберите его из SELECT и FROM
-            string query = @"
-                SELECT TOP 1 id_record, delivery_book, delivery_certificate, events_count 
-                FROM InformationServiseTb 
-                WHERE date_record = @Date
-                ORDER BY id_record"; // Сортировка по ID, если нужно выбрать первую из нескольких
-
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                DateTime selectedDate = DatePicker.SelectedDate ?? DateTime.Today;
+
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    connection.Open();
-                    using (SqlCommand command = new SqlCommand(query, connection))
+                    conn.Open();
+
+                    string query = @"
+                        SELECT id_record, delivery_book, delivery_certificate, events_count 
+                        FROM InformationServiseTb 
+                        WHERE date_record = @Date";
+
+                    using (var cmd = new SqlCommand(query, conn))
                     {
-                        command.Parameters.AddWithValue("@Date", date);
-
-                        using (SqlDataReader reader = command.ExecuteReader())
+                        cmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            if (reader.Read()) // Если запись найдена
+                            if (reader.Read())
                             {
-                                currentRecordId = (int)reader["id_record"];
-                                IdRecordLabel.Content = currentRecordId.ToString(); // Отображаем ID (если нужно, можно оставить скрытым)
-
-                                // Загружаем значения в поля
+                                _currentRecordId = Convert.ToInt32(reader["id_record"]);
                                 BooksCountBox.Text = reader["delivery_book"].ToString();
                                 ReferencesCountBox.Text = reader["delivery_certificate"].ToString();
-                                // Загружаем events_count, если он есть в таблице
-                                if (reader["events_count"] != DBNull.Value)
-                                {
-                                    EventsCountBox.Text = reader["events_count"].ToString();
-                                }
-                                else
-                                {
-                                    EventsCountBox.Text = "0"; // или оставить пустым
-                                }
+                                EventsCountBox.Text = reader["events_count"].ToString();
 
-                                // --- Показываем кнопки изменения/удаления, скрываем "Сохранить новую" ---
                                 SaveNewRecordButton.Visibility = Visibility.Collapsed;
                                 SaveChangesButton.Visibility = Visibility.Visible;
                                 DeleteButton.Visibility = Visibility.Visible;
                             }
-                            else // Если запись не найдена
+                            else
                             {
-                                ClearInputFields();
-                                currentRecordId = null;
-                                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
+                                _currentRecordId = null;
+                                BooksCountBox.Text = "0";
+                                ReferencesCountBox.Text = "0";
+                                EventsCountBox.Text = "0";
+
                                 SaveNewRecordButton.Visibility = Visibility.Visible;
                                 SaveChangesButton.Visibility = Visibility.Collapsed;
                                 DeleteButton.Visibility = Visibility.Collapsed;
-                                // --- ПОКАЗЫВАЕМ СООБЩЕНИЕ ТОЛЬКО ЕСЛИ ЗАПИСЬ НЕ НАЙДЕНА ---
-                                // Это сообщение теперь появляется только при выборе даты пользователем (если запись отсутствует)
-                                //MessageBox.Show("Запись за выбранную дату не найдена. Вы можете сохранить новую.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                        }
+                    }
+
+                    UpdateStatsDisplay();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateStatsDisplay()
+        {
+            if (BooksCountStat != null) BooksCountStat.Text = BooksCountBox.Text;
+            if (ReferencesCountStat != null) ReferencesCountStat.Text = ReferencesCountBox.Text;
+            if (EventsCountStat != null) EventsCountStat.Text = EventsCountBox.Text;
+            if (IdRecordLabel != null)
+                IdRecordLabel.Content = _currentRecordId.HasValue ? $"ID записи: {_currentRecordId}" : "Новая запись";
+        }
+
+        private void LoadReaders()
+        {
+            try
+            {
+                _readers = _issuanceService.GetReaders();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadGroups()
+        {
+            try
+            {
+                _groups = _issuanceService.GetGroups();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private void LoadTeachers()
+        {
+            try
+            {
+                _teachers = _issuanceService.GetTeachers();
+                System.Diagnostics.Debug.WriteLine($"Загружено преподавателей: {_teachers.Count}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки преподавателей: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                _teachers = new ObservableCollection<BookIssuanceService.TeacherInfo>();
+            }
+        }
+        private void LoadBooks()
+        {
+            try
+            {
+                _books = _issuanceService.GetAvailableBooks();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadTodayIssues()
+        {
+            try
+            {
+                _todayIssues = _issuanceService.GetIssuancesByDate(DateTime.Today);
+                IssuesDataGrid.ItemsSource = _todayIssues;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void UpdateInventoryPreview()
+        {
+            try
+            {
+                if (QuantityBox == null || AvailableQuantityText == null || _selectedBook == null)
+                    return;
+
+                AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+
+                if (GroupTypeRadio.IsChecked == true)
+                {
+                    QuantityBox.IsEnabled = true;
+                    if (string.IsNullOrWhiteSpace(QuantityBox.Text) || QuantityBox.Text == "0")
+                        QuantityBox.Text = "1";
+                }
+                else
+                {
+                    QuantityBox.Text = "1";
+                    QuantityBox.IsEnabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в UpdateInventoryPreview: {ex.Message}");
+            }
+        }
+
+        private void IssueType_Checked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (ReaderTypeRadio.IsChecked == true)
+                {
+                    if (ReaderSearchSection != null)
+                        ReaderSearchSection.Visibility = Visibility.Visible;
+
+                    if (GroupSearchSection != null)
+                        GroupSearchSection.Visibility = Visibility.Collapsed;
+
+                    if (QuantityBox != null)
+                    {
+                        QuantityBox.Text = "1";
+                        QuantityBox.IsEnabled = false;
+                    }
+                }
+                else
+                {
+                    if (ReaderSearchSection != null)
+                        ReaderSearchSection.Visibility = Visibility.Collapsed;
+
+                    if (GroupSearchSection != null)
+                        GroupSearchSection.Visibility = Visibility.Visible;
+
+                    if (QuantityBox != null && _selectedBook != null)
+                    {
+                        QuantityBox.IsEnabled = true;
+                        QuantityBox.Text = "1";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в IssueType_Checked: {ex.Message}");
+            }
+        }
+
+        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                BooksCountBox.Text = "0";
+                ReferencesCountBox.Text = "0";
+                EventsCountBox.Text = "0";
+
+                LoadTodayStats();
+                LoadTodayIssues();
+                UpdateStatsDisplay();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка при изменении даты: {ex.Message}");
+            }
+        }
+
+        // Поиск читателей
+        private void ReaderSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isPlaceholderActive && ReaderSearchBox.Text == "Введите фамилию или номер билета...")
+            {
+                ReaderSearchBox.Text = "";
+                ReaderSearchBox.Foreground = Brushes.Black;
+                _isPlaceholderActive = false;
+            }
+        }
+
+        private void ReaderSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ReaderSearchBox.Text))
+            {
+                ReaderSearchBox.Text = "Введите фамилию или номер билета...";
+                ReaderSearchBox.Foreground = Brushes.Gray;
+                _isPlaceholderActive = true;
+                ReadersListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ReaderSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ReadersListBox == null) return;
+
+            string search = ReaderSearchBox.Text.ToLower();
+            if (_isPlaceholderActive || string.IsNullOrWhiteSpace(search))
+            {
+                ReadersListBox.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var filtered = _readers.Where(r =>
+                r.LastName.ToLower().Contains(search) ||
+                r.FirstName.ToLower().Contains(search) ||
+                r.CardNumber.ToLower().Contains(search)).Take(10).ToList();
+
+            if (filtered.Any())
+            {
+                ReadersListBox.ItemsSource = filtered;
+                ReadersListBox.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ReadersListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void ReadersListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ReadersListBox?.SelectedItem is BookIssuanceService.ReaderInfo selected)
+            {
+                _selectedReader = selected;
+                ReaderSearchBox.Text = selected.DisplayInfo;
+                ReaderSearchBox.Foreground = Brushes.Black;
+                ReadersListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // Поиск групп
+        private void GroupSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (GroupSearchBox.Text == "Введите код группы...")
+            {
+                GroupSearchBox.Text = "";
+                GroupSearchBox.Foreground = Brushes.Black;
+            }
+        }
+
+        private void GroupSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(GroupSearchBox.Text))
+            {
+                GroupSearchBox.Text = "Введите код группы...";
+                GroupSearchBox.Foreground = Brushes.Gray;
+                GroupsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void GroupSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (GroupsListBox == null) return;
+
+            string search = GroupSearchBox.Text.ToLower();
+            if (search == "введите код группы..." || string.IsNullOrWhiteSpace(search))
+            {
+                GroupsListBox.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var filtered = _groups.Where(g => g.GroupCode.ToLower().Contains(search)).Take(10).ToList();
+
+            if (filtered.Any())
+            {
+                GroupsListBox.ItemsSource = filtered;
+                GroupsListBox.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                GroupsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void GroupsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (GroupsListBox?.SelectedItem is BookIssuanceService.GroupInfo selected)
+            {
+                _selectedGroup = selected;
+                GroupSearchBox.Text = selected.GroupCode;
+                GroupSearchBox.Foreground = Brushes.Black;
+                GroupsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // Поиск преподавателей
+        private void TeacherSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (TeacherSearchBox.Text == "Введите фамилию преподавателя...")
+            {
+                TeacherSearchBox.Text = "";
+                TeacherSearchBox.Foreground = Brushes.Black;
+            }
+        }
+
+        private void TeacherSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TeacherSearchBox.Text))
+            {
+                TeacherSearchBox.Text = "Введите фамилию преподавателя...";
+                TeacherSearchBox.Foreground = Brushes.Gray;
+                TeachersListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void TeacherSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                if (TeachersListBox == null) return;
+
+                string search = TeacherSearchBox.Text.Trim();
+
+                // Проверяем, не является ли текст плейсхолдером
+                if (search == "Введите фамилию преподавателя..." || string.IsNullOrWhiteSpace(search))
+                {
+                    TeachersListBox.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                // Для отладки
+                System.Diagnostics.Debug.WriteLine($"Поиск преподавателя: {search}");
+
+                // Фильтруем существующую коллекцию _teachers (не обращаемся к базе каждый раз)
+                var filtered = _teachers.Where(t =>
+                    t.LastName.ToLower().Contains(search.ToLower()) ||
+                    t.FirstName.ToLower().Contains(search.ToLower())).Take(10).ToList();
+
+                if (filtered.Any())
+                {
+                    TeachersListBox.ItemsSource = filtered;
+                    TeachersListBox.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    TeachersListBox.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в TeacherSearchBox_TextChanged: {ex.Message}");
+            }
+        }
+
+        private void TeachersListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (TeachersListBox?.SelectedItem is BookIssuanceService.TeacherInfo selected)
+                {
+                    _selectedTeacher = selected;
+                    TeacherSearchBox.Text = selected.FullName;
+                    TeacherSearchBox.Foreground = Brushes.Black;
+                    TeachersListBox.Visibility = Visibility.Collapsed;
+
+                    System.Diagnostics.Debug.WriteLine($"Выбран преподаватель: {selected.FullName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в TeachersListBox_SelectionChanged: {ex.Message}");
+            }
+        }
+
+        // Поиск студентов
+        private void StudentSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (StudentSearchBox.Text == "Введите фамилию или номер билета...")
+            {
+                StudentSearchBox.Text = "";
+                StudentSearchBox.Foreground = Brushes.Black;
+            }
+        }
+
+        private void StudentSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(StudentSearchBox.Text))
+            {
+                StudentSearchBox.Text = "Введите фамилию или номер билета...";
+                StudentSearchBox.Foreground = Brushes.Gray;
+                StudentsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void StudentSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (StudentsListBox == null) return;
+
+            string search = StudentSearchBox.Text.ToLower();
+            if (search == "введите фамилию или номер билета..." || string.IsNullOrWhiteSpace(search))
+            {
+                StudentsListBox.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            // Получаем студентов через сервис
+            _students = _issuanceService.GetReaders(search);
+
+            if (_students.Any())
+            {
+                StudentsListBox.ItemsSource = _students;
+                StudentsListBox.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                StudentsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void StudentsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (StudentsListBox?.SelectedItem is BookIssuanceService.ReaderInfo selected)
+            {
+                _selectedStudent = selected;
+                StudentSearchBox.Text = selected.DisplayInfo;
+                StudentSearchBox.Foreground = Brushes.Black;
+                StudentsListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // Поиск книг
+        private void BookSearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (BookSearchBox.Text == "Введите название или автора...")
+            {
+                BookSearchBox.Text = "";
+                BookSearchBox.Foreground = Brushes.Black;
+            }
+        }
+
+        private void BookSearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(BookSearchBox.Text))
+            {
+                BookSearchBox.Text = "Введите название или автора...";
+                BookSearchBox.Foreground = Brushes.Gray;
+                BooksListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BookSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (BooksListBox == null) return;
+
+            string search = BookSearchBox.Text.ToLower();
+            if (search == "введите название или автора..." || string.IsNullOrWhiteSpace(search))
+            {
+                BooksListBox.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var filtered = _books.Where(b =>
+                b.TitleBook.ToLower().Contains(search) ||
+                b.AuthorName.ToLower().Contains(search)).Take(10).ToList();
+
+            if (filtered.Any())
+            {
+                BooksListBox.ItemsSource = filtered;
+                BooksListBox.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                BooksListBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BooksListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (BooksListBox?.SelectedItem is BookIssuanceService.BookInfo selected)
+            {
+                _selectedBook = selected;
+
+                // Обновляем отображение выбранной книги
+                SelectedBookTitle.Text = selected.TitleBook;
+                SelectedBookAuthor.Text = selected.AuthorName;
+                SelectedBookPanel.Visibility = Visibility.Visible;
+
+                BookSearchBox.Text = selected.TitleBook;
+                BookSearchBox.Foreground = Brushes.Black;
+                BooksListBox.Visibility = Visibility.Collapsed;
+
+                // Показываем общее доступное количество
+                AvailableQuantityText.Text = selected.AvailableCopies.ToString();
+                UpdateInventoryPreview();
+            }
+        }
+
+        private void ClearSelectedBook_Click(object sender, RoutedEventArgs e)
+        {
+            _selectedBook = null;
+            SelectedBookPanel.Visibility = Visibility.Collapsed;
+            BookSearchBox.Text = "Введите название или автора...";
+            BookSearchBox.Foreground = Brushes.Gray;
+            AvailableQuantityText.Text = "0";
+        }
+
+        private void CreateIssueButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Валидация
+            if (_selectedBook == null)
+            {
+                MessageBox.Show("Выберите книгу для выдачи.", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            int requestedQuantity = 1;
+            if (GroupTypeRadio.IsChecked == true)
+            {
+                if (!int.TryParse(QuantityBox?.Text, out requestedQuantity) || requestedQuantity <= 0)
+                {
+                    MessageBox.Show("Укажите корректное количество.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            System.Diagnostics.Debug.WriteLine($"Выбрана книга: {_selectedBook.TitleBook}, Автор: {_selectedBook.AuthorName}");
+            System.Diagnostics.Debug.WriteLine($"Всего доступно: {_selectedBook.AvailableCopies}, Запрошено: {requestedQuantity}");
+
+            // Проверяем доступное количество
+            if (requestedQuantity > _selectedBook.AvailableCopies)
+            {
+                MessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            // Проверяем доступное количество
+            if (requestedQuantity > _selectedBook.AvailableCopies)
+            {
+                MessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
+                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (ReaderTypeRadio.IsChecked == true)
+            {
+                // Выдача читателю
+                if (_selectedReader == null)
+                {
+                    MessageBox.Show("Выберите читателя.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                CreateIndividualIssuance(requestedQuantity);
+            }
+            else
+            {
+                // Выдача группе
+                if (_selectedGroup == null)
+                {
+                    MessageBox.Show("Выберите группу.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (_selectedTeacher == null)
+                {
+                    MessageBox.Show("Выберите преподавателя.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (_selectedStudent == null)
+                {
+                    MessageBox.Show("Выберите студента.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                CreateGroupIssuance(requestedQuantity);
+            }
+        }
+
+        private void CreateIndividualIssuance(int quantity)
+        {
+            try
+            {
+                // Для индивидуальной выдачи quantity всегда = 1
+                int bookId = GetAvailableBookIdWithQuantity(_selectedBook.TitleBook, _selectedBook.AuthorName, 1);
+
+                if (bookId == 0)
+                {
+                    MessageBox.Show("Не найдено доступных экземпляров книги.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                DateTime plannedReturnDate = DateTime.Now.AddDays(14);
+
+                int issuanceId = _issuanceService.CreateIndividualIssuance(
+                    bookId,
+                    _selectedReader.ReaderID,
+                    plannedReturnDate,
+                    "Выдача через информационное обслуживание"
+                );
+
+                // Обновляем количество книг локально
+                _selectedBook.AvailableCopies -= quantity;
+                AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+
+                MessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Обновляем статистику
+                int currentBooks = int.Parse(BooksCountBox.Text);
+                BooksCountBox.Text = (currentBooks + quantity).ToString();
+                UpdateStatsDisplay();
+
+                // Очищаем форму
+                ClearSelectedBook_Click(null, null);
+                _selectedReader = null;
+                ReaderSearchBox.Text = "Введите фамилию или номер билета...";
+                ReaderSearchBox.Foreground = Brushes.Gray;
+
+                // Обновляем список выдач и книг
+                LoadTodayIssues();
+                LoadBooks();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        /// <summary>
+        /// Получает ID книги, у которой достаточно экземпляров для выдачи
+        /// </summary>
+        private int GetAvailableBookIdWithQuantity(string title, string author, int requiredQuantity)
+        {
+            try
+            {
+                string sql = @"
+            SELECT TOP 1 b.IDBook, b.AvailableCopies
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE b.TitleBook = @Title 
+              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+              AND b.AvailableCopies >= @RequiredQuantity
+            ORDER BY b.AvailableCopies DESC";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        cmd.Parameters.AddWithValue("@Author", author);
+                        cmd.Parameters.AddWithValue("@RequiredQuantity", requiredQuantity);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                int bookId = Convert.ToInt32(reader["IDBook"]);
+                                int available = Convert.ToInt32(reader["AvailableCopies"]);
+                                System.Diagnostics.Debug.WriteLine($"Найдена книга ID={bookId} с {available} экземплярами");
+                                return bookId;
                             }
                         }
                     }
                 }
             }
-            catch (SqlException sqlEx)
+            catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка базы данных при загрузке: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                ClearInputFields(); // Очищаем, если ошибка
-                currentRecordId = null;
-                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
-                SaveNewRecordButton.Visibility = Visibility.Visible;
-                SaveChangesButton.Visibility = Visibility.Collapsed;
-                DeleteButton.Visibility = Visibility.Collapsed;
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книги: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        private void CreateGroupIssuance(int quantity)
+        {
+            try
+            {
+                // Получаем список ID книг для выдачи (нужное количество экземпляров)
+                List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
+
+                if (bookIds.Count < quantity)
+                {
+                    MessageBox.Show($"Недостаточно экземпляров книги.\n" +
+                                   $"Требуется: {quantity}, доступно: {bookIds.Count}",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                DateTime plannedReturnDate = DateTime.Now.AddDays(30);
+
+                // Создаем групповую выдачу со списком книг
+                int issuanceId = _issuanceService.CreateGroupIssuanceWithBooks(
+                    _selectedGroup.GroupID,
+                    _selectedTeacher.TeacherID,
+                    plannedReturnDate,
+                    bookIds,
+                    "Урок",
+                    "Групповая выдача"
+                );
+
+                // Обновляем количество книг локально
+                _selectedBook.AvailableCopies -= quantity;
+                AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+
+                MessageBox.Show($"Групповая выдача успешно создана!\n" +
+                               $"ID выдачи: {issuanceId}\n" +
+                               $"Выдано книг: {quantity}",
+                    "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Обновляем статистику
+                int currentBooks = int.Parse(BooksCountBox.Text);
+                BooksCountBox.Text = (currentBooks + quantity).ToString();
+                UpdateStatsDisplay();
+
+                // Очищаем форму
+                ClearSelectedBook_Click(null, null);
+                _selectedGroup = null;
+                _selectedTeacher = null;
+                _selectedStudent = null;
+
+                GroupSearchBox.Text = "Введите код группы...";
+                GroupSearchBox.Foreground = Brushes.Gray;
+                TeacherSearchBox.Text = "Введите фамилию преподавателя...";
+                TeacherSearchBox.Foreground = Brushes.Gray;
+                StudentSearchBox.Text = "Введите фамилию или номер билета...";
+                StudentSearchBox.Foreground = Brushes.Gray;
+
+                // Обновляем список выдач и книг
+                LoadTodayIssues();
+                LoadBooks();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Произошла ошибка при загрузке: {ex.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                ClearInputFields(); // Очищаем, если ошибка
-                currentRecordId = null;
-                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
-                SaveNewRecordButton.Visibility = Visibility.Visible;
-                SaveChangesButton.Visibility = Visibility.Collapsed;
-                DeleteButton.Visibility = Visibility.Collapsed;
+                MessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // --- Метод очистки полей ввода ---
-        private void ClearInputFields()
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
-            // DatePicker.SelectedDate оставляем как есть
-            BooksCountBox.Text = "0"; // или Clear()
-            ReferencesCountBox.Text = "0"; // или Clear()
-            EventsCountBox.Text = "0"; // или Clear()
-            IdRecordLabel.Content = ""; // или Visibility = Collapsed, если нужно скрыть
+            e.Handled = !char.IsDigit(e.Text, 0);
         }
 
-        // --- Обработчик сохранения новой записи ---
         private void SaveNewRecordButton_Click(object sender, RoutedEventArgs e)
         {
-            // Проверка ввода (аналогично вашему SaveButton_Click)
-            if (!int.TryParse(BooksCountBox.Text, out int books) ||
-                !int.TryParse(ReferencesCountBox.Text, out int refs) ||
-                !int.TryParse(EventsCountBox.Text, out int events))
-            {
-                MessageBox.Show("Пожалуйста, введите корректные числовые значения.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var date = DatePicker.SelectedDate?.ToString("yyyy-MM-dd"); // Формат даты для SQL (ГГГГ-ММ-ДД)
-
-            if (date == null)
-            {
-                MessageBox.Show("Пожалуйста, выберите дату.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            string query = @"
-                INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count)
-                VALUES (@Date, @Books, @Refs, @Events)";
-
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    using (SqlCommand command = new SqlCommand(query, connection))
-                    {
-                        // Добавляем параметры, чтобы избежать SQL-инъекций
-                        command.Parameters.AddWithValue("@Date", date); // date уже в формате "ГГГГ-ММ-ДД"
-                        command.Parameters.AddWithValue("@Books", books);
-                        command.Parameters.AddWithValue("@Refs", refs);
-                        command.Parameters.AddWithValue("@Events", events);
-
-                        int rowsAffected = command.ExecuteNonQuery();
-
-                        if (rowsAffected > 0)
-                        {
-                            MessageBox.Show($"Данные за {date} успешно сохранены в базу данных:\n" +
-                                            $"📚 Книг: {books} экз.\n" +
-                                            $"📑 Справок: {refs} шт.\n" +
-                                            $"👥 Мероприятий: {events} чел.",
-                                            "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                            // После сохранения новой записи, можно перезагрузить её, чтобы ID появился
-                            // или просто сбросить currentRecordId, если не планируете сразу редактировать
-                            currentRecordId = null; // Сбрасываем, так как это новая запись, ID которой мы не знаем
-                            // Или вызвать LoadFirstRecordForDate(DateTime.Parse(date)) для получения ID, если это важно
-                        }
-                        else
-                        {
-                            MessageBox.Show("Данные не были сохранены. Проверьте введённые значения.",
-                                            "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        }
-                    }
-                }
-            }
-            catch (SqlException sqlEx)
-            {
-                // Обработка ошибок SQL Server (например, нарушение ограничений, проблемы с подключением)
-                MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            catch (Exception ex)
-            {
-                // Обработка любых других ошибок
-                MessageBox.Show($"Произошла ошибка: {ex.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            SaveRecord(false);
         }
 
-        // --- Обработчик сохранения изменений существующей записи ---
         private void SaveChangesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!currentRecordId.HasValue)
-            {
-                MessageBox.Show("Нет загруженной записи для сохранения. Выберите дату.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            SaveRecord(true);
+        }
 
-            // Проверка ввода (аналогично вашему SaveButton_Click)
-            if (!int.TryParse(BooksCountBox.Text, out int books) ||
-                !int.TryParse(ReferencesCountBox.Text, out int refs) ||
-                !int.TryParse(EventsCountBox.Text, out int events))
-            {
-                MessageBox.Show("Пожалуйста, введите корректные числовые значения.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var date = DatePicker.SelectedDate?.ToString("yyyy-MM-dd"); // Формат даты для SQL (ГГГГ-ММ-ДД)
-
-            if (date == null)
-            {
-                MessageBox.Show("Пожалуйста, выберите дату.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Обновляем также date_record, если пользователь может изменить дату
-            // Если дата не должна изменяться, уберите date_record из UPDATE
-            string updateQuery = @"
-                UPDATE InformationServiseTb 
-                SET date_record = @Date, delivery_book = @Books, delivery_certificate = @Refs, events_count = @Events 
-                WHERE id_record = @Id";
+        private void SaveRecord(bool isUpdate)
+        {
+            if (!int.TryParse(BooksCountBox.Text, out int books))
+                books = 0;
+            if (!int.TryParse(ReferencesCountBox.Text, out int references))
+                references = 0;
+            if (!int.TryParse(EventsCountBox.Text, out int events))
+                events = 0;
 
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    connection.Open();
-                    using (SqlCommand command = new SqlCommand(updateQuery, connection))
+                    conn.Open();
+
+                    if (isUpdate && _currentRecordId.HasValue)
                     {
-                        command.Parameters.AddWithValue("@Date", date);
-                        command.Parameters.AddWithValue("@Books", books);
-                        command.Parameters.AddWithValue("@Refs", refs);
-                        command.Parameters.AddWithValue("@Events", events);
-                        command.Parameters.AddWithValue("@Id", currentRecordId.Value); // Используем ID текущей записи
+                        string query = @"
+                            UPDATE InformationServiseTb 
+                            SET delivery_book = @Books, 
+                                delivery_certificate = @References, 
+                                events_count = @Events 
+                            WHERE id_record = @ID";
 
-                        int rowsAffected = command.ExecuteNonQuery();
+                        using (var cmd = new SqlCommand(query, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@Books", books);
+                            cmd.Parameters.AddWithValue("@References", references);
+                            cmd.Parameters.AddWithValue("@Events", events);
+                            cmd.Parameters.AddWithValue("@ID", _currentRecordId.Value);
+                            cmd.ExecuteNonQuery();
+                        }
 
-                        if (rowsAffected > 0)
+                        MessageBox.Show("Запись обновлена!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        string checkQuery = "SELECT COUNT(*) FROM InformationServiseTb WHERE date_record = @Date";
+                        using (var checkCmd = new SqlCommand(checkQuery, conn))
                         {
-                            MessageBox.Show("Запись успешно обновлена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                            // После обновления можно перезагрузить запись, чтобы убедиться, что отображаются актуальные данные
-                            // LoadFirstRecordForDate(DateTime.Parse(date));
+                            checkCmd.Parameters.AddWithValue("@Date", DatePicker.SelectedDate ?? DateTime.Today);
+                            int count = (int)checkCmd.ExecuteScalar();
+
+                            if (count > 0)
+                            {
+                                MessageBox.Show("Запись за эту дату уже существует! Используйте редактирование.",
+                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                return;
+                            }
                         }
-                        else
+
+                        string insertQuery = @"
+                            INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count) 
+                            VALUES (@Date, @Books, @References, @Events)";
+
+                        using (var cmd = new SqlCommand(insertQuery, conn))
                         {
-                            MessageBox.Show("Запись не была обновлена. Возможно, она была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            ClearInputFields();
-                            currentRecordId = null;
-                            // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
-                            SaveNewRecordButton.Visibility = Visibility.Visible;
-                            SaveChangesButton.Visibility = Visibility.Collapsed;
-                            DeleteButton.Visibility = Visibility.Collapsed;
+                            cmd.Parameters.AddWithValue("@Date", DatePicker.SelectedDate ?? DateTime.Today);
+                            cmd.Parameters.AddWithValue("@Books", books);
+                            cmd.Parameters.AddWithValue("@References", references);
+                            cmd.Parameters.AddWithValue("@Events", events);
+                            cmd.ExecuteNonQuery();
                         }
+
+                        MessageBox.Show("Запись сохранена!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                 }
-            }
-            catch (SqlException sqlEx)
-            {
-                MessageBox.Show($"Ошибка базы данных при сохранении: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                LoadTodayStats();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Произошла ошибка при сохранении: {ex.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // --- Обработчик удаления записи ---
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!currentRecordId.HasValue)
-            {
-                MessageBox.Show("Нет загруженной записи для удаления. Выберите дату.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!_currentRecordId.HasValue)
                 return;
-            }
 
-            // Подтверждение удаления
-            var result = MessageBox.Show("Вы уверены, что хотите удалить выбранную запись?",
-                                         "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show("Удалить запись за этот день?", "Подтверждение",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
-                string deleteQuery = "DELETE FROM InformationServiseTb WHERE id_record = @Id";
-
                 try
                 {
-                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    using (var conn = new SqlConnection(_connectionString))
                     {
-                        connection.Open();
-                        using (SqlCommand command = new SqlCommand(deleteQuery, connection))
+                        conn.Open();
+                        string query = "DELETE FROM InformationServiseTb WHERE id_record = @ID";
+                        using (var cmd = new SqlCommand(query, conn))
                         {
-                            command.Parameters.AddWithValue("@Id", currentRecordId.Value);
+                            cmd.Parameters.AddWithValue("@ID", _currentRecordId.Value);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
 
-                            int rowsAffected = command.ExecuteNonQuery();
+                    LoadTodayStats();
+                    MessageBox.Show("Запись удалена!", "Успех",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+        /// <summary>
+        /// Получает список ID книг, которые будут выданы (по одному ID на каждый экземпляр)
+        /// </summary>
+        private List<int> GetAvailableBookIds(string title, string author, int requiredQuantity)
+        {
+            var bookIds = new List<int>();
 
-                            if (rowsAffected > 0)
+            try
+            {
+                string sql = @"
+            SELECT TOP (@RequiredQuantity) b.IDBook
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE b.TitleBook = @Title 
+              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+              AND b.AvailableCopies > 0
+            ORDER BY b.IDBook";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        cmd.Parameters.AddWithValue("@Author", author);
+                        cmd.Parameters.AddWithValue("@RequiredQuantity", requiredQuantity);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
                             {
-                                MessageBox.Show("Запись успешно удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
-                                ClearInputFields(); // Очищаем поля после удаления
-                                currentRecordId = null;
-                                // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
-                                SaveNewRecordButton.Visibility = Visibility.Visible;
-                                SaveChangesButton.Visibility = Visibility.Collapsed;
-                                DeleteButton.Visibility = Visibility.Collapsed;
-                            }
-                            else
-                            {
-                                MessageBox.Show("Запись не была удалена. Возможно, она уже была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                bookIds.Add(Convert.ToInt32(reader["IDBook"]));
                             }
                         }
                     }
                 }
-                catch (SqlException sqlEx)
-                {
-                    MessageBox.Show($"Ошибка базы данных при удалении: {sqlEx.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Произошла ошибка при удалении: {ex.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+
+                System.Diagnostics.Debug.WriteLine($"Найдено книг: {bookIds.Count} из {requiredQuantity} требуемых");
             }
-            // Если пользователь нажал "Нет", ничего не делаем.
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книг: {ex.Message}");
+            }
+
+            return bookIds;
         }
 
-        
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            LoadTodayStats();
+            LoadTeachers();
+        }
     }
 }
