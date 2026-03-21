@@ -268,5 +268,10 @@
         </Style>
         
         <DropShadowEffect x:Key="DropShadowEffect" BlurRadius="10" ShadowDepth="3" Opacity="0.3" Direction="270"/>
+        <Style x:Key="DataGridCellWrapStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="MaxHeight" Value="60"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </Application.Resources>
 </Application>

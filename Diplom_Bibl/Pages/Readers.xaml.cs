@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -16,6 +17,7 @@ namespace Diplom_Bibl.Pages
     public partial class Readers : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly object _issuanceService;
         private ObservableCollection<ReaderDisplayItem> _allReaders;
         private ObservableCollection<ReaderDisplayItem> _filteredReaders;
         private bool _isPlaceholderActive = true;
@@ -142,73 +144,81 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadReaders()
+        private async void LoadReaders()
         {
             try
             {
-                const string query = @"
-                    SELECT 
-                        r.ReaderID, 
-                        r.CardNumber, 
-                        r.LastName, 
-                        r.FirstName, 
-                        r.MiddleName,
-                        r.TypeID,
-                        rt.TypeName,
-                        g.GroupCode,
-                        p.Post_Name,
-                        r.PhoneNumber,
-                        r.HomeAddress,
-                        r.MembershipStartDate
-                    FROM ReaderForm r
-                    LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
-                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                    LEFT JOIN Post p ON r.Post = p.ID_Post
-                    ORDER BY r.LastName, r.FirstName";
+              
 
-                using (var conn = new SqlConnection(_connectionString))
+                // Выполняем запрос в фоновом потоке
+                var items = await Task.Run(() =>
                 {
-                    conn.Open();
-                    using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    var result = new ObservableCollection<ReaderDisplayItem>();
+
+                    const string query = @"
+                SELECT 
+                    r.ReaderID, 
+                    r.CardNumber, 
+                    r.LastName, 
+                    r.FirstName, 
+                    r.MiddleName,
+                    r.TypeID,
+                    rt.TypeName,
+                    g.GroupCode,
+                    p.Post_Name,
+                    r.PhoneNumber,
+                    r.HomeAddress,
+                    r.MembershipStartDate
+                FROM ReaderForm r
+                LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
+                LEFT JOIN Groups g ON r.GroupID = g.GroupID
+                LEFT JOIN Post p ON r.Post = p.ID_Post
+                ORDER BY r.LastName, r.FirstName";
+
+                    using (var conn = new SqlConnection(_connectionString))
                     {
-                        var items = new ObservableCollection<ReaderDisplayItem>();
-
-                        while (reader.Read())
+                        conn.Open();
+                        using (var cmd = new SqlCommand(query, conn))
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            var item = new ReaderDisplayItem
+                            while (reader.Read())
                             {
-                                ReaderID = Convert.ToInt32(reader["ReaderID"]),
-                                CardNumber = reader["CardNumber"]?.ToString() ?? "",
-                                LastName = reader["LastName"]?.ToString() ?? "",
-                                FirstName = reader["FirstName"]?.ToString() ?? "",
-                                MiddleName = reader["MiddleName"]?.ToString() ?? "",
-                                TypeID = Convert.ToInt32(reader["TypeID"]),
-                                TypeName = reader["TypeName"]?.ToString() ?? "Не указан",
-                                GroupCode = reader["GroupCode"]?.ToString() ?? "",
-                                PostName = reader["Post_Name"]?.ToString() ?? "",
-                                PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "",
-                                HomeAddress = reader["HomeAddress"]?.ToString() ?? "",
-                                MembershipStartDate = Convert.ToDateTime(reader["MembershipStartDate"])
-                            };
-
-                            items.Add(item);
+                                result.Add(new ReaderDisplayItem
+                                {
+                                    ReaderID = Convert.ToInt32(reader["ReaderID"]),
+                                    CardNumber = reader["CardNumber"]?.ToString() ?? "",
+                                    LastName = reader["LastName"]?.ToString() ?? "",
+                                    FirstName = reader["FirstName"]?.ToString() ?? "",
+                                    MiddleName = reader["MiddleName"]?.ToString() ?? "",
+                                    TypeID = Convert.ToInt32(reader["TypeID"]),
+                                    TypeName = reader["TypeName"]?.ToString() ?? "Не указан",
+                                    GroupCode = reader["GroupCode"]?.ToString() ?? "",
+                                    PostName = reader["Post_Name"]?.ToString() ?? "",
+                                    PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "",
+                                    HomeAddress = reader["HomeAddress"]?.ToString() ?? "",
+                                    MembershipStartDate = Convert.ToDateTime(reader["MembershipStartDate"])
+                                });
+                            }
                         }
-
-                        _allReaders = items;
-                        _filteredReaders = new ObservableCollection<ReaderDisplayItem>(_allReaders);
-                        ReadersListView.ItemsSource = _filteredReaders;
-
-                        UpdateStatistics();
-                        UpdateSearchCount();
                     }
-                }
+
+                    return result;
+                });
+
+                _allReaders = items;
+                _filteredReaders = new ObservableCollection<ReaderDisplayItem>(_allReaders);
+                ReadersListView.ItemsSource = _filteredReaders;
+
+                UpdateStatistics();
+                UpdateSearchCount();
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка загрузки читателей: {ex.Message}",
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+
+                   }
         }
 
         private void ApplyFilters()

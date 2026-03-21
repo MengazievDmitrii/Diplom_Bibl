@@ -530,17 +530,30 @@ namespace Diplom_Bibl.Pages
             SetSearchPlaceholder();
         }
 
-        private void DgBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+       private void DgBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+{
+    if (DgBooks.SelectedItem is BookItem selectedBook)
+    {
+        try
         {
-            if (DgBooks.SelectedItem is BookItem selectedBook)
-            {
-                // Переход на страницу редактирования книги
-                var addBookPage = new AddBook();
-                // Здесь нужно передать ID книги для редактирования
-                // addBookPage.LoadBook(selectedBook.IDBook);
-                NavigationService.Navigate(addBookPage);
-            }
+            // Показываем индикатор загрузки
+            Mouse.OverrideCursor = Cursors.Wait;
+            
+            // Передаем ID книги через конструктор
+            var addBookPage = new AddBook(selectedBook.IDBook);
+            NavigationService.Navigate(addBookPage);
         }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка при открытии книги: {ex.Message}", "Ошибка",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+}
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
@@ -551,5 +564,11 @@ namespace Diplom_Bibl.Pages
         {
             NavigationService.Navigate(new BulkAddBooks());
         }
+
+        private void FundMovementBtn_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new FundMovementPage());
+        }
+    
     }
 }

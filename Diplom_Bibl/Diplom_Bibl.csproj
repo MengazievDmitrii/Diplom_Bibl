@@ -250,11 +250,17 @@
       <DependentUpon>DisposalAct.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\DisposalActPdfService.cs" />
+    <Compile Include="Pages\FundMovementPage.xaml.cs">
+      <DependentUpon>FundMovementPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\ImportReaders.xaml.cs">
       <DependentUpon>ImportReaders.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\Readers.xaml.cs">
       <DependentUpon>Readers.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ReturnBooksPage.xaml.cs">
+      <DependentUpon>ReturnBooksPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\Settings.xaml.cs">
       <DependentUpon>Settings.xaml</DependentUpon>
@@ -383,11 +389,19 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Pages\FundMovementPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Pages\ImportReaders.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\Readers.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\ReturnBooksPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

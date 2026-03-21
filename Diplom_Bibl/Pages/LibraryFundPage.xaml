@@ -63,6 +63,12 @@
                     Width="150" 
                     Margin="0,0,0,0" 
                     Visibility="Collapsed"/>
+            <Button x:Name="FundMovementBtn" 
+        Content="📊 Движение фонда" 
+        Style="{StaticResource SaveButtonStyle}"
+        Click="FundMovementBtn_Click"
+        Width="180"
+        Height="40"/>
         </StackPanel>
 
         <!-- Заголовок списка -->

@@ -6,6 +6,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace Diplom_Bibl.Services
 {
@@ -33,8 +34,40 @@ namespace Diplom_Bibl.Services
             public string InventaryNumber { get; set; }
             public int Quantity { get; set; }
             public string Notes { get; set; }
+            public List<string> BookList { get; set; }
 
-            public string DisplayInfo => $"{IssuanceDate:dd.MM.yyyy} - {RecipientName} - {BookTitle} ({Quantity} шт.)";
+            // Для отображения в DataGrid
+            public string DisplayTime => IssuanceDate.ToString("HH:mm");
+            public string DisplayRecipient => $"{RecipientName} ({RecipientType})";
+
+            // Для индивидуальных выдач показываем название книги
+            // Для групповых показываем список книг
+            public string DisplayBook
+            {
+                get
+                {
+                    if (IssuanceType == "individual")
+                    {
+                        // Для индивидуальных выдач показываем название книги
+                        return string.IsNullOrEmpty(BookTitle) ? "Книга не указана" : BookTitle;
+                    }
+                    else if (IssuanceType == "group")
+                    {
+                        // Для групповых выдач показываем список книг
+                        if (BookList != null && BookList.Any())
+                            return string.Join(", ", BookList);
+                        else
+                            return "Групповая выдача (книги не загружены)";
+                    }
+                    else
+                    {
+                        return "Неизвестный тип выдачи";
+                    }
+                }
+            }
+
+            public string IssuanceTypeDisplay { get; set; }
+            public SolidColorBrush OverdueColor { get; set; }
             public bool IsOverdue => !ReturnDate.HasValue && DateTime.Now > PlannedReturnDate;
         }
 
@@ -166,7 +199,7 @@ namespace Diplom_Bibl.Services
                     rt.TypeName
                 FROM ReaderForm r
                 INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
-                WHERE rt.TypeName LIKE '%студент%'";
+                WHERE rt.TypeName LIKE '%студент%' OR rt.TypeName LIKE '%сотрудник%' OR rt.TypeName LIKE '%преподаватель%'";
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -204,6 +237,59 @@ namespace Diplom_Bibl.Services
             }
 
             return readers;
+        }
+        public ObservableCollection<ReaderInfo> GetReadersStudent(string searchTerm = "")
+        {
+            var readers_student = new ObservableCollection<ReaderInfo>();
+
+            string sql = @"
+                SELECT 
+                    r.ReaderID,
+                    r.CardNumber,
+                    r.LastName,
+                    r.FirstName,
+                    r.MiddleName,
+                    rt.TypeName
+                FROM ReaderForm r
+                INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
+                WHERE rt.TypeName LIKE '%студент%'";
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                sql += " AND (r.LastName LIKE @Search OR r.FirstName LIKE @Search OR r.CardNumber LIKE @Search)";
+            }
+
+            sql += " ORDER BY r.LastName, r.FirstName";
+
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    if (!string.IsNullOrWhiteSpace(searchTerm))
+                    {
+                        cmd.Parameters.AddWithValue("@Search", $"%{searchTerm}%");
+                    }
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            readers_student.Add(new ReaderInfo
+                            {
+                                ReaderID = Convert.ToInt32(reader["ReaderID"]),
+                                CardNumber = reader["CardNumber"]?.ToString() ?? "",
+                                LastName = reader["LastName"]?.ToString() ?? "",
+                                FirstName = reader["FirstName"]?.ToString() ?? "",
+                                MiddleName = reader["MiddleName"]?.ToString() ?? "",
+                                TypeName = reader["TypeName"]?.ToString() ?? ""
+                            });
+                        }
+                    }
+                }
+            }
+
+            return readers_student;
         }
 
         /// <summary>
@@ -391,26 +477,37 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Возврат книги
+        /// Возврат книги (индивидуальной или групповой)
         /// </summary>
         public void ReturnBook(string issuanceType, int issuanceId)
         {
-            using (var conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
-                using (var cmd = new SqlCommand("sp_ReturnBook", conn))
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    cmd.CommandType = CommandType.StoredProcedure;
+                    conn.Open();
+                    using (var cmd = new SqlCommand("sp_ReturnBook", conn))
+                    {
+                        cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@IssuanceType", issuanceType);
-                    cmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
-                    cmd.Parameters.AddWithValue("@ReturnDate", DateTime.Now);
+                        cmd.Parameters.AddWithValue("@IssuanceType", issuanceType);
+                        cmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
+                        cmd.Parameters.AddWithValue("@ReturnDate", DateTime.Now);
 
-                    cmd.ExecuteNonQuery();
+                        System.Diagnostics.Debug.WriteLine($"Вызов sp_ReturnBook: Type={issuanceType}, Id={issuanceId}");
+
+                        cmd.ExecuteNonQuery();
+
+                        System.Diagnostics.Debug.WriteLine($"Возврат выполнен успешно");
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в ReturnBook: {ex.Message}");
+                throw;
+            }
         }
-
         /// <summary>
         /// Получение списка выдач за период
         /// </summary>
@@ -419,24 +516,54 @@ namespace Diplom_Bibl.Services
             var issuances = new ObservableCollection<IssuanceItem>();
 
             string sql = @"
-                SELECT 
-                    IssuanceType,
-                    Id,
-                    IssuanceDate,
-                    PlannedReturnDate,
-                    ReturnDate,
-                    Status,
-                    RecipientId,
-                    RecipientName,
-                    RecipientType,
-                    BookId,
-                    BookTitle,
-                    InventaryNumber,
-                    Quantity,
-                    Notes
-                FROM vw_AllIssuances
-                WHERE CAST(IssuanceDate AS DATE) = @Date
-                ORDER BY IssuanceDate DESC";
+        -- Индивидуальные выдачи
+        SELECT 
+            'individual' AS IssuanceType,
+            i.IssuanceId AS Id,
+            i.IssuanceDate,
+            i.PlannedReturnDate,
+            i.ReturnDate,
+            i.Status,
+            r.ReaderID AS RecipientId,
+            CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
+            'Читатель' AS RecipientType,
+            b.IDBook AS BookId,
+            b.TitleBook AS BookTitle,
+            b.InventaryNumber,
+            1 AS Quantity,
+            i.Notes
+        FROM BookIssuance i
+        INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
+        INNER JOIN Books b ON i.BookId = b.IDBook
+        WHERE CAST(i.IssuanceDate AS DATE) = @Date
+
+        UNION ALL
+
+        -- Групповые выдачи (сгруппированные)
+        SELECT 
+            'group' AS IssuanceType,
+            gi.GroupIssuanceId AS Id,
+            gi.IssuanceDate,
+            gi.PlannedReturnDate,
+            gi.ReturnDate,
+            gi.Status,
+            g.GroupID AS RecipientId,
+            g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName AS RecipientName,
+            'Группа' AS RecipientType,
+            NULL AS BookId,
+            NULL AS BookTitle,  -- Для групповых выдач название будет заполнено позже
+            NULL AS InventaryNumber,
+            SUM(git.Quantity) AS Quantity,
+            gi.Notes
+        FROM GroupBookIssuance gi
+        INNER JOIN Groups g ON gi.GroupId = g.GroupID
+        INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+        INNER JOIN GroupIssuanceItems git ON gi.GroupIssuanceId = git.GroupIssuanceId
+        WHERE CAST(gi.IssuanceDate AS DATE) = @Date
+        GROUP BY gi.GroupIssuanceId, gi.IssuanceDate, gi.PlannedReturnDate, gi.ReturnDate, 
+                 gi.Status, g.GroupID, g.GroupCode, t.LastName, t.FirstName, gi.Notes
+
+        ORDER BY IssuanceDate DESC";
 
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -449,7 +576,7 @@ namespace Diplom_Bibl.Services
                     {
                         while (reader.Read())
                         {
-                            issuances.Add(new IssuanceItem
+                            var issuance = new IssuanceItem
                             {
                                 IssuanceType = reader["IssuanceType"]?.ToString() ?? "",
                                 Id = Convert.ToInt32(reader["Id"]),
@@ -460,19 +587,91 @@ namespace Diplom_Bibl.Services
                                 RecipientId = Convert.ToInt32(reader["RecipientId"]),
                                 RecipientName = reader["RecipientName"]?.ToString() ?? "",
                                 RecipientType = reader["RecipientType"]?.ToString() ?? "",
-                                BookId = Convert.ToInt32(reader["BookId"]),
+                                BookId = reader["BookId"] != DBNull.Value ? Convert.ToInt32(reader["BookId"]) : 0,
                                 BookTitle = reader["BookTitle"]?.ToString() ?? "",
                                 InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
                                 Quantity = Convert.ToInt32(reader["Quantity"]),
-                                Notes = reader["Notes"]?.ToString() ?? ""
-                            });
+                                Notes = reader["Notes"]?.ToString() ?? "",
+                                BookList = new List<string>()
+                            };
+
+                            issuances.Add(issuance);
                         }
                     }
                 }
             }
 
+            // Для групповых выдач загружаем список книг отдельно
+            foreach (var issuance in issuances.Where(i => i.IssuanceType == "group"))
+            {
+                issuance.BookList = GetGroupBookTitles(issuance.Id);
+                // Для отладки
+                System.Diagnostics.Debug.WriteLine($"Групповая выдача {issuance.Id}: загружено {issuance.BookList.Count} книг");
+            }
+
+            // Для отладки индивидуальных выдач
+            foreach (var issuance in issuances.Where(i => i.IssuanceType == "individual"))
+            {
+                System.Diagnostics.Debug.WriteLine($"Индивидуальная выдача {issuance.Id}: книга '{issuance.BookTitle}'");
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Загружено выдач: {issuances.Count} (инд: {issuances.Count(i => i.IssuanceType == "individual")}, групп: {issuances.Count(i => i.IssuanceType == "group")})");
+
             return issuances;
         }
+
+        /// <summary>
+        /// <summary>
+        /// Получает список книг для групповой выдачи (с группировкой по названию)
+        /// </summary>
+        private List<string> GetGroupBookTitles(int groupIssuanceId)
+        {
+            var books = new List<string>();
+
+            try
+            {
+                string sql = @"
+            SELECT 
+                b.TitleBook,
+                SUM(git.Quantity) AS TotalQuantity
+            FROM GroupIssuanceItems git
+            INNER JOIN Books b ON git.BookId = b.IDBook
+            WHERE git.GroupIssuanceId = @GroupIssuanceId
+            GROUP BY b.TitleBook
+            ORDER BY b.TitleBook";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string title = reader["TitleBook"]?.ToString() ?? "";
+                                int quantity = Convert.ToInt32(reader["TotalQuantity"]);
+
+                                books.Add($"{title} ({quantity} шт.)");
+
+                                System.Diagnostics.Debug.WriteLine($"Книга: {title}, количество: {quantity}");
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Загружено книг для групповой выдачи {groupIssuanceId}: {books.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки книг для групповой выдачи {groupIssuanceId}: {ex.Message}");
+            }
+
+            return books;
+        }
+
 
         /// <summary>
         /// Получение активных выдач читателя
@@ -542,12 +741,13 @@ namespace Diplom_Bibl.Services
         /// Создание групповой выдачи с несколькими книгами
         /// </summary>
         public int CreateGroupIssuanceWithBooks(
-            int groupId,
-            int teacherId,
-            DateTime plannedReturnDate,
-            List<int> bookIds,
-            string subjectName = "",
-            string notes = "")
+     int groupId,
+     int teacherId,
+     int studentId,
+     DateTime plannedReturnDate,
+     List<int> bookIds,
+     string subjectName = "",
+     string notes = "")
         {
             if (bookIds == null || bookIds.Count == 0)
                 throw new ArgumentException("Список книг не может быть пустым");
@@ -564,6 +764,7 @@ namespace Diplom_Bibl.Services
 
                     cmd.Parameters.AddWithValue("@GroupId", groupId);
                     cmd.Parameters.AddWithValue("@TeacherId", teacherId);
+                    cmd.Parameters.AddWithValue("@StudentId", studentId);
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrWhiteSpace(subjectName) ? DBNull.Value : (object)subjectName);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);

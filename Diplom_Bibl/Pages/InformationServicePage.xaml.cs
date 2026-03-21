@@ -33,6 +33,10 @@ namespace Diplom_Bibl.Pages
         private BookIssuanceService.TeacherInfo _selectedTeacher;
         private BookIssuanceService.ReaderInfo _selectedStudent;
 
+        // ID статусов книг
+        private int _statusAvailableId = 1; // "В наличии"
+        private int _statusIssuedId = 3;    // "Выдана"
+
         public InformationServicePage()
         {
             InitializeComponent();
@@ -50,15 +54,49 @@ namespace Diplom_Bibl.Pages
             DatePicker.SelectedDate = DateTime.Today;
 
             // Загружаем данные
-            LoadTodayStats();
             LoadTodayIssues();
             LoadReaders();
             LoadGroups();
             LoadTeachers();
             LoadBooks();
+            InitializeStats();
+            LoadStatusIds(); // Загружаем ID статусов
 
             // Подписываемся на события
             this.Loaded += (s, e) => UpdateInventoryPreview();
+        }
+
+        private void LoadStatusIds()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Получаем ID статуса "В наличии"
+                    string availableQuery = "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%'";
+                    using (var cmd = new SqlCommand(availableQuery, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                            _statusAvailableId = Convert.ToInt32(result);
+                    }
+
+                    // Получаем ID статуса "Выдана"
+                    string issuedQuery = "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Выдана%'";
+                    using (var cmd = new SqlCommand(issuedQuery, conn))
+                    {
+                        var result = cmd.ExecuteScalar();
+                        if (result != null)
+                            _statusIssuedId = Convert.ToInt32(result);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки статусов: {ex.Message}");
+            }
         }
 
         private void LoadTodayStats()
@@ -72,9 +110,9 @@ namespace Diplom_Bibl.Pages
                     conn.Open();
 
                     string query = @"
-                        SELECT id_record, delivery_book, delivery_certificate, events_count 
-                        FROM InformationServiseTb 
-                        WHERE date_record = @Date";
+                SELECT id_record, delivery_book, delivery_certificate, events_count 
+                FROM InformationServiseTb 
+                WHERE date_record = @Date";
 
                     using (var cmd = new SqlCommand(query, conn))
                     {
@@ -95,9 +133,11 @@ namespace Diplom_Bibl.Pages
                             else
                             {
                                 _currentRecordId = null;
-                                BooksCountBox.Text = "0";
-                                ReferencesCountBox.Text = "0";
-                                EventsCountBox.Text = "0";
+                                // НЕ ОБНУЛЯЕМ поля, если записи нет!
+                                // Оставляем текущие значения
+                                // BooksCountBox.Text = "0";
+                                // ReferencesCountBox.Text = "0";
+                                // EventsCountBox.Text = "0";
 
                                 SaveNewRecordButton.Visibility = Visibility.Visible;
                                 SaveChangesButton.Visibility = Visibility.Collapsed;
@@ -115,12 +155,14 @@ namespace Diplom_Bibl.Pages
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void UpdateStatsDisplay()
         {
-            if (BooksCountStat != null) BooksCountStat.Text = BooksCountBox.Text;
-            if (ReferencesCountStat != null) ReferencesCountStat.Text = ReferencesCountBox.Text;
-            if (EventsCountStat != null) EventsCountStat.Text = EventsCountBox.Text;
+            if (BooksCountStat != null)
+                BooksCountStat.Text = BooksCountBox.Text;
+            if (ReferencesCountStat != null)
+                ReferencesCountStat.Text = ReferencesCountBox.Text;
+            if (EventsCountStat != null)
+                EventsCountStat.Text = EventsCountBox.Text;
             if (IdRecordLabel != null)
                 IdRecordLabel.Content = _currentRecordId.HasValue ? $"ID записи: {_currentRecordId}" : "Новая запись";
         }
@@ -182,7 +224,22 @@ namespace Diplom_Bibl.Pages
             try
             {
                 _todayIssues = _issuanceService.GetIssuancesByDate(DateTime.Today);
+
+                // Добавляем цвета для просрочки
+                foreach (var item in _todayIssues)
+                {
+                    item.OverdueColor = item.IsOverdue ?
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
+                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                }
+
                 IssuesDataGrid.ItemsSource = _todayIssues;
+
+                System.Diagnostics.Debug.WriteLine($"LoadTodayIssues: загружено {_todayIssues.Count} записей");
+                foreach (var item in _todayIssues)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {item.IssuanceType}: {item.DisplayBook}");
+                }
             }
             catch (Exception ex)
             {
@@ -261,10 +318,6 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                BooksCountBox.Text = "0";
-                ReferencesCountBox.Text = "0";
-                EventsCountBox.Text = "0";
-
                 LoadTodayStats();
                 LoadTodayIssues();
                 UpdateStatsDisplay();
@@ -501,7 +554,7 @@ namespace Diplom_Bibl.Pages
             }
 
             // Получаем студентов через сервис
-            _students = _issuanceService.GetReaders(search);
+            _students = _issuanceService.GetReadersStudent(search);
 
             if (_students.Any())
             {
@@ -631,13 +684,6 @@ namespace Diplom_Bibl.Pages
                     "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            // Проверяем доступное количество
-            if (requestedQuantity > _selectedBook.AvailableCopies)
-            {
-                MessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
 
             if (ReaderTypeRadio.IsChecked == true)
             {
@@ -683,7 +729,7 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                // Для индивидуальной выдачи quantity всегда = 1
+                // Получаем ID книги
                 int bookId = GetAvailableBookIdWithQuantity(_selectedBook.TitleBook, _selectedBook.AuthorName, 1);
 
                 if (bookId == 0)
@@ -702,17 +748,18 @@ namespace Diplom_Bibl.Pages
                     "Выдача через информационное обслуживание"
                 );
 
+                // Обновляем статус книги на "Выдана"
+                UpdateBookStatus(bookId, _statusIssuedId);
+
+                // Обновляем статистику в базе данных
+                UpdateDailyStats(quantity);
+
                 // Обновляем количество книг локально
                 _selectedBook.AvailableCopies -= quantity;
                 AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
                 MessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех",
                     MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Обновляем статистику
-                int currentBooks = int.Parse(BooksCountBox.Text);
-                BooksCountBox.Text = (currentBooks + quantity).ToString();
-                UpdateStatsDisplay();
 
                 // Очищаем форму
                 ClearSelectedBook_Click(null, null);
@@ -723,11 +770,102 @@ namespace Diplom_Bibl.Pages
                 // Обновляем список выдач и книг
                 LoadTodayIssues();
                 LoadBooks();
+                LoadTodayStats(); // Перезагружаем статистику из базы
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Обновляет статус книги
+        /// </summary>
+        private void UpdateBookStatus(int bookId, int statusId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    string query = "UPDATE Books SET StatusBook = @StatusId WHERE IDBook = @BookId";
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@StatusId", statusId);
+                        cmd.Parameters.AddWithValue("@BookId", bookId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления статуса книги: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Обновляет статистику за день в базе данных
+        /// </summary>
+        private void UpdateDailyStats(int additionalBooks)
+        {
+            try
+            {
+                DateTime selectedDate = DatePicker.SelectedDate ?? DateTime.Today;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Проверяем, есть ли запись за сегодня
+                    string checkQuery = "SELECT id_record, delivery_book FROM InformationServiseTb WHERE date_record = @Date";
+
+                    using (var cmd = new SqlCommand(checkQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                // Запись существует - обновляем
+                                int currentId = Convert.ToInt32(reader["id_record"]);
+                                int currentBooks = Convert.ToInt32(reader["delivery_book"]);
+                                reader.Close();
+
+                                string updateQuery = @"
+                            UPDATE InformationServiseTb 
+                            SET delivery_book = @Books 
+                            WHERE id_record = @ID";
+
+                                using (var updateCmd = new SqlCommand(updateQuery, conn))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@Books", currentBooks + additionalBooks);
+                                    updateCmd.Parameters.AddWithValue("@ID", currentId);
+                                    updateCmd.ExecuteNonQuery();
+                                }
+                            }
+                            else
+                            {
+                                reader.Close();
+                                // Записи нет - создаем новую
+                                string insertQuery = @"
+                            INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count) 
+                            VALUES (@Date, @Books, 0, 0)";
+
+                                using (var insertCmd = new SqlCommand(insertQuery, conn))
+                                {
+                                    insertCmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                                    insertCmd.Parameters.AddWithValue("@Books", additionalBooks);
+                                    insertCmd.ExecuteNonQuery();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления статистики: {ex.Message}");
             }
         }
         /// <summary>
@@ -780,7 +918,6 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                // Получаем список ID книг для выдачи (нужное количество экземпляров)
                 List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
 
                 if (bookIds.Count < quantity)
@@ -793,15 +930,24 @@ namespace Diplom_Bibl.Pages
 
                 DateTime plannedReturnDate = DateTime.Now.AddDays(30);
 
-                // Создаем групповую выдачу со списком книг
                 int issuanceId = _issuanceService.CreateGroupIssuanceWithBooks(
                     _selectedGroup.GroupID,
                     _selectedTeacher.TeacherID,
+                    _selectedStudent.ReaderID,
                     plannedReturnDate,
                     bookIds,
                     "Урок",
                     "Групповая выдача"
                 );
+
+                // Обновляем статус каждой выданной книги на "Выдана"
+                foreach (int bookId in bookIds)
+                {
+                    UpdateBookStatus(bookId, _statusIssuedId);
+                }
+
+                // Обновляем статистику в базе данных
+                UpdateDailyStats(quantity);
 
                 // Обновляем количество книг локально
                 _selectedBook.AvailableCopies -= quantity;
@@ -811,11 +957,6 @@ namespace Diplom_Bibl.Pages
                                $"ID выдачи: {issuanceId}\n" +
                                $"Выдано книг: {quantity}",
                     "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Обновляем статистику
-                int currentBooks = int.Parse(BooksCountBox.Text);
-                BooksCountBox.Text = (currentBooks + quantity).ToString();
-                UpdateStatsDisplay();
 
                 // Очищаем форму
                 ClearSelectedBook_Click(null, null);
@@ -833,6 +974,7 @@ namespace Diplom_Bibl.Pages
                 // Обновляем список выдач и книг
                 LoadTodayIssues();
                 LoadBooks();
+                LoadTodayStats(); // Перезагружаем статистику из базы
             }
             catch (Exception ex)
             {
@@ -1019,6 +1161,66 @@ namespace Diplom_Bibl.Pages
         {
             LoadTodayStats();
             LoadTeachers();
+        }
+
+        private void ReturnBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new ReturnBooksPage());
+        }
+        private void InitializeStats()
+        {
+            try
+            {
+                DateTime selectedDate = DatePicker.SelectedDate ?? DateTime.Today;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    string query = @"
+                SELECT id_record, delivery_book, delivery_certificate, events_count 
+                FROM InformationServiseTb 
+                WHERE date_record = @Date";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                _currentRecordId = Convert.ToInt32(reader["id_record"]);
+                                BooksCountBox.Text = reader["delivery_book"].ToString();
+                                ReferencesCountBox.Text = reader["delivery_certificate"].ToString();
+                                EventsCountBox.Text = reader["events_count"].ToString();
+
+                                SaveNewRecordButton.Visibility = Visibility.Collapsed;
+                                SaveChangesButton.Visibility = Visibility.Visible;
+                                DeleteButton.Visibility = Visibility.Visible;
+                            }
+                            else
+                            {
+                                _currentRecordId = null;
+                                // Если записи нет, показываем нули (только при первой загрузке)
+                                BooksCountBox.Text = "0";
+                                ReferencesCountBox.Text = "0";
+                                EventsCountBox.Text = "0";
+
+                                SaveNewRecordButton.Visibility = Visibility.Visible;
+                                SaveChangesButton.Visibility = Visibility.Collapsed;
+                                DeleteButton.Visibility = Visibility.Collapsed;
+                            }
+                        }
+                    }
+
+                    UpdateStatsDisplay();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

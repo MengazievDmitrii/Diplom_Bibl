@@ -515,29 +515,60 @@
                         <Border Style="{StaticResource SectionBoxStyle}">
                             <StackPanel>
                                 <TextBlock Text="Выдачи за сегодня" 
-                                           FontSize="16" 
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource PrimaryColor}"
-                                           Margin="0,0,0,15"/>
+                   FontSize="16" 
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource PrimaryColor}"
+                   Margin="0,0,0,15"/>
 
                                 <DataGrid x:Name="IssuesDataGrid"
-                                          AutoGenerateColumns="False"
-                                          IsReadOnly="True"
-                                          RowHeight="30"
-                                          MaxHeight="200"
-                                          Background="White"
-                                          BorderBrush="{StaticResource BorderColor}"
-                                          BorderThickness="1">
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  RowHeight="30"
+                  MaxHeight="300"
+                  Background="White"
+                  BorderBrush="{StaticResource BorderColor}"
+                  BorderThickness="1">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Время" Binding="{Binding IssueTime}" Width="80"/>
-                                        <DataGridTextColumn Header="Читатель/Группа" Binding="{Binding IssuanceItem.Recipient}" Width="150"/>
-                                        <DataGridTextColumn Header="Книга" Binding="{Binding BookTitle}" Width="200"/>
-                                        <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="60"/>
-                                        <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="80"/>
+                                        <DataGridTextColumn Header="Время" 
+                                    Binding="{Binding IssuanceDate, StringFormat=HH:mm}" 
+                                    Width="70"/>
+
+                                        <DataGridTextColumn Header="Читатель/Группа" 
+                                    Binding="{Binding RecipientName}" 
+                                    Width="150"/>
+
+                                        <DataGridTextColumn Header="Тип" 
+                                    Binding="{Binding RecipientType}" 
+                                    Width="70"/>
+
+                                        <DataGridTextColumn Header="Книга" 
+                                    Binding="{Binding DisplayBook}" 
+                                    Width="300"/>
+
+                                        <DataGridTextColumn Header="Кол-во" 
+                                    Binding="{Binding Quantity}" 
+                                    Width="60"/>
+
+                                        <DataGridTemplateColumn Header="Статус" Width="80">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="10"
+                                    Background="{Binding OverdueColor}"
+                                    Padding="5,2">
+                                                        <TextBlock Text="{Binding Status}" 
+                                           Foreground="White"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </StackPanel>
                         </Border>
+                        <Button Content="Возврат книг"  Name="ReturnBooksButton" Style="{StaticResource SaveButtonStyle}" Click="ReturnBooksButton_Click"/>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
