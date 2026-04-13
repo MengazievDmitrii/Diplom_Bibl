@@ -13,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Windows
 {
@@ -80,7 +81,7 @@ namespace Diplom_Bibl.Windows
 
             if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
             {
-                MessageBox.Show("Введите логин и пароль.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBoxHelper.Show("Введите логин и пароль.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -116,7 +117,7 @@ namespace Diplom_Bibl.Windows
 
                 if (userId == -1)
                 {
-                    MessageBox.Show("Неверный логин или пароль.", "Ошибка входа", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
@@ -149,7 +150,7 @@ namespace Diplom_Bibl.Windows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBoxHelper.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
