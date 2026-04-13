@@ -8,9 +8,7 @@ using System.Windows.Media.Imaging;
 
 namespace Diplom_Bibl.Controls
 {
-    /// <summary>
-    /// Типы кнопок для MessageBox
-    /// </summary>
+    // Убедитесь, что используются эти enum, а не системные
     public enum CustomMessageBoxButton
     {
         OK,
@@ -20,9 +18,6 @@ namespace Diplom_Bibl.Controls
         AbortRetryIgnore
     }
 
-    /// <summary>
-    /// Типы иконок для MessageBox
-    /// </summary>
     public enum CustomMessageBoxImage
     {
         None,
@@ -32,9 +27,6 @@ namespace Diplom_Bibl.Controls
         Question
     }
 
-    /// <summary>
-    /// Результаты нажатия кнопок
-    /// </summary>
     public enum CustomMessageBoxResult
     {
         None = 0,
@@ -47,134 +39,132 @@ namespace Diplom_Bibl.Controls
         Ignore = 5
     }
 
-    /// <summary>
-    /// Кастомное диалоговое окно вместо стандартного MessageBox
-    /// </summary>
     public partial class CustomMessageBox : Window
     {
         private CustomMessageBoxResult _result = CustomMessageBoxResult.None;
 
+        // Объявляем без "?", так как C# 7.3
+        private Image _messageIcon;
+        private TextBlock _messageText;
+        private StackPanel _buttonsPanel;
+
+        // Временное хранение данных до загрузки шаблона
+        private string _pendingMessage;
+        private CustomMessageBoxImage _pendingIcon;
+        private CustomMessageBoxButton _pendingButtons;
+
         public CustomMessageBox()
         {
             InitializeComponent();
+            this.Loaded += CustomMessageBox_Loaded;
         }
 
-        /// <summary>
-        /// Показывает сообщение с одной кнопкой OK
-        /// </summary>
+        private void CustomMessageBox_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Получаем элементы из шаблона
+            _messageIcon = GetTemplateChild("MessageIcon") as Image;
+            _messageText = GetTemplateChild("MessageText") as TextBlock;
+            _buttonsPanel = GetTemplateChild("ButtonsPanel") as StackPanel;
+
+            // Если данные были переданы до загрузки, применяем их сейчас
+            if (_messageText != null && !string.IsNullOrEmpty(_pendingMessage))
+            {
+                _messageText.Text = _pendingMessage;
+            }
+
+            ApplyIcon(_pendingIcon);
+            CreateButtons(_pendingButtons);
+        }
+
         public static CustomMessageBoxResult Show(string message)
         {
             return ShowInternal(message, string.Empty, CustomMessageBoxButton.OK, CustomMessageBoxImage.None, null);
         }
 
-        /// <summary>
-        /// Показывает сообщение с заголовком
-        /// </summary>
         public static CustomMessageBoxResult Show(string message, string caption)
         {
             return ShowInternal(message, caption, CustomMessageBoxButton.OK, CustomMessageBoxImage.None, null);
         }
 
-        /// <summary>
-        /// Показывает сообщение с заголовком и типом кнопок
-        /// </summary>
         public static CustomMessageBoxResult Show(string message, string caption, CustomMessageBoxButton button)
         {
             return ShowInternal(message, caption, button, CustomMessageBoxImage.None, null);
         }
 
-        /// <summary>
-        /// Показывает сообщение с заголовком, кнопками и иконкой
-        /// </summary>
         public static CustomMessageBoxResult Show(string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon)
         {
             return ShowInternal(message, caption, button, icon, null);
         }
 
-        /// <summary>
-        /// Показывает сообщение с владельцем
-        /// </summary>
         public static CustomMessageBoxResult Show(Window owner, string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon)
         {
             return ShowInternal(message, caption, button, icon, owner);
         }
 
-        /// <summary>
-        /// Внутренний метод для отображения окна
-        /// </summary>
         private static CustomMessageBoxResult ShowInternal(string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon, Window owner)
         {
             var messageBox = new CustomMessageBox
             {
-                Title = string.IsNullOrEmpty(caption) ? "Сообщение" : caption
+                Title = string.IsNullOrEmpty(caption) ? "Сообщение" : caption,
+                _pendingMessage = message,
+                _pendingIcon = icon,
+                _pendingButtons = button
             };
 
-            // Устанавливаем текст сообщения
-            messageBox.MessageText.Text = message;
-
-            // Устанавливаем иконку
-            messageBox.SetIcon(icon);
-
-            // Создаем кнопки
-            messageBox.CreateButtons(button);
-
-            // Устанавливаем владельца
             if (owner != null)
             {
                 messageBox.Owner = owner;
+                messageBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+            else
+            {
+                messageBox.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 
             messageBox.ShowDialog();
             return messageBox._result;
         }
 
-        /// <summary>
-        /// Устанавливает иконку в зависимости от типа
-        /// </summary>
-        private void SetIcon(CustomMessageBoxImage icon)
+        private void ApplyIcon(CustomMessageBoxImage icon)
         {
-            // Скрываем иконку по умолчанию, покажем если тип не None
-            MessageIcon.Visibility = Visibility.Collapsed;
+            if (_messageIcon == null) return;
+
+            _messageIcon.Visibility = Visibility.Collapsed;
 
             if (icon == CustomMessageBoxImage.None)
                 return;
 
-            // Создаем цветной круг с символом программно
             var drawingVisual = new DrawingVisual();
             using (var context = drawingVisual.RenderOpen())
             {
-                // Цвет фона
-                var bgColor = Colors.Transparent;
                 var fillColor = Colors.Gray;
                 var symbol = "";
 
                 switch (icon)
                 {
                     case CustomMessageBoxImage.Information:
-                        fillColor = Color.FromRgb(0, 123, 255); // AccentColor
+                        fillColor = Color.FromRgb(0, 123, 255);
                         symbol = "ℹ";
                         break;
                     case CustomMessageBoxImage.Warning:
-                        fillColor = Color.FromRgb(255, 193, 7); // WarningColor
+                        fillColor = Color.FromRgb(255, 193, 7);
                         symbol = "⚠";
                         break;
                     case CustomMessageBoxImage.Error:
-                        fillColor = Color.FromRgb(220, 53, 69); // DangerColor
+                        fillColor = Color.FromRgb(220, 53, 69);
                         symbol = "✕";
                         break;
                     case CustomMessageBoxImage.Question:
-                        fillColor = Color.FromRgb(0, 123, 255); // AccentColor
+                        fillColor = Color.FromRgb(0, 123, 255);
                         symbol = "?";
                         break;
                 }
 
-                // Рисуем круг
                 context.DrawEllipse(new SolidColorBrush(fillColor), null, new Point(24, 24), 20, 20);
 
-                // Рисуем символ
                 var formattedText = new FormattedText(
                     symbol,
-                    System.Globalization.CultureInfo.CurrentCulture,
+                    CultureInfo.CurrentCulture,
                     FlowDirection.LeftToRight,
                     new Typeface("Segoe UI"),
                     28,
@@ -187,39 +177,34 @@ namespace Diplom_Bibl.Controls
             var renderTargetBitmap = new RenderTargetBitmap(48, 48, 96, 96, PixelFormats.Pbgra32);
             renderTargetBitmap.Render(drawingVisual);
 
-            MessageIcon.Source = renderTargetBitmap;
-            MessageIcon.Visibility = Visibility.Visible;
+            _messageIcon.Source = renderTargetBitmap;
+            _messageIcon.Visibility = Visibility.Visible;
         }
 
-        /// <summary>
-        /// Создает кнопки в зависимости от типа
-        /// </summary>
         private void CreateButtons(CustomMessageBoxButton buttonType)
         {
-            ButtonsPanel.Children.Clear();
+            if (_buttonsPanel == null) return;
+
+            _buttonsPanel.Children.Clear();
 
             switch (buttonType)
             {
                 case CustomMessageBoxButton.OK:
                     CreateButton("OK", CustomMessageBoxResult.OK, true);
                     break;
-
                 case CustomMessageBoxButton.OKCancel:
                     CreateButton("OK", CustomMessageBoxResult.OK, true);
                     CreateButton("Отмена", CustomMessageBoxResult.Cancel, false);
                     break;
-
                 case CustomMessageBoxButton.YesNo:
                     CreateButton("Да", CustomMessageBoxResult.Yes, true);
                     CreateButton("Нет", CustomMessageBoxResult.No, false);
                     break;
-
                 case CustomMessageBoxButton.YesNoCancel:
                     CreateButton("Да", CustomMessageBoxResult.Yes, true);
                     CreateButton("Нет", CustomMessageBoxResult.No, false);
                     CreateButton("Отмена", CustomMessageBoxResult.Cancel, false);
                     break;
-
                 case CustomMessageBoxButton.AbortRetryIgnore:
                     CreateButton("Прервать", CustomMessageBoxResult.Abort, true);
                     CreateButton("Повторить", CustomMessageBoxResult.Retry, false);
@@ -228,11 +213,10 @@ namespace Diplom_Bibl.Controls
             }
         }
 
-        /// <summary>
-        /// Создает кнопку
-        /// </summary>
         private void CreateButton(string text, CustomMessageBoxResult result, bool isDefault)
         {
+            if (_buttonsPanel == null) return;
+
             var button = new Button
             {
                 Content = text,
@@ -240,11 +224,23 @@ namespace Diplom_Bibl.Controls
                 Height = 36,
                 Margin = new Thickness(5, 0, 0, 0),
                 Cursor = Cursors.Hand,
-                Tag = result
+                Tag = result,
+                IsDefault = isDefault
             };
 
-            // Применяем стиль из App.xaml
-            button.Style = (Style)FindResource("SaveButtonStyle");
+            // Пытаемся найти стиль, если не найден - кнопка будет стандартной, но рабочей
+            if (Application.Current.TryFindResource("SaveButtonStyle") is Style btnStyle)
+            {
+                button.Style = btnStyle;
+            }
+            // Если стиля нет, можно задать базовые свойства здесь, чтобы кнопка точно была видна
+            else
+            {
+                button.Background = Brushes.LightGray;
+                button.Foreground = Brushes.Black;
+                button.BorderBrush = Brushes.Gray;
+                button.BorderThickness = new Thickness(1);
+            }
 
             if (isDefault)
             {
@@ -257,21 +253,15 @@ namespace Diplom_Bibl.Controls
                 Close();
             };
 
-            ButtonsPanel.Children.Add(button);
+            _buttonsPanel.Children.Add(button);
         }
 
-        /// <summary>
-        /// Обработчик нажатия на кнопку закрытия
-        /// </summary>
         private void CloseButtonClick(object sender, RoutedEventArgs e)
         {
             _result = CustomMessageBoxResult.Cancel;
             Close();
         }
 
-        /// <summary>
-        /// Закрытие по ESC
-        /// </summary>
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
@@ -282,10 +272,9 @@ namespace Diplom_Bibl.Controls
                 Close();
             }
 
-            if (e.Key == Key.Enter)
+            if (e.Key == Key.Enter && _buttonsPanel != null)
             {
-                // Ищем кнопку по умолчанию
-                foreach (var child in ButtonsPanel.Children)
+                foreach (var child in _buttonsPanel.Children)
                 {
                     if (child is Button btn && btn.IsDefault)
                     {

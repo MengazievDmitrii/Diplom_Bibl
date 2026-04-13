@@ -199,6 +199,10 @@
     <Compile Include="Controls\AddressSearchTextBox.xaml.cs">
       <DependentUpon>AddressSearchTextBox.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Controls\CustomMessageBox.xaml.cs">
+      <DependentUpon>CustomMessageBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\CustomMessageBoxHelper.cs" />
     <Compile Include="DocumentService.cs" />
     <Compile Include="ExcelImportService.cs" />
     <Compile Include="InfoRecord.cs" />
@@ -332,6 +336,10 @@
     <Page Include="Controls\AddressSearchTextBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Controls\CustomMessageBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Pages\AddAuthor.xaml">
       <SubType>Designer</SubType>

@@ -11,6 +11,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
+         WindowStyle="None"
         Background="{StaticResource MenuBgColor}"
         FontFamily="Segoe UI">
     
@@ -111,7 +112,7 @@
                                     <StackPanel x:Name="ButtonsPanel"
                                                 Orientation="Horizontal"
                                                 HorizontalAlignment="Right"
-                                                Spacing="10"/>
+                                                />
                                 </Border>
                             </Grid>
                         </Border>

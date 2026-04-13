@@ -115,11 +115,11 @@ namespace Diplom_Bibl.Controls
                 case CustomMessageBoxResult.No:
                     return MessageBoxResult.No;
                 case CustomMessageBoxResult.Abort:
-                    return MessageBoxResult.Abort;
+                    return MessageBoxResult.No;
                 case CustomMessageBoxResult.Retry:
-                    return MessageBoxResult.Retry;
+                    return MessageBoxResult.Yes;
                 case CustomMessageBoxResult.Ignore:
-                    return MessageBoxResult.Ignore;
+                    return MessageBoxResult.None;
                 default:
                     return MessageBoxResult.None;
             }
