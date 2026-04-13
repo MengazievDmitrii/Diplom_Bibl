@@ -5,7 +5,7 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplom_Bibl.Pages"
       mc:Ignorable="d" 
-      d:DesignHeight="700" d:DesignWidth="900"
+      d:DesignHeight="750" d:DesignWidth="900"
       Title="BulkAddBooks" Loaded="Page_Loaded"
       Background="#F5F5F5">
 
@@ -134,6 +134,31 @@
                                             Click="AddViewBook_Click"/>
                                 </Grid>
                             </StackPanel>
+
+                            <!-- Акт поступления (перенесен в левую колонку) -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="Акт поступления" 
+                                           Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="ReceiptCombo"
+                                              Grid.Column="0"
+                                              Style="{StaticResource InputFieldStyleCb}"
+                                              DisplayMemberPath="DisplayReceipt"
+                                              SelectedValuePath="ID"
+                                              SelectionChanged="ReceiptCombo_SelectionChanged"/>
+                                    <Button Grid.Column="1"
+                                            Content="+"
+                                            Width="36"
+                                            Height="36"
+                                            Margin="5,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddReceipt_Click"/>
+                                </Grid>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Правая колонка -->
@@ -206,59 +231,61 @@
                                          TextChanged="PriceBox_TextChanged"/>
                             </StackPanel>
                         </StackPanel>
+
+                        <!-- Количество экземпляров (на всю ширину) -->
+                        <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                Background="{StaticResource PrimaryLightColor}"
+                                CornerRadius="8"
+                                Padding="15"
+                                Margin="0,15,0,20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="📚 Количество экземпляров:"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,15,0"/>
+
+                                <TextBox x:Name="QuantityBox"
+                                         Grid.Column="1"
+                                         Text="1"
+                                         Width="100"
+                                         HorizontalAlignment="Left"
+                                         Style="{StaticResource InputFieldStyle}"
+                                         PreviewTextInput="NumberValidationTextBox"
+                                         TextChanged="QuantityBox_TextChanged"/>
+
+                                <TextBlock Grid.Column="2"
+                                           Text="шт."
+                                           VerticalAlignment="Center"
+                                           Margin="10,0,0,0"
+                                           Foreground="#666666"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Предпросмотр инвентарных номеров (возвращен на место) -->
+                        <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                Background="{StaticResource LightGray}"
+                                CornerRadius="6"
+                                Padding="10"
+                                Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="Предпросмотр инвентарных номеров:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock x:Name="InventoryPreviewText"
+                                           Text="000001, 000002, 000003, ..."
+                                           FontSize="12"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
-
-                    <!-- Количество экземпляров -->
-                    <Border Background="{StaticResource PrimaryLightColor}"
-                            CornerRadius="8"
-                            Padding="15"
-                            Margin="0,15,0,20">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0"
-                                       Text="📚 Количество экземпляров:"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,15,0"/>
-
-                            <TextBox x:Name="QuantityBox"
-                                     Grid.Column="1"
-                                     Text="1"
-                                     Width="100"
-                                     HorizontalAlignment="Left"
-                                     Style="{StaticResource InputFieldStyle}"
-                                     PreviewTextInput="NumberValidationTextBox"
-                                     TextChanged="QuantityBox_TextChanged"/>
-
-                            <TextBlock Grid.Column="2"
-                                       Text="шт."
-                                       VerticalAlignment="Center"
-                                       Margin="10,0,0,0"
-                                       Foreground="#666666"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Предпросмотр инвентарных номеров -->
-                    <Border Background="{StaticResource LightGray}"
-                            CornerRadius="6"
-                            Padding="10"
-                            Margin="0,0,0,15">
-                        <StackPanel>
-                            <TextBlock Text="Предпросмотр инвентарных номеров:"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,5"/>
-                            <TextBlock x:Name="InventoryPreviewText"
-                                       Text="00001,000002, 00003, ..."
-                                       FontSize="12"
-                                       Foreground="{StaticResource PrimaryColor}"
-                                       FontWeight="Bold"/>
-                        </StackPanel>
-                    </Border>
 
                     <!-- Кнопки -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

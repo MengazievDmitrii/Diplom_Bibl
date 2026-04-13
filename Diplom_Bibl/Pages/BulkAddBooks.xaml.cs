@@ -17,6 +17,7 @@ namespace Diplom_Bibl.Pages
         private ObservableCollection<ViewBookItem> _viewBooks;
         private ObservableCollection<PublisherItem> _publishers;
         private ObservableCollection<GenreItem> _genres;
+        private ObservableCollection<ReceiptItem> _receipts;
 
         public class AuthorItem
         {
@@ -42,6 +43,15 @@ namespace Diplom_Bibl.Pages
             public string DisplayGen { get; set; }
         }
 
+        // НОВЫЙ КЛАСС: для акта поступления
+        public class ReceiptItem
+        {
+            public int ID { get; set; }
+            public string ReceiptNumber { get; set; }
+            public DateTime ReceiptDate { get; set; }
+            public string DisplayReceipt => $"{ReceiptNumber} от {ReceiptDate:dd.MM.yyyy}";
+        }
+
         public BulkAddBooks()
         {
             InitializeComponent();
@@ -51,6 +61,7 @@ namespace Diplom_Bibl.Pages
             LoadViewBooks();
             LoadPublishers();
             LoadGenres();
+            LoadReceipts(); // НОВЫЙ МЕТОД: загрузка актов поступления
 
             // Подписываемся на события
             QuantityBox.TextChanged += QuantityBox_TextChanged;
@@ -212,6 +223,54 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        // НОВЫЙ МЕТОД: загрузка актов поступления
+        private void LoadReceipts()
+        {
+            try
+            {
+                const string sql = "SELECT IDReceipt, ReceiptNumber, ReceiptDate FROM ReceiptBooks ORDER BY ReceiptNumber DESC";
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        _receipts = new ObservableCollection<ReceiptItem>();
+                        while (reader.Read())
+                        {
+                            int id = reader["IDReceipt"] == DBNull.Value ? 0 : Convert.ToInt32(reader["IDReceipt"]);
+                            string receiptNumber = reader["ReceiptNumber"]?.ToString() ?? "";
+                            DateTime receiptDate = reader["ReceiptDate"] != DBNull.Value
+                                ? Convert.ToDateTime(reader["ReceiptDate"])
+                                : DateTime.Now;
+
+                            _receipts.Add(new ReceiptItem
+                            {
+                                ID = id,
+                                ReceiptNumber = receiptNumber,
+                                ReceiptDate = receiptDate
+                            });
+                        }
+
+                        ReceiptCombo.ItemsSource = _receipts;
+                        ReceiptCombo.DisplayMemberPath = "DisplayReceipt";
+                        ReceiptCombo.SelectedValuePath = "ID";
+
+                        // Выбираем первый акт по умолчанию (если есть)
+                        if (_receipts.Count > 0)
+                        {
+                            ReceiptCombo.SelectedIndex = 0;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки актов поступления: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void UpdateInventoryPreview()
         {
             try
@@ -314,6 +373,18 @@ namespace Diplom_Bibl.Pages
                 return false;
             }
 
+            // НОВАЯ ПРОВЕРКА: акт поступления (необязательно, но рекомендуется)
+            if (ReceiptCombo.SelectedItem == null)
+            {
+                var result = MessageBox.Show("Акт поступления не выбран. Продолжить без привязки к акту?",
+                    "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.No)
+                {
+                    ReceiptCombo.Focus();
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -331,6 +402,9 @@ namespace Diplom_Bibl.Pages
                 int? publisherId = PublisherCombo.SelectedValue as int?;
                 int? genreId = GenreCombo.SelectedValue as int?;
                 int year = int.Parse(YearBox.Text);
+
+                // НОВОЕ: получаем ID акта поступления
+                int? receiptId = ReceiptCombo.SelectedValue as int?;
 
                 decimal price = 0;
                 if (!string.IsNullOrWhiteSpace(PriceBox.Text))
@@ -353,13 +427,14 @@ namespace Diplom_Bibl.Pages
                             {
                                 string invNumber = $"{nextNumber + i:D6}";
 
+                                // ОБНОВЛЕННЫЙ ЗАПРОС: добавлен IDReceip
                                 string query = @"
                                     INSERT INTO Books (
                                         InventaryNumber, TitleBook, Author, PublishingHouse, YearPublishing,
-                                        Gener, StatusBook, ID_View_Book, Price, TotalCopies, AvailableCopies
+                                        Gener, StatusBook, ID_View_Book, Price, TotalCopies, AvailableCopies, IDReceip
                                     ) VALUES (
                                         @Inv, @Title, @Author, @Pub, @Year,
-                                        @Genre, @Status, @View, @Price, 1, 1
+                                        @Genre, @Status, @View, @Price, 1, 1, @ReceiptId
                                     )";
 
                                 using (var cmd = new SqlCommand(query, conn, transaction))
@@ -373,6 +448,7 @@ namespace Diplom_Bibl.Pages
                                     cmd.Parameters.AddWithValue("@Status", statusId);
                                     cmd.Parameters.AddWithValue("@View", viewBookId);
                                     cmd.Parameters.AddWithValue("@Price", price);
+                                    cmd.Parameters.AddWithValue("@ReceiptId", receiptId ?? (object)DBNull.Value);
 
                                     cmd.ExecuteNonQuery();
                                     successCount++;
@@ -439,6 +515,7 @@ namespace Diplom_Bibl.Pages
             YearBox.Clear();
             PriceBox.Clear();
             QuantityBox.Text = "1";
+            ReceiptCombo.SelectedIndex = -1; // НОВОЕ: очистка акта поступления
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -475,6 +552,18 @@ namespace Diplom_Bibl.Pages
             UpdateInventoryPreview();
         }
 
+        // НОВЫЙ ОБРАБОТЧИК: изменение выбора акта поступления
+        private void ReceiptCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Можно добавить логику при необходимости
+        }
+
+        // НОВЫЙ МЕТОД: добавление нового акта поступления
+        private void AddReceipt_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new AdmissionBook());
+        }
+
         // Методы для открытия страниц добавления справочников
         private void AddAuthor_Click(object sender, RoutedEventArgs e)
         {
@@ -502,6 +591,7 @@ namespace Diplom_Bibl.Pages
             LoadViewBooks();
             LoadPublishers();
             LoadGenres();
+            LoadReceipts(); // НОВОЕ: обновление актов при загрузке
         }
     }
 }

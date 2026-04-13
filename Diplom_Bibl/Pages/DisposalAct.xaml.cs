@@ -48,6 +48,14 @@ namespace Diplom_Bibl.Pages
             public string PlaceYear => $"{PublishingHouse}, {Year}";
         }
 
+        private class BookStatusCheckResult
+        {
+            public bool CanBeDisposed { get; set; }
+            public string Message { get; set; }
+            public bool IsIssued { get; set; }
+            public string IssuedInfo { get; set; }
+        }
+
         private void LoadReasons()
         {
             try
@@ -104,7 +112,17 @@ namespace Diplom_Bibl.Pages
             var bookCheckResult = CheckBookStatus(inv);
             if (!bookCheckResult.CanBeDisposed)
             {
-                MessageBox.Show(bookCheckResult.Message);
+                // Если книга выдана, показываем подробную информацию
+                if (bookCheckResult.Message.Contains("находится на руках"))
+                {
+                    string issuedInfo = GetIssuedInfo(inv);
+                    MessageBox.Show($"{bookCheckResult.Message}\n\n{issuedInfo}",
+                        "Невозможно списать", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                else
+                {
+                    MessageBox.Show(bookCheckResult.Message);
+                }
                 TbSearchInv.Clear();
                 return;
             }
@@ -121,20 +139,22 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private class BookStatusCheckResult
-        {
-            public bool CanBeDisposed { get; set; }
-            public string Message { get; set; }
-        }
-
         private BookStatusCheckResult CheckBookStatus(string inventoryNumber)
         {
             const string sql = @"
                 SELECT 
                     b.ID_Disposal,
-                    s.Title_Status AS StatusName
+                    s.Title_Status AS StatusName,
+                    b.StatusBook,
+                    CASE 
+                        WHEN bi.ReaderId IS NOT NULL OR gi.GroupIssuanceId IS NOT NULL THEN 1 
+                        ELSE 0 
+                    END AS IsIssued
                 FROM Books b
                 LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
+                LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
                 WHERE b.InventaryNumber = @Inv";
 
             using (var conn = new SqlConnection(_conn))
@@ -147,6 +167,19 @@ namespace Diplom_Bibl.Pages
                     {
                         if (reader.Read())
                         {
+                            // Проверяем, выдана ли книга
+                            bool isIssued = Convert.ToInt32(reader["IsIssued"]) == 1;
+
+                            if (isIssued)
+                            {
+                                return new BookStatusCheckResult
+                                {
+                                    CanBeDisposed = false,
+                                    Message = $"Книга {inventoryNumber} находится на руках у читателя. Сначала необходимо вернуть книгу.",
+                                    IsIssued = true
+                                };
+                            }
+
                             // Проверяем ID_Disposal
                             if (reader["ID_Disposal"] != DBNull.Value)
                             {
@@ -167,12 +200,77 @@ namespace Diplom_Bibl.Pages
                                 };
                             }
 
-                            return new BookStatusCheckResult { CanBeDisposed = true };
+                            return new BookStatusCheckResult { CanBeDisposed = true, Message = "" };
                         }
                     }
                 }
             }
             return new BookStatusCheckResult { CanBeDisposed = false, Message = "Книга не найдена" };
+        }
+
+        private string GetIssuedInfo(string inventoryNumber)
+        {
+            const string sql = @"
+                SELECT 
+                    CASE 
+                        WHEN bi.ReaderId IS NOT NULL THEN 
+                            'читателю ' + r.LastName + ' ' + r.FirstName + ' ' + ISNULL(r.MiddleName, '')
+                        WHEN gi.GroupIssuanceId IS NOT NULL THEN 
+                            'группе ' + g.GroupCode + ' (преп. ' + t.LastName + ' ' + t.FirstName + ')'
+                        ELSE ''
+                    END AS RecipientInfo,
+                    CASE 
+                        WHEN bi.ReaderId IS NOT NULL THEN bi.IssuanceDate
+                        WHEN gi.GroupIssuanceId IS NOT NULL THEN gi.IssuanceDate
+                        ELSE NULL
+                    END AS IssueDate,
+                    CASE 
+                        WHEN bi.ReaderId IS NOT NULL THEN bi.PlannedReturnDate
+                        WHEN gi.GroupIssuanceId IS NOT NULL THEN gi.PlannedReturnDate
+                        ELSE NULL
+                    END AS PlannedReturnDate
+                FROM Books b
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
+                LEFT JOIN ReaderForm r ON bi.ReaderId = r.ReaderID
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
+                LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
+                LEFT JOIN Groups g ON gi.GroupId = g.GroupID
+                LEFT JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+                WHERE b.InventaryNumber = @Inv";
+
+            using (var conn = new SqlConnection(_conn))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Inv", inventoryNumber);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string recipientInfo = reader["RecipientInfo"]?.ToString() ?? "";
+                            DateTime? issueDate = reader["IssueDate"] != DBNull.Value ? Convert.ToDateTime(reader["IssueDate"]) : (DateTime?)null;
+                            DateTime? plannedReturnDate = reader["PlannedReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["PlannedReturnDate"]) : (DateTime?)null;
+
+                            string result = recipientInfo;
+                            if (issueDate.HasValue)
+                            {
+                                result += $"\nДата выдачи: {issueDate.Value:dd.MM.yyyy}";
+                            }
+                            if (plannedReturnDate.HasValue)
+                            {
+                                result += $"\nПлановая дата возврата: {plannedReturnDate.Value:dd.MM.yyyy}";
+                                if (plannedReturnDate.Value < DateTime.Today)
+                                {
+                                    result += "\nВНИМАНИЕ: Просрочена!";
+                                }
+                            }
+                            return result;
+                        }
+                    }
+                }
+            }
+            return "";
         }
 
         private BookItem LoadBookByInventory(string inv)
@@ -185,10 +283,17 @@ namespace Diplom_Bibl.Pages
                     ISNULL(p.TitlePublishingHouse, '') AS Pub,
                     b.YearPublishing AS Year,
                     CAST(FLOOR(ISNULL(b.Price, 0)) AS int) AS PriceRub,
-                    CAST((ISNULL(b.Price, 0) - FLOOR(ISNULL(b.Price, 0))) * 100 AS int) AS PriceKop
+                    CAST((ISNULL(b.Price, 0) - FLOOR(ISNULL(b.Price, 0))) * 100 AS int) AS PriceKop,
+                    CASE 
+                        WHEN bi.ReaderId IS NOT NULL OR gi.GroupIssuanceId IS NOT NULL THEN 1 
+                        ELSE 0 
+                    END AS IsIssued
                 FROM Books b
                 LEFT JOIN Authors a ON b.Author = a.ID_Autor
                 LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
+                LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
                 WHERE b.InventaryNumber = @Inv";
 
             using (var conn = new SqlConnection(_conn))
@@ -201,6 +306,17 @@ namespace Diplom_Bibl.Pages
                     {
                         if (reader.Read())
                         {
+                            bool isIssued = Convert.ToInt32(reader["IsIssued"]) == 1;
+
+                            if (isIssued)
+                            {
+                                // Книга выдана, показываем информацию
+                                string issuedInfo = GetIssuedInfo(inv);
+                                MessageBox.Show($"Книга {inv} находится на руках!\n\n{issuedInfo}",
+                                    "Невозможно списать", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                return null;
+                            }
+
                             return new BookItem
                             {
                                 InventoryNumber = reader["Inv"].ToString(),
@@ -222,33 +338,111 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
+                // Проверяем, что все необходимые поля заполнены
+                if (string.IsNullOrEmpty(LbInventory.Text) || LbInventory.Text == "не найдена")
+                {
+                    MessageBox.Show("Сначала найдите книгу по инвентарному номеру.", "Ошибка",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Парсим цену
+                string priceText = LbPrice.Text.Replace(" руб.", "").Trim();
+                string[] priceParts = priceText.Split('.');
+                int priceRub = int.Parse(priceParts[0]);
+                int priceKop = priceParts.Length > 1 ? int.Parse(priceParts[1]) : 0;
+
+                // Парсим год и издательство
+                string pubYearText = LbPubYear.Text;
+                string publishingHouse = "";
+                int year = DateTime.Now.Year;
+
+                if (!string.IsNullOrEmpty(pubYearText) && pubYearText.Contains(","))
+                {
+                    var parts = pubYearText.Split(',');
+                    publishingHouse = parts[0].Trim();
+                    if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out int parsedYear))
+                    {
+                        year = parsedYear;
+                    }
+                }
+
+                // Парсим название и автора
+                string titleText = LbTitle.Text;
+                string author = "";
+                string title = titleText;
+
+                if (!string.IsNullOrEmpty(titleText) && titleText.Contains("—"))
+                {
+                    var parts = titleText.Split('—');
+                    author = parts[0].Trim();
+                    title = parts.Length > 1 ? parts[1].Trim() : titleText;
+                }
+
                 var item = new BookItem
                 {
                     RowNum = _nextRowNum++,
                     InventoryNumber = LbInventory.Text,
-                    Title = LbTitle.Text.Split('—')[1].Trim(),
-                    PublishingHouse = LbPubYear.Text.Split(',')[0].Trim(),
-                    Year = int.Parse(LbPubYear.Text.Split(',')[1].Trim()),
-                    PriceRub = int.Parse(LbPrice.Text.Split('.')[0]),
-                    PriceKop = int.Parse(LbPrice.Text.Split('.')[1].Substring(0, 2)),
+                    Title = title,
+                    Author = author,
+                    PublishingHouse = publishingHouse,
+                    Year = year,
+                    PriceRub = priceRub,
+                    PriceKop = priceKop,
                     Quantity = 1
                 };
 
                 _items.Add(item);
-                UpdateTotal();
+
+                // Показываем DataGrid и обновляем UI
+                DgItems.Visibility = Visibility.Visible;
+                DgItems.ItemsSource = _items;
+
+                // Показываем заголовок таблицы и панель итогов
+                TableHeader.Visibility = Visibility.Visible;
+                TotalPanel.Visibility = Visibility.Visible;
+
+                // Скрываем панель с деталями книги
                 PnBookDetails.Visibility = Visibility.Collapsed;
-                TbSearchInv.IsEnabled = true;
+
+                // Очищаем поле поиска
                 TbSearchInv.Clear();
+                TbSearchInv.IsEnabled = true;
+
+                // Обновляем счетчик книг
+                BooksCountLabel.Text = $"(всего: {_items.Count} книг)";
+
+                // Обновляем итоговую сумму
+                UpdateTotal();
+
+                // Очищаем поля найденной книги
+                ClearBookDetails();
+
+                MessageBox.Show($"Книга '{title}' добавлена в акт списания.", "Успешно",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}");
+                MessageBox.Show($"Ошибка при добавлении книги: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void ClearBookDetails()
+        {
+            LbInventory.Text = "";
+            LbTitle.Text = "";
+            LbPubYear.Text = "";
+            LbPrice.Text = "";
         }
 
         private void UpdateTotal()
         {
-            decimal total = _items.Sum(i => i.TotalPrice);
+            decimal total = 0;
+            foreach (var i in _items)
+            {
+                total += i.TotalPrice;
+            }
             TbTotal.Text = total.ToString("N2");
         }
 
@@ -368,6 +562,9 @@ namespace Diplom_Bibl.Pages
             TbTotal.Text = "0.00";
             PnBookDetails.Visibility = Visibility.Collapsed;
             TbSearchInv.IsEnabled = true;
+            DgItems.Visibility = Visibility.Collapsed;
+            TableHeader.Visibility = Visibility.Collapsed;
+            TotalPanel.Visibility = Visibility.Collapsed;
         }
 
         private string GetNextDisposalNumber()
