@@ -16,6 +16,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Diplom_Bibl.Controls;
 
 
 namespace Diplom_Bibl.Pages
@@ -117,14 +118,14 @@ namespace Diplom_Bibl.Pages
                 if (userId > 0)
                 {
                     AssignRolesToUser(userId);
-                    MessageBox.Show("Пользователь успешно создан.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                     CustomMessageBox.Show("Пользователь успешно создан.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     ClearForm();
                     RefreshUserList();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании пользователя:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при создании пользователя:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -142,13 +143,13 @@ namespace Diplom_Bibl.Pages
                 // Назначаем новые
                 AssignRolesToUser(_editingUserId.Value);
 
-                MessageBox.Show("Данные пользователя обновлены.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                 CustomMessageBox.Show("Данные пользователя обновлены.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
                 RefreshUserList();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при обновлении:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -156,24 +157,24 @@ namespace Diplom_Bibl.Pages
         {
             if (_editingUserId == null) return;
 
-            var result = MessageBox.Show("Удалить пользователя?\nЭто действие нельзя отменить.", "Подтверждение",
-                                        MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result != MessageBoxResult.Yes) return;
+            var result =  CustomMessageBox.Show("Удалить пользователя?\nЭто действие нельзя отменить.", "Подтверждение",
+                                        CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+            if (result != CustomMessageBoxResult.Yes) return;
 
             try
             {
                 DeleteUser(_editingUserId.Value);
-                MessageBox.Show("Пользователь удалён.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                 CustomMessageBox.Show("Пользователь удалён.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
                 RefreshUserList(); 
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                MessageBox.Show("Невозможно удалить: на пользователя ссылаются другие записи.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Невозможно удалить: на пользователя ссылаются другие записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -189,7 +190,7 @@ namespace Diplom_Bibl.Pages
                 string.IsNullOrWhiteSpace(login) ||
                 string.IsNullOrWhiteSpace(password))
             {
-                MessageBox.Show("Заполните все обязательные поля (*).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Заполните все обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
@@ -197,7 +198,7 @@ namespace Diplom_Bibl.Pages
             var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
             if (roles == null || !roles.Any(r => r.IsSelected))
             {
-                MessageBox.Show("Выберите хотя бы одну роль.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
@@ -358,7 +359,7 @@ namespace Diplom_Bibl.Pages
                         }
                         else
                         {
-                            MessageBox.Show("Пользователь не найден.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Пользователь не найден.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             NavigationService?.GoBack();
                             return;
                         }

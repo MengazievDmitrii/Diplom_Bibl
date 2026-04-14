@@ -81,7 +81,7 @@ namespace Diplom_Bibl.Windows
 
             if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
             {
-                CustomMessageBoxHelper.Show("Введите логин и пароль.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBoxHelper.Show("Введите логин и пароль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -117,7 +117,7 @@ namespace Diplom_Bibl.Windows
 
                 if (userId == -1)
                 {
-                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     return;
                 }
 
@@ -150,7 +150,7 @@ namespace Diplom_Bibl.Windows
             }
             catch (Exception ex)
             {
-                CustomMessageBoxHelper.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBoxHelper.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

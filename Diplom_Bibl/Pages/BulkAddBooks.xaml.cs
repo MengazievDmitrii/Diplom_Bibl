@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -107,8 +108,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -144,8 +145,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки видов книг: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки видов книг: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -181,8 +182,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -218,8 +219,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -266,8 +267,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки актов поступления: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки актов поступления: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -335,40 +336,40 @@ namespace Diplom_Bibl.Pages
         {
             if (string.IsNullOrWhiteSpace(TitleBox.Text))
             {
-                MessageBox.Show("Введите название книги.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Введите название книги.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 TitleBox.Focus();
                 return false;
             }
 
             if (AuthorCombo.SelectedItem == null)
             {
-                MessageBox.Show("Выберите автора.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите автора.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 AuthorCombo.Focus();
                 return false;
             }
 
             if (ViewBookCombo.SelectedItem == null)
             {
-                MessageBox.Show("Выберите вид книги.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите вид книги.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 ViewBookCombo.Focus();
                 return false;
             }
 
             if (!int.TryParse(YearBox.Text, out int year) || year < 1000 || year > DateTime.Now.Year)
             {
-                MessageBox.Show($"Введите корректный год (1000-{DateTime.Now.Year}).", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show($"Введите корректный год (1000-{DateTime.Now.Year}).", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 YearBox.Focus();
                 return false;
             }
 
             if (!int.TryParse(QuantityBox.Text, out int quantity) || quantity < 1 || quantity > 100)
             {
-                MessageBox.Show("Введите корректное количество экземпляров (1-100).", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Введите корректное количество экземпляров (1-100).", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 QuantityBox.Focus();
                 return false;
             }
@@ -376,9 +377,9 @@ namespace Diplom_Bibl.Pages
             // НОВАЯ ПРОВЕРКА: акт поступления (необязательно, но рекомендуется)
             if (ReceiptCombo.SelectedItem == null)
             {
-                var result = MessageBox.Show("Акт поступления не выбран. Продолжить без привязки к акту?",
-                    "Предупреждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.No)
+                var result =  CustomMessageBox.Show("Акт поступления не выбран. Продолжить без привязки к акту?",
+                    "Предупреждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+                if (result == CustomMessageBoxResult.No)
                 {
                     ReceiptCombo.Focus();
                     return false;
@@ -457,9 +458,9 @@ namespace Diplom_Bibl.Pages
 
                             transaction.Commit();
 
-                            MessageBox.Show($"Успешно добавлено {successCount} экземпляров книг!\n" +
+                             CustomMessageBox.Show($"Успешно добавлено {successCount} экземпляров книг!\n" +
                                            $"Инвентарные номера: {nextNumber:D6} - {nextNumber + quantity - 1:D6}",
-                                "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                                "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             ClearForm();
                         }
@@ -475,19 +476,19 @@ namespace Diplom_Bibl.Pages
             {
                 if (ex.Number == 2627) // Нарушение уникальности
                 {
-                    MessageBox.Show("Произошла ошибка при генерации инвентарных номеров. Возможно, в базе есть нечисловые инвентарные номера.",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show("Произошла ошибка при генерации инвентарных номеров. Возможно, в базе есть нечисловые инвентарные номера.",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 else
                 {
-                    MessageBox.Show($"Ошибка базы данных: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка базы данных: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

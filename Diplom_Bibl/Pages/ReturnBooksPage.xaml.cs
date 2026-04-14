@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -98,8 +99,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -138,8 +139,8 @@ namespace Diplom_Bibl.Pages
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки выдач: {ex.Message}");
-                MessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void LoadAllGroupIssuances()
@@ -479,18 +480,18 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                var result = MessageBox.Show(
+                var result =  CustomMessageBox.Show(
                     "Вернуть книгу?",
                     "Подтверждение возврата",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    CustomMessageBoxButton.YesNo,
+                    CustomMessageBoxImage.Question);
 
-                if (result == MessageBoxResult.Yes)
+                if (result == CustomMessageBoxResult.Yes)
                 {
                     _issuanceService.ReturnBook("individual", issuanceId);
 
-                    MessageBox.Show("Книга успешно возвращена!", "Успех",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                     CustomMessageBox.Show("Книга успешно возвращена!", "Успех",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                     if (_selectedReader != null)
                     {
@@ -500,8 +501,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -513,13 +514,13 @@ namespace Diplom_Bibl.Pages
                 {
                     var allItems = bookGroups.SelectMany(g => g.Items).Where(i => i.RemainingQuantity > 0).ToList();
 
-                    var result = MessageBox.Show(
+                    var result =  CustomMessageBox.Show(
                         $"Вернуть все оставшиеся книги ({allItems.Count} шт.)?",
                         "Подтверждение возврата всех книг",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
+                        CustomMessageBoxButton.YesNo,
+                        CustomMessageBoxImage.Question);
 
-                    if (result != MessageBoxResult.Yes) return;
+                    if (result != CustomMessageBoxResult.Yes) return;
 
                     using (var conn = new SqlConnection(_connectionString))
                     {
@@ -576,8 +577,8 @@ namespace Diplom_Bibl.Pages
 
                                 transaction.Commit();
 
-                                MessageBox.Show($"Все книги успешно возвращены!", "Успех",
-                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                                 CustomMessageBox.Show($"Все книги успешно возвращены!", "Успех",
+                                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             }
                             catch
                             {
@@ -601,8 +602,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при возврате групповых книг: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при возврате групповых книг: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
@@ -760,8 +761,8 @@ namespace Diplom_Bibl.Pages
                             }
                         }
 
-                        MessageBox.Show($"Возвращено книг: {returnedCount}", "Успех",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
+                         CustomMessageBox.Show($"Возвращено книг: {returnedCount}", "Успех",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                         dialog.Close();
 
@@ -772,8 +773,8 @@ namespace Diplom_Bibl.Pages
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка при возврате: {ex.Message}", "Ошибка",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+                         CustomMessageBox.Show($"Ошибка при возврате: {ex.Message}", "Ошибка",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                 };
 
@@ -788,8 +789,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при открытии диалога возврата: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при открытии диалога возврата: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -94,8 +95,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки должностей: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки должностей: {ex.Message}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -114,8 +115,8 @@ namespace Diplom_Bibl.Pages
         {
             if (string.IsNullOrWhiteSpace(PostNameTb.Text))
             {
-                MessageBox.Show("Введите название должности.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Введите название должности.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 PostNameTb.Focus();
                 return false;
             }
@@ -160,8 +161,8 @@ namespace Diplom_Bibl.Pages
             // Проверка на уникальность
             if (!IsPostNameUnique(postName))
             {
-                MessageBox.Show("Должность с таким названием уже существует.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Должность с таким названием уже существует.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -180,8 +181,8 @@ namespace Diplom_Bibl.Pages
 
                         if (result > 0)
                         {
-                            MessageBox.Show($"Должность '{postName}' успешно добавлена.",
-                                "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show($"Должность '{postName}' успешно добавлена.",
+                                "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             ClearForm();
                             LoadPosts();
@@ -193,19 +194,19 @@ namespace Diplom_Bibl.Pages
             {
                 if (ex.Number == 2627) // Нарушение уникальности
                 {
-                    MessageBox.Show("Должность с таким названием уже существует.",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show("Должность с таким названием уже существует.",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 else
                 {
-                    MessageBox.Show($"Ошибка базы данных: {ex.Message}",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка базы данных: {ex.Message}",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при добавлении: {ex.Message}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -213,8 +214,8 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentPostId.HasValue)
             {
-                MessageBox.Show("Выберите должность для редактирования.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите должность для редактирования.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -226,8 +227,8 @@ namespace Diplom_Bibl.Pages
             // Проверка на уникальность (исключая текущую запись)
             if (!IsPostNameUnique(postName, _currentPostId))
             {
-                MessageBox.Show("Должность с таким названием уже существует.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Должность с таким названием уже существует.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -247,8 +248,8 @@ namespace Diplom_Bibl.Pages
 
                         if (result > 0)
                         {
-                            MessageBox.Show("Должность успешно обновлена.",
-                                "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Должность успешно обновлена.",
+                                "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             ClearForm();
                             LoadPosts();
@@ -260,19 +261,19 @@ namespace Diplom_Bibl.Pages
             {
                 if (ex.Number == 2627)
                 {
-                    MessageBox.Show("Должность с таким названием уже существует.",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show("Должность с таким названием уже существует.",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 else
                 {
-                    MessageBox.Show($"Ошибка базы данных: {ex.Message}",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка базы данных: {ex.Message}",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при обновлении: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при обновлении: {ex.Message}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -280,18 +281,18 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentPostId.HasValue)
             {
-                MessageBox.Show("Выберите должность для удаления.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите должность для удаления.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            var result = MessageBox.Show(
+            var result =  CustomMessageBox.Show(
                 $"Вы уверены, что хотите удалить должность '{PostNameTb.Text}'?",
                 "Подтверждение удаления",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == CustomMessageBoxResult.Yes)
             {
                 try
                 {
@@ -309,9 +310,9 @@ namespace Diplom_Bibl.Pages
 
                             if (usedCount > 0)
                             {
-                                MessageBox.Show(
+                                 CustomMessageBox.Show(
                                     $"Невозможно удалить должность, так как она используется в {usedCount} читательских формах.",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                                 return;
                             }
                         }
@@ -327,8 +328,8 @@ namespace Diplom_Bibl.Pages
 
                             if (rowsAffected > 0)
                             {
-                                MessageBox.Show("Должность успешно удалена.",
-                                    "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                                 CustomMessageBox.Show("Должность успешно удалена.",
+                                    "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                                 ClearForm();
                                 LoadPosts();
@@ -340,19 +341,19 @@ namespace Diplom_Bibl.Pages
                 {
                     if (ex.Number == 547) // Нарушение внешнего ключа
                     {
-                        MessageBox.Show("Невозможно удалить должность, так как она используется в других записях.",
-                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                         CustomMessageBox.Show("Невозможно удалить должность, так как она используется в других записях.",
+                            "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                     else
                     {
-                        MessageBox.Show($"Ошибка базы данных: {ex.Message}",
-                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                         CustomMessageBox.Show($"Ошибка базы данных: {ex.Message}",
+                            "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка при удалении: {ex.Message}",
-                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка при удалении: {ex.Message}",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
         }

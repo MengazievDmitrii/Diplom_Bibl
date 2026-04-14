@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -55,8 +56,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки видов книг:\n{ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки видов книг:\n{ex.Message}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -97,7 +98,7 @@ namespace Diplom_Bibl.Pages
             string viewName = View_Book_Tb.Text?.Trim();
             if (string.IsNullOrEmpty(viewName))
             {
-                MessageBox.Show("Введите название вида книги.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Введите название вида книги.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -115,26 +116,26 @@ namespace Diplom_Bibl.Pages
 
                         if (rows > 0)
                         {
-                            MessageBox.Show($"Вид «{viewName}» успешно добавлен.",
-                                "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show($"Вид «{viewName}» успешно добавлен.",
+                                "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             ClearFields();
                             LoadViewBooks(); // Обновляем список
                         }
                         else
                         {
-                            MessageBox.Show("Не удалось добавить запись.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                             CustomMessageBox.Show("Не удалось добавить запись.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                         }
                     }
                 }
             }
             catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 547)
             {
-                MessageBox.Show("Такой вид книги уже существует или нарушено ограничение целостности.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show("Такой вид книги уже существует или нарушено ограничение целостности.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -143,14 +144,14 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentViewBookId.HasValue)
             {
-                MessageBox.Show("Нет выбранной записи для редактирования.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Нет выбранной записи для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             string viewName = View_Book_Tb.Text?.Trim();
             if (string.IsNullOrEmpty(viewName))
             {
-                MessageBox.Show("Введите название вида книги.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Введите название вида книги.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -172,13 +173,13 @@ namespace Diplom_Bibl.Pages
                         int rows = command.ExecuteNonQuery();
                         if (rows > 0)
                         {
-                            MessageBox.Show("Запись успешно обновлена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Запись успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             ClearFields();
                             LoadViewBooks();
                         }
                         else
                         {
-                            MessageBox.Show("Запись не найдена (возможно, удалена).", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Запись не найдена (возможно, удалена).", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearFields();
                         }
                     }
@@ -186,7 +187,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка обновления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка обновления:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -195,15 +196,15 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentViewBookId.HasValue)
             {
-                MessageBox.Show("Нет выбранной записи для удаления.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Нет выбранной записи для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            var result = MessageBox.Show(
+            var result =  CustomMessageBox.Show(
                 "Удалить выбранный вид книги?",
-                "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
-            if (result != MessageBoxResult.Yes) return;
+            if (result != CustomMessageBoxResult.Yes) return;
 
             const string query = "DELETE FROM ViewBook WHERE ID_View_Book = @Id;";
 
@@ -219,13 +220,13 @@ namespace Diplom_Bibl.Pages
 
                         if (rows > 0)
                         {
-                            MessageBox.Show("Вид книги удалён.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Вид книги удалён.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             ClearFields();
                             LoadViewBooks();
                         }
                         else
                         {
-                            MessageBox.Show("Запись уже удалена.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Запись уже удалена.", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearFields();
                         }
                     }
@@ -233,12 +234,12 @@ namespace Diplom_Bibl.Pages
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                MessageBox.Show("Невозможно удалить: на этот вид ссылаются другие записи (например, книги).",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show("Невозможно удалить: на этот вид ссылаются другие записи (например, книги).",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -260,7 +261,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки данных:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки данных:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

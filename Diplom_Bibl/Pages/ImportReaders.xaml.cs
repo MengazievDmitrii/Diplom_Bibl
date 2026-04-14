@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using ExcelDataReader;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -42,15 +43,15 @@ namespace Diplom_Bibl.Pages
         {
             if (string.IsNullOrEmpty(FilePathTextBox.Text))
             {
-                MessageBox.Show("Выберите файл для импорта.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите файл для импорта.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             if (!File.Exists(FilePathTextBox.Text))
             {
-                MessageBox.Show("Файл не найден.", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show("Файл не найден.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 return;
             }
 
@@ -87,8 +88,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при импорте: {ex.Message}\n\nПопробуйте сохранить файл в формате CSV.",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при импорте: {ex.Message}\n\nПопробуйте сохранить файл в формате CSV.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             finally
             {
@@ -129,9 +130,9 @@ namespace Diplom_Bibl.Pages
                 ? $"Импорт завершен с ошибками.\nУспешно: {result.SuccessRows}, Ошибок: {result.ErrorRows}"
                 : $"Импорт успешно завершен!\nДобавлено читателей: {result.SuccessRows}";
 
-            MessageBox.Show(message, "Результат импорта",
-                MessageBoxButton.OK,
-                result.HasErrors ? MessageBoxImage.Warning : MessageBoxImage.Information);
+             CustomMessageBox.Show(message, "Результат импорта",
+                CustomMessageBoxButton.OK,
+                result.HasErrors ? CustomMessageBoxImage.Warning : CustomMessageBoxImage.Information);
         }
 
         private void ClearResults()
@@ -178,15 +179,15 @@ namespace Diplom_Bibl.Pages
 
                 File.WriteAllText(filePath, template.ToString(), Encoding.UTF8);
 
-                MessageBox.Show($"CSV шаблон сохранён:\n{filePath}\n\n" +
+                 CustomMessageBox.Show($"CSV шаблон сохранён:\n{filePath}\n\n" +
                                "Заполните данные и сохраните файл.\n\n" +
                                "💡 Подсказка: Для Excel откройте этот CSV файл и сохраните как XLSX.",
-                    "Шаблон создан", MessageBoxButton.OK, MessageBoxImage.Information);
+                    "Шаблон создан", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при создании шаблона: {ex.Message}",
-                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при создании шаблона: {ex.Message}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

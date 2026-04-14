@@ -120,7 +120,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
         }
-        
+
         private void ClosePage_Click(object sender, RoutedEventArgs e)
         {
             if (NavigationService != null)
@@ -1311,5 +1311,5 @@ namespace Diplom_Bibl.Pages
             }
         }
     }
-   
+
 }

@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -66,7 +67,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void ApplyPublishingHousesFilter(string searchTerm)
@@ -115,8 +116,8 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(title))
             {
-                MessageBox.Show("Пожалуйста, введите корректные значения.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Пожалуйста, введите корректные значения.",
+                                "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -142,8 +143,8 @@ namespace Diplom_Bibl.Pages
 
                         if (rowsAffected > 0)
                         {
-                            MessageBox.Show($"Издательство {title} успешно сохранено в базу данных:\n",
-                                            "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show($"Издательство {title} успешно сохранено в базу данных:\n",
+                                            "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             // После сохранения новой записи, можно перезагрузить её, чтобы ID появился
                             // или просто сбросить currentRecordId, если не планируете сразу редактировать
                             _currentPublishingHouseId = null; // Сбрасываем, так как это новая запись, ID которой мы не знаем
@@ -152,8 +153,8 @@ namespace Diplom_Bibl.Pages
                         }
                         else
                         {
-                            MessageBox.Show("Данные не были сохранены. Проверьте введённые значения.",
-                                            "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Данные не были сохранены. Проверьте введённые значения.",
+                                            "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                         }
                     }
                 }
@@ -161,14 +162,14 @@ namespace Diplom_Bibl.Pages
             catch (SqlException sqlEx)
             {
                 // Обработка ошибок SQL Server (например, нарушение ограничений, проблемы с подключением)
-                MessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
                 // Обработка любых других ошибок
-                MessageBox.Show($"Произошла ошибка: {ex.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
+                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -177,7 +178,7 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentPublishingHouseId.HasValue)
             {
-                MessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -189,8 +190,8 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(title))
             {
-                MessageBox.Show("Пожалуйста, введите корректные значения.",
-                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Пожалуйста, введите корректные значения.",
+                                "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -216,14 +217,14 @@ namespace Diplom_Bibl.Pages
 
                         if (rowsAffected > 0)
                         {
-                            MessageBox.Show("Запись успешно обновлена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Запись успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             // После обновления можно перезагрузить запись, чтобы убедиться, что отображаются актуальные данные
                             // LoadFirstRecordForDate(DateTime.Parse(date));
                             PublishingHouses();
                         }
                         else
                         {
-                            MessageBox.Show("Запись не была обновлена. Возможно, она была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Запись не была обновлена. Возможно, она была удалена другим процессом.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearInputFields();
                             _currentPublishingHouseId = null;
                             // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
@@ -236,13 +237,13 @@ namespace Diplom_Bibl.Pages
             }
             catch (SqlException sqlEx)
             {
-                MessageBox.Show($"Ошибка базы данных при сохранении: {sqlEx.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка базы данных при сохранении: {sqlEx.Message}",
+                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Произошла ошибка при сохранении: {ex.Message}",
-                                "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Произошла ошибка при сохранении: {ex.Message}",
+                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -251,15 +252,15 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentPublishingHouseId.HasValue)
             {
-                MessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             // Подтверждение удаления
-            var result = MessageBox.Show("Вы уверены, что хотите удалить выбранную запись?",
-                                         "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result =  CustomMessageBox.Show("Вы уверены, что хотите удалить выбранную запись?",
+                                         "Подтверждение удаления", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == CustomMessageBoxResult.Yes)
             {
                 string deleteQuery = "DELETE FROM PublishingHouse WHERE IDPublishingHouse = @Id";
 
@@ -276,7 +277,7 @@ namespace Diplom_Bibl.Pages
 
                             if (rowsAffected > 0)
                             {
-                                MessageBox.Show("Запись успешно удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                                 CustomMessageBox.Show("Запись успешно удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                                 ClearInputFields(); // Очищаем поля после удаления
                                 _currentPublishingHouseId = null;
                                 PublishingHouses();
@@ -287,20 +288,20 @@ namespace Diplom_Bibl.Pages
                             }
                             else
                             {
-                                MessageBox.Show("Запись не была удалена. Возможно, она уже была удалена другим процессом.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                 CustomMessageBox.Show("Запись не была удалена. Возможно, она уже была удалена другим процессом.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             }
                         }
                     }
                 }
                 catch (SqlException sqlEx)
                 {
-                    MessageBox.Show($"Ошибка базы данных при удалении: {sqlEx.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка базы данных при удалении: {sqlEx.Message}",
+                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Произошла ошибка при удалении: {ex.Message}",
-                                    "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                     CustomMessageBox.Show($"Произошла ошибка при удалении: {ex.Message}",
+                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             // Если пользователь нажал "Нет", ничего не делаем.
@@ -339,7 +340,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки автора: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки автора: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)

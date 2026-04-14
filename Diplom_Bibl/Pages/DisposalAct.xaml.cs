@@ -4,6 +4,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -86,7 +87,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки причин: {ex.Message}");
+                 CustomMessageBox.Show($"Ошибка загрузки причин: {ex.Message}");
             }
         }
 
@@ -96,14 +97,14 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(inv))
             {
-                MessageBox.Show("Введите инвентарный номер книги!");
+                 CustomMessageBox.Show("Введите инвентарный номер книги!");
                 return;
             }
 
             // Проверка дубликатов в текущем акте
             if (_items.Any(item => item.InventoryNumber == inv))
             {
-                MessageBox.Show($"Книга {inv} уже добавлена в акт.");
+                 CustomMessageBox.Show($"Книга {inv} уже добавлена в акт.");
                 TbSearchInv.Clear();
                 return;
             }
@@ -116,12 +117,12 @@ namespace Diplom_Bibl.Pages
                 if (bookCheckResult.Message.Contains("находится на руках"))
                 {
                     string issuedInfo = GetIssuedInfo(inv);
-                    MessageBox.Show($"{bookCheckResult.Message}\n\n{issuedInfo}",
-                        "Невозможно списать", MessageBoxButton.OK, MessageBoxImage.Warning);
+                     CustomMessageBox.Show($"{bookCheckResult.Message}\n\n{issuedInfo}",
+                        "Невозможно списать", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 }
                 else
                 {
-                    MessageBox.Show(bookCheckResult.Message);
+                     CustomMessageBox.Show(bookCheckResult.Message);
                 }
                 TbSearchInv.Clear();
                 return;
@@ -312,8 +313,8 @@ namespace Diplom_Bibl.Pages
                             {
                                 // Книга выдана, показываем информацию
                                 string issuedInfo = GetIssuedInfo(inv);
-                                MessageBox.Show($"Книга {inv} находится на руках!\n\n{issuedInfo}",
-                                    "Невозможно списать", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                 CustomMessageBox.Show($"Книга {inv} находится на руках!\n\n{issuedInfo}",
+                                    "Невозможно списать", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                                 return null;
                             }
 
@@ -341,8 +342,8 @@ namespace Diplom_Bibl.Pages
                 // Проверяем, что все необходимые поля заполнены
                 if (string.IsNullOrEmpty(LbInventory.Text) || LbInventory.Text == "не найдена")
                 {
-                    MessageBox.Show("Сначала найдите книгу по инвентарному номеру.", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                     CustomMessageBox.Show("Сначала найдите книгу по инвентарному номеру.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
@@ -418,13 +419,13 @@ namespace Diplom_Bibl.Pages
                 // Очищаем поля найденной книги
                 ClearBookDetails();
 
-                MessageBox.Show($"Книга '{title}' добавлена в акт списания.", "Успешно",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                 CustomMessageBox.Show($"Книга '{title}' добавлена в акт списания.", "Успешно",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении книги: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при добавлении книги: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -450,13 +451,13 @@ namespace Diplom_Bibl.Pages
         {
             if (_items.Count == 0)
             {
-                MessageBox.Show("Добавьте книги в акт.");
+                 CustomMessageBox.Show("Добавьте книги в акт.");
                 return;
             }
 
             if (CbReason.SelectedItem == null)
             {
-                MessageBox.Show("Выберите причину списания.");
+                 CustomMessageBox.Show("Выберите причину списания.");
                 return;
             }
 
@@ -466,7 +467,7 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(actNumber) || string.IsNullOrEmpty(participants))
             {
-                MessageBox.Show("Заполните все поля.");
+                 CustomMessageBox.Show("Заполните все поля.");
                 return;
             }
 
@@ -523,7 +524,7 @@ namespace Diplom_Bibl.Pages
                             }
 
                             transaction.Commit();
-                            MessageBox.Show("Акт списания создан!");
+                             CustomMessageBox.Show("Акт списания создан!");
                             ClearForm();
                         }
                         catch
@@ -536,7 +537,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка: {ex.Message}");
+                 CustomMessageBox.Show($"Ошибка: {ex.Message}");
             }
         }
 

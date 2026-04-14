@@ -175,7 +175,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -187,7 +187,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void LoadTeachers()
@@ -199,7 +199,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки преподавателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки преподавателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 _teachers = new ObservableCollection<BookIssuanceService.TeacherInfo>();
             }
         }
@@ -211,7 +211,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -239,7 +239,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -654,7 +654,7 @@ namespace Diplom_Bibl.Pages
             // Валидация
             if (_selectedBook == null)
             {
-                CustomMessageBox.Show("Выберите книгу для выдачи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите книгу для выдачи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -663,7 +663,7 @@ namespace Diplom_Bibl.Pages
             {
                 if (!int.TryParse(QuantityBox?.Text, out requestedQuantity) || requestedQuantity <= 0)
                 {
-                    CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                     CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
             }
@@ -673,7 +673,7 @@ namespace Diplom_Bibl.Pages
             // Проверяем доступное количество
             if (requestedQuantity > _selectedBook.AvailableCopies)
             {
-                CustomMessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
+                 CustomMessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
@@ -683,7 +683,7 @@ namespace Diplom_Bibl.Pages
                 // Выдача читателю
                 if (_selectedReader == null)
                 {
-                    CustomMessageBox.Show("Выберите читателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                     CustomMessageBox.Show("Выберите читателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
@@ -694,19 +694,19 @@ namespace Diplom_Bibl.Pages
                 // Выдача группе
                 if (_selectedGroup == null)
                 {
-                    CustomMessageBox.Show("Выберите группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                     CustomMessageBox.Show("Выберите группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
                 if (_selectedTeacher == null)
                 {
-                    CustomMessageBox.Show("Выберите преподавателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                     CustomMessageBox.Show("Выберите преподавателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
                 if (_selectedStudent == null)
                 {
-                    CustomMessageBox.Show("Выберите студента.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                     CustomMessageBox.Show("Выберите студента.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
@@ -746,7 +746,7 @@ namespace Diplom_Bibl.Pages
                 _selectedBook.AvailableCopies -= quantity;
                 AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
-                CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                 CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                 // Очищаем форму
                 ClearSelectedBook_Click(null, null);
@@ -761,7 +761,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -908,7 +908,7 @@ namespace Diplom_Bibl.Pages
 
                 if (bookIds.Count < quantity)
                 {
-                    CustomMessageBox.Show($"Недостаточно экземпляров книги.\n" +
+                     CustomMessageBox.Show($"Недостаточно экземпляров книги.\n" +
                                    $"Требуется: {quantity}, доступно: {bookIds.Count}",
                         "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
@@ -939,7 +939,7 @@ namespace Diplom_Bibl.Pages
                 _selectedBook.AvailableCopies -= quantity;
                 AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
-                CustomMessageBox.Show($"Групповая выдача успешно создана!\n" +
+                 CustomMessageBox.Show($"Групповая выдача успешно создана!\n" +
                                $"ID выдачи: {issuanceId}\n" +
                                $"Выдано книг: {quantity}",
                     "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
@@ -964,7 +964,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -1015,7 +1015,7 @@ namespace Diplom_Bibl.Pages
                             cmd.ExecuteNonQuery();
                         }
 
-                        CustomMessageBox.Show("Запись обновлена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                         CustomMessageBox.Show("Запись обновлена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     }
                     else
                     {
@@ -1027,7 +1027,7 @@ namespace Diplom_Bibl.Pages
 
                             if (count > 0)
                             {
-                                CustomMessageBox.Show("Запись за эту дату уже существует! Используйте редактирование.",
+                                 CustomMessageBox.Show("Запись за эту дату уже существует! Используйте редактирование.",
                                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                                 return;
                             }
@@ -1046,7 +1046,7 @@ namespace Diplom_Bibl.Pages
                             cmd.ExecuteNonQuery();
                         }
 
-                        CustomMessageBox.Show("Запись сохранена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                         CustomMessageBox.Show("Запись сохранена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     }
                 }
 
@@ -1054,7 +1054,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -1063,7 +1063,7 @@ namespace Diplom_Bibl.Pages
             if (!_currentRecordId.HasValue)
                 return;
 
-            var result = CustomMessageBox.Show("Удалить запись за этот день?", "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+            var result =  CustomMessageBox.Show("Удалить запись за этот день?", "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
             if (result == CustomMessageBoxResult.Yes)
             {
@@ -1081,11 +1081,11 @@ namespace Diplom_Bibl.Pages
                     }
 
                     LoadTodayStats();
-                    CustomMessageBox.Show("Запись удалена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                     CustomMessageBox.Show("Запись удалена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                     CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
         }
@@ -1197,7 +1197,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
     }

@@ -3,8 +3,6 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-      xmlns:local="clr-namespace:Diplom_Bibl.Pages"
-      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
       mc:Ignorable="d" 
       d:DesignHeight="650" d:DesignWidth="900"
       Title="Readers" Loaded="Page_Loaded"
@@ -35,11 +33,11 @@
                     Click="AddReader_Click"
                     Margin="0,0,20,0"/>
             <Button x:Name="ImportReadersBtn" 
-        Content="📥 Импорт из Excel" 
-        Style="{StaticResource SaveButtonStyle}" 
-        Width="180" 
-        Click="ImportReadersBtn_Click"
-        Margin="0,0,10,0"/>
+                    Content="📥 Импорт из Excel" 
+                    Style="{StaticResource SaveButtonStyle}" 
+                    Width="180" 
+                    Click="ImportReadersBtn_Click"
+                    Margin="0,0,10,0"/>
         </StackPanel>
 
         <!-- Панель поиска и фильтрации -->
@@ -54,6 +52,7 @@
 
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -82,7 +81,7 @@
                 </StackPanel>
 
                 <!-- Фильтры по категориям -->
-                <WrapPanel Grid.Row="1" Orientation="Horizontal">
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Фильтры:" 
                                VerticalAlignment="Center" 
                                Margin="0,0,10,0"
@@ -99,29 +98,43 @@
                               SelectedValuePath="TypeID"
                               Margin="0,0,10,5"/>
 
-                    <!-- Фильтр по группе/должности -->
-                    <ComboBox x:Name="FilterGroupPostCombo" 
-                              Width="170"
+                    <!-- Фильтр по группе (для студентов) -->
+                    <ComboBox x:Name="FilterGroupCombo" 
+                              Width="120"
                               Style="{StaticResource InputFieldStyleCb}"
                               SelectionChanged="FilterCombo_SelectionChanged"
-                              Margin="0,0,10,5">
-                        <ComboBoxItem Content="Все группы/должности" IsSelected="True"/>
-                        <ComboBoxItem Content="Студенты (с группой)"/>
-                        <ComboBoxItem Content="Сотрудники (с должностью)"/>
-                        <ComboBoxItem Content="Без группы/должности"/>
-                    </ComboBox>
+                              DisplayMemberPath="GroupCode"
+                              SelectedValuePath="GroupID"
+                              Margin="0,0,10,5"/>
+
+                    <!-- Фильтр по должности (для сотрудников) -->
+                    <ComboBox x:Name="FilterPostCombo" 
+                              Width="150"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="PostName"
+                              SelectedValuePath="PostID"
+                              Margin="0,0,10,5"/>
 
                     <!-- Кнопка сброса фильтров -->
                     <Button x:Name="ClearFiltersBtn" 
-                            Content="✖ Сбросить" 
+                            Content="✖ Сбросить все фильтры" 
                             Style="{StaticResource PrimaryButtonStyle}"
                             Background="{StaticResource LightGray}"
                             Foreground="{StaticResource TextColor}"
                             Height="35"
-                            Width="100"
+                            Width="140"
                             Click="ClearFiltersBtn_Click"
                             Margin="0,0,0,5"/>
                 </WrapPanel>
+
+                <!-- Текст подсказки -->
+                <TextBlock Grid.Row="2" 
+                           Text="💡 Совет: Выберите тип читателя 'Студент', чтобы увидеть фильтр по группам"
+                           FontSize="11"
+                           Foreground="{StaticResource PrimaryColor}"
+                           Opacity="0.6"
+                           Margin="0,5,0,0"/>
             </Grid>
         </Border>
 
@@ -133,7 +146,7 @@
                  SelectionMode="Single"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  Margin="0,0,0,20"
-                 MouseDoubleClick="ReadersListView_MouseDoubleClick" d:ItemsSource="{d:SampleData ItemCount=5}">
+                 MouseDoubleClick="ReadersListView_MouseDoubleClick">
 
             <ListBox.ItemTemplate>
                 <DataTemplate>

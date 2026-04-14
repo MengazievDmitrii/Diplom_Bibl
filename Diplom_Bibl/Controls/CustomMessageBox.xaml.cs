@@ -78,7 +78,7 @@ namespace Diplom_Bibl.Controls
 
         public static CustomMessageBoxResult Show(string message)
         {
-            return ShowInternal(message, string.Empty, CustomMessageBoxButton.OK, CustomMessageBoxImage.None, null);
+            return ShowInternal(message, string.Empty, CustomMessageBoxButton.OK,CustomMessageBoxImage.None, null);
         }
 
         public static CustomMessageBoxResult Show(string message, string caption)
@@ -121,7 +121,7 @@ namespace Diplom_Bibl.Controls
                 messageBox.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 
-            messageBox.ShowDialog();
+             messageBox.ShowDialog();
             return messageBox._result;
         }
 

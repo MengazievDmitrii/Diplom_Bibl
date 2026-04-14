@@ -157,7 +157,7 @@
                                 x:Name="HomeAdressTb" 
                                 
                                 SelectedAddress="{Binding HomeAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            
+
                         </StackPanel>
 
                         <StackPanel Margin="0,0,0,10">

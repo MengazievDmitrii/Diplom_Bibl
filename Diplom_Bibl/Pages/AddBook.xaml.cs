@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,46 +12,77 @@ using System.Windows.Input;
 
 namespace Diplom_Bibl.Pages
 {
+    // Создаем класс для отображения книг в списке
+    public class BookListItem
+    {
+        public int IDBook { get; set; }
+        public string InventoryNumber { get; set; } = "";
+        public string Title { get; set; } = "";
+        public int Year { get; set; }
+        public string Price { get; set; } = "";
+        public string AuthorName { get; set; } = "";
+        public string PublishingHouseName { get; set; } = "";
+    }
+
     public partial class AddBook : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
         private int? _currentBookId = null;
-        private ObservableCollection<dynamic> _allBooks;
+        private ObservableCollection<BookListItem> _allBooks;
+        private CancellationTokenSource _cancellationTokenSource;
+        private bool _isLoadingBooks = false;
+        private bool _isClosing = false;
 
         public AddBook()
         {
             InitializeComponent();
-            Loaded += OnPageLoaded;
         }
 
         public AddBook(int bookId)
         {
             InitializeComponent();
             _currentBookId = bookId;
-            Loaded += OnPageLoaded;
         }
 
         private async void OnPageLoaded(object sender, RoutedEventArgs e)
         {
-            // Загружаем данные с задержкой, чтобы UI успел отрисоваться
+            _isClosing = false;
+
+            ShowBooksLoading(true);
+
             await Task.Delay(10);
             await LoadDataAsync();
+        }
+
+        private void ShowBooksLoading(bool show)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (BooksLoadingPanel != null)
+                {
+                    BooksLoadingPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
+                if (LvBooks != null)
+                {
+                    LvBooks.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+                }
+            });
         }
 
         private async Task LoadDataAsync()
         {
             try
             {
-                // Загружаем справочники последовательно, чтобы не создавать много потоков
-                LoadAuthors();
-                LoadViewBooks();
-                LoadPublishers();
-                LoadGenres();
-                LoadStatuses();
-                LoadReceipts();
+                await Task.Run(() => LoadAuthors());
+                await Task.Run(() => LoadViewBooks());
+                await Task.Run(() => LoadPublishers());
+                await Task.Run(() => LoadGenres());
+                await Task.Run(() => LoadStatuses());
+                await Task.Run(() => LoadReceipts());
 
-                // Загружаем список книг
-                await LoadBooksAsync();
+                _cancellationTokenSource = new CancellationTokenSource();
+
+                await LoadBooksToListAsync(_cancellationTokenSource.Token);
 
                 if (_currentBookId.HasValue)
                 {
@@ -60,10 +93,102 @@ namespace Diplom_Bibl.Pages
                     BtnDelete.Visibility = Visibility.Visible;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("Загрузка данных отменена");
+            }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                if (!_isClosing)
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
+            }
+            finally
+            {
+                ShowBooksLoading(false);
+            }
+        }
+
+        private async Task LoadBooksToListAsync(CancellationToken cancellationToken)
+        {
+            if (_isLoadingBooks) return;
+            _isLoadingBooks = true;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    const string query = @"
+                        SELECT TOP 100
+                            b.IDBook,
+                            b.InventaryNumber AS InventoryNumber,
+                            b.TitleBook AS Title,
+                            b.YearPublishing AS Year,
+                            b.Price,
+                            ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                            ISNULL(p.TitlePublishingHouse, '') AS PublishingHouseName
+                        FROM Books b
+                        LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                        LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
+                        ORDER BY b.TitleBook";
+
+                    using (var connection = new SqlConnection(_connectionString))
+                    {
+                        connection.Open();
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        using (var command = new SqlCommand(query, connection))
+                        using (var reader = command.ExecuteReader())
+                        {
+                            var books = new ObservableCollection<BookListItem>();
+
+                            while (reader.Read())
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+
+                                books.Add(new BookListItem
+                                {
+                                    IDBook = Convert.ToInt32(reader["IDBook"]),
+                                    InventoryNumber = reader["InventoryNumber"]?.ToString() ?? "",
+                                    Title = reader["Title"]?.ToString() ?? "",
+                                    Year = Convert.ToInt32(reader["Year"]),
+                                    Price = reader["Price"] != DBNull.Value
+                                        ? Convert.ToDecimal(reader["Price"]).ToString("F2")
+                                        : "0,00",
+                                    AuthorName = reader["AuthorName"]?.ToString() ?? "",
+                                    PublishingHouseName = reader["PublishingHouseName"]?.ToString() ?? ""
+                                });
+                            }
+
+                            Dispatcher.Invoke(() =>
+                            {
+                                _allBooks = books;
+                                LvBooks.ItemsSource = _allBooks;
+                                ApplyBookFilter("");
+                            });
+                        }
+                    }
+                }, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("Загрузка книг была отменена");
+            }
+            catch (Exception ex)
+            {
+                if (!_isClosing)
+                {
+                    Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+                }
+            }
+            finally
+            {
+                _isLoadingBooks = false;
             }
         }
 
@@ -93,15 +218,18 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbAuthor.ItemsSource = items;
-                        CbAuthor.DisplayMemberPath = "DisplayAuthors";
-                        CbAuthor.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbAuthor.ItemsSource = items;
+                            CbAuthor.DisplayMemberPath = "DisplayAuthors";
+                            CbAuthor.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
         }
 
@@ -129,15 +257,18 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbViewBook.ItemsSource = items;
-                        CbViewBook.DisplayMemberPath = "DisplayViewBook";
-                        CbViewBook.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbViewBook.ItemsSource = items;
+                            CbViewBook.DisplayMemberPath = "DisplayViewBook";
+                            CbViewBook.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки видов книг: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки видов книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
         }
 
@@ -165,15 +296,18 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbPublisher.ItemsSource = items;
-                        CbPublisher.DisplayMemberPath = "DisplayPH";
-                        CbPublisher.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbPublisher.ItemsSource = items;
+                            CbPublisher.DisplayMemberPath = "DisplayPH";
+                            CbPublisher.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
         }
 
@@ -201,15 +335,18 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbGenre.ItemsSource = items;
-                        CbGenre.DisplayMemberPath = "DisplayGen";
-                        CbGenre.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbGenre.ItemsSource = items;
+                            CbGenre.DisplayMemberPath = "DisplayGen";
+                            CbGenre.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
         }
 
@@ -237,15 +374,18 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbStatus.ItemsSource = items;
-                        CbStatus.DisplayMemberPath = "DisplayStatus";
-                        CbStatus.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbStatus.ItemsSource = items;
+                            CbStatus.DisplayMemberPath = "DisplayStatus";
+                            CbStatus.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
         }
 
@@ -277,103 +417,19 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-                        CbReceipt.ItemsSource = items;
-                        CbReceipt.DisplayMemberPath = "DisplayReceipt";
-                        CbReceipt.SelectedValuePath = "ID";
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbReceipt.ItemsSource = items;
+                            CbReceipt.DisplayMemberPath = "DisplayReceipt";
+                            CbReceipt.SelectedValuePath = "ID";
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки актов поступления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки актов поступления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
             }
-        }
-
-        private async Task LoadBooksAsync()
-        {
-            await Task.Run(() =>
-            {
-                try
-                {
-                    const string query = @"
-                        SELECT 
-                            b.IDBook,
-                            b.InventaryNumber AS InventoryNumber,
-                            b.TitleBook AS Title,
-                            b.YearPublishing AS Year,
-                            b.Author AS AuthorId,
-                            ISNULL(a.NameAuthor, '') AS AuthorName,
-                            ISNULL(a.SurnameAuthor, '') AS AuthorSurname,
-                            ISNULL(a.PatronymicAuthor, '') AS AuthorPatronymic,
-                            b.Gener AS GenreId,
-                            ISNULL(g.TitleGener, '') AS GenreName,
-                            b.StatusBook AS StatusId,
-                            ISNULL(s.Title_Status, '') AS StatusTitle,
-                            b.ID_View_Book AS ViewId,
-                            ISNULL(v.View_Book, '') AS ViewName,
-                            b.PublishingHouse AS PublisherId,
-                            ISNULL(p.TitlePublishingHouse, '') AS PublisherName,
-                            b.IDReceip AS ReceiptId,
-                            ISNULL(r.ReceiptNumber, '') AS ReceiptNumber,
-                            b.Anotation, 
-                            b.Price
-                        FROM Books b
-                        LEFT JOIN Authors a ON b.Author = a.ID_Autor
-                        LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
-                        LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
-                        LEFT JOIN ViewBook v ON b.ID_View_Book = v.ID_View_Book
-                        LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
-                        LEFT JOIN ReceiptBooks r ON b.IDReceip = r.IDReceipt
-                        ORDER BY b.TitleBook;";
-
-                    using (var connection = new SqlConnection(_connectionString))
-                    {
-                        connection.Open();
-                        using (var command = new SqlCommand(query, connection))
-                        using (var reader = command.ExecuteReader())
-                        {
-                            var books = new ObservableCollection<dynamic>();
-
-                            while (reader.Read())
-                            {
-                                books.Add(new
-                                {
-                                    IDBook = Convert.ToInt32(reader["IDBook"]),
-                                    InventoryNumber = reader["InventoryNumber"].ToString(),
-                                    Title = reader["Title"].ToString(),
-                                    Year = Convert.ToInt32(reader["Year"]),
-                                    AuthorId = reader["AuthorId"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["AuthorId"]),
-                                    GenreId = reader["GenreId"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["GenreId"]),
-                                    StatusId = reader["StatusId"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["StatusId"]),
-                                    ViewId = Convert.ToInt32(reader["ViewId"]),
-                                    PublisherId = reader["PublisherId"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["PublisherId"]),
-                                    ReceiptId = reader["ReceiptId"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["ReceiptId"]),
-                                    AuthorName = $"{reader["AuthorSurname"]} {reader["AuthorName"]} {reader["AuthorPatronymic"]}".Trim(),
-                                    GenreName = reader["GenreName"].ToString(),
-                                    StatusTitle = reader["StatusTitle"].ToString(),
-                                    ViewName = reader["ViewName"].ToString(),
-                                    PublisherName = reader["PublisherName"].ToString(),
-                                    Price = reader["Price"] != DBNull.Value
-                                        ? Convert.ToDecimal(reader["Price"]).ToString("0.00", new CultureInfo("ru-RU"))
-                                        : "",
-                                    Anotation = reader["Anotation"]?.ToString()?.TrimEnd() ?? ""
-                                });
-                            }
-
-                            Dispatcher.Invoke(() =>
-                            {
-                                _allBooks = books;
-                                ApplyBookFilter("");
-                            });
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Dispatcher.Invoke(() => MessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error));
-                }
-            });
         }
 
         private async Task LoadBookDataAsync(int bookId)
@@ -451,8 +507,8 @@ namespace Diplom_Bibl.Pages
                 }
                 catch (Exception ex)
                 {
-                    Dispatcher.Invoke(() => MessageBox.Show($"Ошибка загрузки данных книги: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error));
+                    Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки данных книги: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
                 }
             });
         }
@@ -466,15 +522,17 @@ namespace Diplom_Bibl.Pages
                 string title = book.Title?.ToString() ?? "";
                 string inv = book.InventoryNumber?.ToString() ?? "";
                 string author = book.AuthorName?.ToString() ?? "";
+                string publisher = book.PublishingHouseName?.ToString() ?? "";
                 return string.IsNullOrEmpty(searchTerm) ||
                        title.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0 ||
                        inv.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                       author.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0;
+                       author.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                       publisher.IndexOf(searchTerm, StringComparison.OrdinalIgnoreCase) >= 0;
             }).ToList();
 
             Dispatcher.Invoke(() =>
             {
-                LvBooks.ItemsSource = new ObservableCollection<dynamic>(filtered);
+                LvBooks.ItemsSource = new ObservableCollection<BookListItem>(filtered);
             });
         }
 
@@ -483,27 +541,15 @@ namespace Diplom_Bibl.Pages
             ApplyBookFilter(SearchBox.Text.Trim());
         }
 
-        private void LvBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        private async void LvBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            dynamic selectedItem = LvBooks.SelectedItem;
+            var selectedItem = LvBooks.SelectedItem as BookListItem;
             if (selectedItem == null) return;
 
             try
             {
                 _currentBookId = selectedItem.IDBook;
-
-                TbInventoryNumber.Text = selectedItem.InventoryNumber ?? "";
-                TbTitle.Text = selectedItem.Title ?? "";
-                TbYear.Text = selectedItem.Year?.ToString() ?? "";
-                TbAnnotation.Text = selectedItem.Anotation ?? "";
-                TbPrice.Text = selectedItem.Price ?? "";
-
-                SetComboBoxSelection(CbAuthor, selectedItem.AuthorId);
-                SetComboBoxSelection(CbViewBook, selectedItem.ViewId);
-                SetComboBoxSelection(CbPublisher, selectedItem.PublisherId);
-                SetComboBoxSelection(CbGenre, selectedItem.GenreId);
-                SetComboBoxSelection(CbStatus, selectedItem.StatusId);
-                SetComboBoxSelection(CbReceipt, selectedItem.ReceiptId);
+                await LoadBookDataAsync(_currentBookId.Value);
 
                 BtnSaveNew.Visibility = Visibility.Collapsed;
                 BtnSaveChanges.Visibility = Visibility.Visible;
@@ -511,26 +557,16 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки книги: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки книги: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
-        }
-
-        private void SetComboBoxSelection(ComboBox cb, object idValue)
-        {
-            if (idValue == null || idValue == DBNull.Value)
-            {
-                cb.SelectedIndex = -1;
-                return;
-            }
-
-            if (int.TryParse(idValue.ToString(), out int id))
-                cb.SelectedValue = id;
-            else
-                cb.SelectedIndex = -1;
         }
 
         private void ClosePage_Click(object sender, RoutedEventArgs e)
         {
+            _isClosing = true;
+            _cancellationTokenSource?.Cancel();
+
             if (NavigationService != null)
                 NavigationService.GoBack();
             else
@@ -545,7 +581,7 @@ namespace Diplom_Bibl.Pages
                 CbViewBook.SelectedValue == null ||
                 !int.TryParse(TbYear.Text, out int year))
             {
-                MessageBox.Show("Заполните обязательные поля (*).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Заполните обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -556,15 +592,13 @@ namespace Diplom_Bibl.Pages
                 priceText = priceText.Replace(',', '.');
                 if (!decimal.TryParse(priceText, NumberStyles.Any, CultureInfo.InvariantCulture, out price))
                 {
-                    MessageBox.Show("Укажите корректную цену.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show("Укажите корректную цену.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
             }
 
             try
             {
-                
-
                 await Task.Run(() =>
                 {
                     const string sql = @"
@@ -598,22 +632,23 @@ namespace Diplom_Bibl.Pages
                     }
                 });
 
-                MessageBox.Show("Книга сохранена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                CustomMessageBox.Show("Книга сохранена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
-                await LoadBooksAsync();
+
+                _cancellationTokenSource = new CancellationTokenSource();
+                await LoadBooksToListAsync(_cancellationTokenSource.Token);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
-           
         }
 
         private async void BtnSaveChanges_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentBookId.HasValue)
             {
-                MessageBox.Show("Нет выбранной книги для редактирования.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет выбранной книги для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -623,7 +658,7 @@ namespace Diplom_Bibl.Pages
                 CbViewBook.SelectedValue == null ||
                 !int.TryParse(TbYear.Text, out int year))
             {
-                MessageBox.Show("Заполните обязательные поля (*).", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Заполните обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -634,15 +669,13 @@ namespace Diplom_Bibl.Pages
                 priceText = priceText.Replace(',', '.');
                 if (!decimal.TryParse(priceText, NumberStyles.Any, CultureInfo.InvariantCulture, out price))
                 {
-                    MessageBox.Show("Укажите корректную цену.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show("Укажите корректную цену.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
             }
 
             try
             {
-
-
                 await Task.Run(() =>
                 {
                     const string updateQuery = @"
@@ -684,16 +717,15 @@ namespace Diplom_Bibl.Pages
                     }
                 });
 
-                MessageBox.Show("Книга успешно обновлена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                CustomMessageBox.Show("Книга успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
-                await LoadBooksAsync();
 
-                if (NavigationService.CanGoBack)
-                    NavigationService.GoBack();
+                _cancellationTokenSource = new CancellationTokenSource();
+                await LoadBooksToListAsync(_cancellationTokenSource.Token);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -701,22 +733,20 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentBookId.HasValue)
             {
-                MessageBox.Show("Нет выбранной книги для удаления.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет выбранной книги для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            var result = MessageBox.Show(
+            var result = CustomMessageBox.Show(
                 "Вы уверены, что хотите удалить эту книгу?",
                 "Подтверждение удаления",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
 
-            if (result != MessageBoxResult.Yes) return;
+            if (result != CustomMessageBoxResult.Yes) return;
 
             try
             {
-               
-
                 await Task.Run(() =>
                 {
                     const string deleteQuery = "DELETE FROM Books WHERE IDBook = @Id;";
@@ -732,22 +762,20 @@ namespace Diplom_Bibl.Pages
                     }
                 });
 
-                MessageBox.Show("Книга удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                CustomMessageBox.Show("Книга удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
-                await LoadBooksAsync();
 
-                if (NavigationService.CanGoBack)
-                    NavigationService.GoBack();
+                _cancellationTokenSource = new CancellationTokenSource();
+                await LoadBooksToListAsync(_cancellationTokenSource.Token);
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                MessageBox.Show("Невозможно удалить книгу: на неё ссылаются другие записи.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show("Невозможно удалить книгу: на неё ссылаются другие записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
-            
         }
 
         private void ClearForm()
@@ -792,16 +820,16 @@ namespace Diplom_Bibl.Pages
                     string fileName = $"Акт_поступления_{receiptId}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
                     string fullPath = System.IO.Path.Combine(desktop, fileName);
                     System.IO.File.WriteAllBytes(fullPath, pdfBytes);
-                    MessageBox.Show($"PDF сохранён:\n{fullPath}", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show($"PDF сохранён:\n{fullPath}", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка генерации PDF: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка генерации PDF: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             else
             {
-                MessageBox.Show("Выберите акт для формирования.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите акт для формирования.", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
         }
 
@@ -828,21 +856,21 @@ namespace Diplom_Bibl.Pages
                 int currentYear = DateTime.Now.Year;
                 if (year > currentYear)
                 {
-                    MessageBox.Show($"Год издания не может быть больше текущего ({currentYear}).", "Некорректный год", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show($"Год издания не может быть больше текущего ({currentYear}).", "Некорректный год", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     tb.Text = currentYear.ToString();
                     tb.SelectAll();
                     tb.Focus();
                 }
                 else if (year < 1000)
                 {
-                    MessageBox.Show("Год издания должен быть не меньше 1000.", "Некорректный год", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show("Год издания должен быть не меньше 1000.", "Некорректный год", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     tb.Clear();
                     tb.Focus();
                 }
             }
             else
             {
-                MessageBox.Show("Введите корректный год (только цифры).", "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show("Введите корректный год (только цифры).", "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 tb.Clear();
                 tb.Focus();
             }
@@ -884,7 +912,7 @@ namespace Diplom_Bibl.Pages
             }
             else
             {
-                MessageBox.Show("Введите корректную цену (например: 625,00 или 625.00)", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("Введите корректную цену (например: 625,00 или 625.00)", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 TbPrice.Clear();
             }
         }

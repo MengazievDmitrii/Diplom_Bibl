@@ -4,7 +4,7 @@ namespace Diplom_Bibl.Controls
 {
     /// <summary>
     /// Класс-помощник для замены стандартного MessageBox на кастомный
-    /// Используется для быстрой замены MessageBox.Show() на CustomMessageBoxHelper.Show()
+    /// Используется для быстрой замены  CustomMessageBox.Show() на CustomMessageBoxHelper.Show()
     /// </summary>
     public static class CustomMessageBoxHelper
     {
@@ -13,7 +13,7 @@ namespace Diplom_Bibl.Controls
         /// </summary>
         public static MessageBoxResult Show(string message)
         {
-            var result = CustomMessageBox.Show(message);
+            var result =  CustomMessageBox.Show(message);
             return ConvertResult(result);
         }
 
@@ -22,56 +22,56 @@ namespace Diplom_Bibl.Controls
         /// </summary>
         public static MessageBoxResult Show(string message, string caption)
         {
-            var result = CustomMessageBox.Show(message, caption);
+            var result =  CustomMessageBox.Show(message, caption);
             return ConvertResult(result);
         }
 
         /// <summary>
         /// Показывает сообщение с заголовком и кнопками
         /// </summary>
-        public static MessageBoxResult Show(string message, string caption, MessageBoxButton button)
+        public static MessageBoxResult Show(string message, string caption, CustomMessageBoxButton button)
         {
             var customButton = ConvertButton(button);
-            var result = CustomMessageBox.Show(message, caption, customButton);
+            var result =  CustomMessageBox.Show(message, caption, customButton);
             return ConvertResult(result);
         }
 
         /// <summary>
         /// Показывает сообщение с заголовком, кнопками и иконкой
         /// </summary>
-        public static MessageBoxResult Show(string message, string caption, MessageBoxButton button, MessageBoxImage icon)
+        public static MessageBoxResult Show(string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon)
         {
             var customButton = ConvertButton(button);
             var customIcon = ConvertIcon(icon);
-            var result = CustomMessageBox.Show(message, caption, customButton, customIcon);
+            var result =  CustomMessageBox.Show(message, caption, customButton, customIcon);
             return ConvertResult(result);
         }
 
         /// <summary>
         /// Показывает сообщение с владельцем
         /// </summary>
-        public static MessageBoxResult Show(Window owner, string message, string caption, MessageBoxButton button, MessageBoxImage icon)
+        public static MessageBoxResult Show(Window owner, string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon)
         {
             var customButton = ConvertButton(button);
             var customIcon = ConvertIcon(icon);
-            var result = CustomMessageBox.Show(owner, message, caption, customButton, customIcon);
+            var result =  CustomMessageBox.Show(owner, message, caption, customButton, customIcon);
             return ConvertResult(result);
         }
 
         /// <summary>
-        /// Конвертирует стандартную MessageBoxButton в CustomMessageBoxButton
+        /// Конвертирует стандартную CustomMessageBoxButton в CustomMessageBoxButton
         /// </summary>
-        private static CustomMessageBoxButton ConvertButton(MessageBoxButton button)
+        private static CustomMessageBoxButton ConvertButton(CustomMessageBoxButton button)
         {
             switch (button)
             {
-                case MessageBoxButton.OK:
+                case CustomMessageBoxButton.OK:
                     return CustomMessageBoxButton.OK;
-                case MessageBoxButton.OKCancel:
+                case CustomMessageBoxButton.OKCancel:
                     return CustomMessageBoxButton.OKCancel;
-                case MessageBoxButton.YesNo:
+                case CustomMessageBoxButton.YesNo:
                     return CustomMessageBoxButton.YesNo;
-                case MessageBoxButton.YesNoCancel:
+                case CustomMessageBoxButton.YesNoCancel:
                     return CustomMessageBoxButton.YesNoCancel;
                 default:
                     return CustomMessageBoxButton.OK;
@@ -79,21 +79,21 @@ namespace Diplom_Bibl.Controls
         }
 
         /// <summary>
-        /// Конвертирует стандартную MessageBoxImage в CustomMessageBoxImage
+        /// Конвертирует стандартную CustomMessageBoxImage в CustomMessageBoxImage
         /// </summary>
-        private static CustomMessageBoxImage ConvertIcon(MessageBoxImage icon)
+        private static CustomMessageBoxImage ConvertIcon(CustomMessageBoxImage icon)
         {
             switch (icon)
             {
-                case MessageBoxImage.Information:
+                case CustomMessageBoxImage.Information:
                     return CustomMessageBoxImage.Information;
-                case MessageBoxImage.Warning:
+                case CustomMessageBoxImage.Warning:
                     return CustomMessageBoxImage.Warning;
-                case MessageBoxImage.Error:
+                case CustomMessageBoxImage.Error:
                     return CustomMessageBoxImage.Error;
-                case MessageBoxImage.Question:
+                case CustomMessageBoxImage.Question:
                     return CustomMessageBoxImage.Question;
-                case MessageBoxImage.None:
+                case CustomMessageBoxImage.None:
                 default:
                     return CustomMessageBoxImage.None;
             }

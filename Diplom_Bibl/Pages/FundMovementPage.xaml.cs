@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -151,8 +152,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             finally
             {
@@ -278,15 +279,15 @@ namespace Diplom_Bibl.Pages
                 else
                 {
                     // Для групповых выдач можно показать детали
-                    MessageBox.Show($"Групповая выдача\n" +
+                     CustomMessageBox.Show($"Групповая выдача\n" +
                                    $"Группа: {selected.GroupCode}\n" +
                                    $"Преподаватель: {selected.TeacherName}\n" +
                                    $"Студент: {selected.StudentName}\n" +
                                    $"Книг выдано: {selected.Quantity}\n" +
                                    $"Возвращено: {selected.ReturnedQuantity}",
                                    "Детали выдачи",
-                                   MessageBoxButton.OK,
-                                   MessageBoxImage.Information);
+                                   CustomMessageBoxButton.OK,
+                                   CustomMessageBoxImage.Information);
                 }
             }
         }

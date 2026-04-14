@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -141,7 +142,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка загрузки: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
         private void ApplyFilter(string term)
@@ -169,7 +170,7 @@ namespace Diplom_Bibl.Pages
             // Проверка выбора ответственного лица
             if (CbResponsible.SelectedValue == null)
             {
-                MessageBox.Show("Выберите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите ответственное лицо.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -196,7 +197,7 @@ namespace Diplom_Bibl.Pages
                         cmd.Parameters.AddWithValue("@Comment", comment ?? (object)DBNull.Value);
 
                         cmd.ExecuteNonQuery();
-                        MessageBox.Show("Накладная успешно создана.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                         CustomMessageBox.Show("Накладная успешно создана.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         LoadReceipts();
                         PrepareNewReceipt();
                     }
@@ -204,7 +205,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
                
@@ -213,13 +214,13 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentReceiptId.HasValue)
             {
-                MessageBox.Show("Нет выбранной записи.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Нет выбранной записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             if (CbResponsible.SelectedValue == null)
             {
-                MessageBox.Show("Выберите ответственное лицо.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                 CustomMessageBox.Show("Выберите ответственное лицо.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -245,20 +246,20 @@ namespace Diplom_Bibl.Pages
                         int rows = cmd.ExecuteNonQuery();
                         if (rows > 0)
                         {
-                            MessageBox.Show("Изменения сохранены.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Изменения сохранены.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             LoadReceipts();
                             PrepareNewReceipt();
                         }
                         else
                         {
-                            MessageBox.Show("Запись не найдена.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Запись не найдена.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
                
@@ -267,8 +268,8 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentReceiptId.HasValue) return;
 
-            var result = MessageBox.Show("Удалить накладную?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (result != MessageBoxResult.Yes) return;
+            var result =  CustomMessageBox.Show("Удалить накладную?", "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+            if (result != CustomMessageBoxResult.Yes) return;
 
             const string deleteQuery = "DELETE FROM ReceiptBooks WHERE IDReceipt = @Id;";
             try
@@ -282,24 +283,24 @@ namespace Diplom_Bibl.Pages
                         int rows = cmd.ExecuteNonQuery();
                         if (rows > 0)
                         {
-                            MessageBox.Show("Накладная удалена.", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+                             CustomMessageBox.Show("Накладная удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             LoadReceipts();
                             PrepareNewReceipt();
                         }
                         else
                         {
-                            MessageBox.Show("Запись уже удалена.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                             CustomMessageBox.Show("Запись уже удалена.", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                         }
                     }
                 }
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                MessageBox.Show("Невозможно удалить: на эту накладную ссылаются книги.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show("Невозможно удалить: на эту накладную ссылаются книги.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                 CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
