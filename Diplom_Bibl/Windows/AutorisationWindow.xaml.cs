@@ -2,17 +2,8 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Windows
@@ -33,24 +24,25 @@ namespace Diplom_Bibl.Windows
         private void TogglePasswordVisibility_Checked(object sender, RoutedEventArgs e)
         {
             // Копируем пароль из PasswordBox в TextBox
-            VisiblePasswordBox.Text = PasswordBox.Password; // Копируем текст
-                                                            // Переключаем видимость
-            PasswordBox.Visibility = Visibility.Collapsed; // Скрываем PasswordBox
-            VisiblePasswordBox.Visibility = Visibility.Visible; // Показываем TextBox
-                                                                // Меняем цвет иконки глаза (например, на синий)
+            VisiblePasswordBox.Text = PasswordBox.Password;
+            // Переключаем видимость
+            PasswordBox.Visibility = Visibility.Collapsed;
+            VisiblePasswordBox.Visibility = Visibility.Visible;
+            // Меняем цвет иконки глаза (например, на синий)
             EyeIcon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007BFF"));
         }
 
         private void TogglePasswordVisibility_Unchecked(object sender, RoutedEventArgs e)
         {
             // Копируем пароль из TextBox обратно в PasswordBox
-            PasswordBox.Password = VisiblePasswordBox.Text; // Копируем текст обратно
-                                                            // Переключаем видимость
-            VisiblePasswordBox.Visibility = Visibility.Collapsed; // Скрываем TextBox
-            PasswordBox.Visibility = Visibility.Visible; // Показываем PasswordBox
-                                                         // Меняем цвет иконки глаза обратно (например, на серый)
+            PasswordBox.Password = VisiblePasswordBox.Text;
+            // Переключаем видимость
+            VisiblePasswordBox.Visibility = Visibility.Collapsed;
+            PasswordBox.Visibility = Visibility.Visible;
+            // Меняем цвет иконки глаза обратно (например, на серый)
             EyeIcon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999999"));
         }
+
         private void PasswordBox_GotFocus(object sender, RoutedEventArgs e)
         {
             PasswordPlaceholder.Visibility = Visibility.Hidden;
@@ -73,7 +65,6 @@ namespace Diplom_Bibl.Windows
                 : Visibility.Hidden;
         }
 
-
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string login = LoginBox.Text?.Trim();
@@ -85,23 +76,22 @@ namespace Diplom_Bibl.Windows
                 return;
             }
 
-
             try
             {
-                // === Шаг 1: Проверка логина и пароля ===
+                // === Шаг 1: Получаем хэш пароля из БД ===
                 int userId = -1;
                 string fullName = "";
+                string storedHash = "";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
                     using (var cmd = new SqlCommand(@"
-                SELECT ID_User, Surname, Name, Patronymic 
-                FROM Users 
-                WHERE Login = @Login AND PasswordHash = @Password", conn))
+                        SELECT ID_User, Surname, Name, Patronymic, PasswordHash 
+                        FROM Users 
+                        WHERE Login = @Login", conn))
                     {
                         cmd.Parameters.AddWithValue("@Login", login);
-                        cmd.Parameters.AddWithValue("@Password", password);
 
                         using (var reader = cmd.ExecuteReader())
                         {
@@ -110,6 +100,7 @@ namespace Diplom_Bibl.Windows
                                 userId = Convert.ToInt32(reader["ID_User"]);
                                 fullName = $"{reader["Surname"]} {reader["Name"]}" +
                                           (reader["Patronymic"] != DBNull.Value ? $" {reader["Patronymic"]}" : "");
+                                storedHash = reader["PasswordHash"]?.ToString() ?? "";
                             }
                         }
                     }
@@ -121,16 +112,25 @@ namespace Diplom_Bibl.Windows
                     return;
                 }
 
-                // === Шаг 2: Загрузка ролей (в отдельном соединении!) ===
+                // === Шаг 2: Проверка пароля через BCrypt ===
+                bool isPasswordValid = VerifyPassword(password, storedHash);
+
+                if (!isPasswordValid)
+                {
+                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    return;
+                }
+
+                // === Шаг 3: Загрузка ролей ===
                 var roles = new List<string>();
                 using (var conn2 = new SqlConnection(_connectionString))
                 {
                     conn2.Open();
                     using (var cmd2 = new SqlCommand(@"
-                SELECT ur.RoleCode
-                FROM UserRolesAssignments ura
-                JOIN UserRoles ur ON ura.ID_Role = ur.ID_Role
-                WHERE ura.ID_User = @UserId", conn2))
+                        SELECT ur.RoleCode
+                        FROM UserRolesAssignments ura
+                        JOIN UserRoles ur ON ura.ID_Role = ur.ID_Role
+                        WHERE ura.ID_User = @UserId", conn2))
                     {
                         cmd2.Parameters.AddWithValue("@UserId", userId);
                         using (var reader2 = cmd2.ExecuteReader())
@@ -143,7 +143,7 @@ namespace Diplom_Bibl.Windows
                     }
                 }
 
-                // === Шаг 3: Открытие главного окна ===
+                // === Шаг 4: Открытие главного окна ===
                 var mainWindow = new MainWindow(userId, fullName, roles);
                 mainWindow.Show();
                 this.Close();
@@ -154,5 +154,25 @@ namespace Diplom_Bibl.Windows
             }
         }
 
+        /// <summary>
+        /// Проверяет, соответствует ли введенный пароль сохраненному хэшу
+        /// </summary>
+        private bool VerifyPassword(string enteredPassword, string storedHash)
+        {
+            if (string.IsNullOrEmpty(enteredPassword) || string.IsNullOrEmpty(storedHash))
+                return false;
+
+            try
+            {
+                // Используем BCrypt для проверки пароля
+                return BCrypt.Net.BCrypt.Verify(enteredPassword, storedHash);
+            }
+            catch
+            {
+                // Если пароль старый (не захеширован), пробуем сравнить как обычную строку
+                // Это для обратной совместимости с существующими пользователями
+                return enteredPassword == storedHash;
+            }
+        }
     }
 }

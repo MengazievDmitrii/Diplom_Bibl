@@ -34,20 +34,30 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- Заголовок -->
             <TextBlock Grid.Row="0" 
                        Text="Информационное обслуживание"
                        Style="{StaticResource SectionTitleStyle}"/>
+            <StackPanel Grid.Row="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions> 
+              
+                <Button Content="Возврат книг"  Name="ReturnBooksButton" Style="{StaticResource SaveButtonStyle}" Click="ReturnBooksButton_Click" Grid.Column="0"/>
+                </Grid>
+            </StackPanel>
 
             <!-- Основной контент -->
-            <Grid Grid.Row="1" Margin="0,20,0,0">
+            <Grid Grid.Row="2" Margin="0,20,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="350"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-
+                 
                 <!-- ЛЕВАЯ КОЛОНКА: Статистика -->
                 <StackPanel Grid.Column="0" Margin="0,0,20,0">
                     <!-- Дата -->
@@ -295,9 +305,7 @@
                                 </ListBox>
                             </StackPanel>
                         </Border>
-
-                        <!-- Поиск группы (для выдачи группе) -->
-                        <!-- Поиск группы (для выдачи группе) -->
+                       <!-- Поиск группы (для выдачи группе) -->
                         <Border x:Name="GroupSearchSection" 
         Style="{StaticResource SectionBoxStyle}"
         Visibility="Collapsed">
@@ -307,15 +315,13 @@
                    FontWeight="SemiBold"
                    Foreground="{StaticResource PrimaryColor}"
                    Margin="0,0,0,15"/>
-
-                                <TextBox x:Name="GroupSearchBox"
+                 <TextBox x:Name="GroupSearchBox"
                  Text="Введите код группы..."
                  Style="{StaticResource InputFieldStyle}"
                  GotFocus="GroupSearchBox_GotFocus"
                  LostFocus="GroupSearchBox_LostFocus"
                  TextChanged="GroupSearchBox_TextChanged"
                  Margin="0,0,0,10"/>
-
                                 <ListBox x:Name="GroupsListBox"
                  Height="150"
                  Style="{StaticResource ModernListBoxStyle}"
@@ -323,11 +329,9 @@
                  SelectionChanged="GroupsListBox_SelectionChanged"
                  Visibility="Collapsed"
                  DisplayMemberPath="GroupCode"/>
-
                                 <TextBlock Text="Преподаватель" 
                    Style="{StaticResource LabelStyle}"
                    Margin="0,10,0,0"/>
-
                                 <TextBox x:Name="TeacherSearchBox"
                  Text="Введите фамилию преподавателя..."
                  Style="{StaticResource InputFieldStyle}"
@@ -335,7 +339,6 @@
                  LostFocus="TeacherSearchBox_LostFocus"
                  TextChanged="TeacherSearchBox_TextChanged"
                  Margin="0,0,0,10"/>
-
                                 <ListBox x:Name="TeachersListBox"
                  Height="150"
                  Style="{StaticResource ModernListBoxStyle}"
@@ -349,11 +352,9 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-
                                 <TextBlock Text="Студент" 
                    Style="{StaticResource LabelStyle}"
                    Margin="0,10,0,0"/>
-
                                 <TextBox x:Name="StudentSearchBox"
                  Text="Введите фамилию или номер билета..."
                  Style="{StaticResource InputFieldStyle}"
@@ -361,7 +362,6 @@
                  LostFocus="StudentSearchBox_LostFocus"
                  TextChanged="StudentSearchBox_TextChanged"
                  Margin="0,0,0,10"/>
-
                                 <ListBox x:Name="StudentsListBox"
                  Height="150"
                  Style="{StaticResource ModernListBoxStyle}"
@@ -377,7 +377,6 @@
                                 </ListBox>
                             </StackPanel>
                         </Border>
-
                         <!-- Поиск книги -->
                         <Border Style="{StaticResource SectionBoxStyle}">
                             <StackPanel>
@@ -386,7 +385,6 @@
                                            FontWeight="SemiBold"
                                            Foreground="{StaticResource PrimaryColor}"
                                            Margin="0,0,0,15"/>
-
                                 <TextBox x:Name="BookSearchBox"
                                          Text="Введите название или автора..."
                                          Style="{StaticResource InputFieldStyle}"
@@ -394,7 +392,6 @@
                                          LostFocus="BookSearchBox_LostFocus"
                                          TextChanged="BookSearchBox_TextChanged"
                                          Margin="0,0,0,10"/>
-
                                 <ListBox x:Name="BooksListBox"
          Height="150"
          Style="{StaticResource ModernListBoxStyle}"
@@ -427,7 +424,6 @@
                                 </ListBox>
                             </StackPanel>
                         </Border>
-
                         <Border x:Name="SelectedBookPanel"
         Background="{StaticResource PrimaryLightColor}"
         CornerRadius="6"
@@ -445,18 +441,7 @@
                        Foreground="{StaticResource PrimaryColor}"/>
                                     <TextBlock x:Name="SelectedBookAuthor" 
                        FontSize="11"/>
-                                    <!--<StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                                        <TextBlock Text="Доступно: " 
-                           FontSize="11"
-                           Foreground="{StaticResource TextColor}"
-                           Opacity="0.7"/>
-                                        <TextBlock x:Name="AvailableQuantityText1" 
-                           Text="0"
-                           FontSize="11"
-                           Foreground="{StaticResource SuccessColor}"
-                           FontWeight="Bold"/>
-                                    </StackPanel>-->
-                                </StackPanel>
+                                 </StackPanel>
                                 <Button Grid.Column="1"
                 Content="✕"
                 Width="20"
@@ -500,7 +485,6 @@
                                         </Border>
                                     </StackPanel>
                                 </Grid>
-
                                 <Button x:Name="CreateIssueButton"
                                         Content="📤 Создать выдачу"
                                         Style="{StaticResource SaveButtonStyle}"
@@ -510,7 +494,6 @@
                                         Click="CreateIssueButton_Click"/>
                             </StackPanel>
                         </Border>
-
                         <!-- История выдач за день -->
                         <Border Style="{StaticResource SectionBoxStyle}">
                             <StackPanel>
@@ -519,7 +502,6 @@
                    FontWeight="SemiBold"
                    Foreground="{StaticResource PrimaryColor}"
                    Margin="0,0,0,15"/>
-
                                 <DataGrid x:Name="IssuesDataGrid"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
@@ -548,7 +530,6 @@
                                         <DataGridTextColumn Header="Кол-во" 
                                     Binding="{Binding Quantity}" 
                                     Width="60"/>
-
                                         <DataGridTemplateColumn Header="Статус" Width="80">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
@@ -568,8 +549,7 @@
                                 </DataGrid>
                             </StackPanel>
                         </Border>
-                        <Button Content="Возврат книг"  Name="ReturnBooksButton" Style="{StaticResource SaveButtonStyle}" Click="ReturnBooksButton_Click"/>
-                    </StackPanel>
+                       </StackPanel>
                 </ScrollViewer>
             </Grid>
         </Grid>

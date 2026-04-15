@@ -1,23 +1,14 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using Org.BouncyCastle.Crypto.Generators;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using Diplom_Bibl.Controls;
-
 
 namespace Diplom_Bibl.Pages
 {
@@ -44,7 +35,7 @@ namespace Diplom_Bibl.Pages
         {
             InitializeComponent();
             LoadRoles();
-            LoadUsers(); 
+            LoadUsers();
         }
 
         // Модель роли с флагом выбора
@@ -70,6 +61,7 @@ namespace Diplom_Bibl.Pages
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
         }
+
         public class UserListItem
         {
             public int ID_User { get; set; }
@@ -77,10 +69,8 @@ namespace Diplom_Bibl.Pages
             public string Name { get; set; }
             public string Patronymic { get; set; }
             public string Login { get; set; }
-            public string RoleNames { get; set; } // напр. "Администратор, Библиотекарь"
+            public string RoleNames { get; set; }
         }
-
-
 
         private void LoadRoles()
         {
@@ -114,18 +104,21 @@ namespace Diplom_Bibl.Pages
 
             try
             {
-                int userId = InsertUser(login, password);
+                // Хэшируем пароль перед сохранением
+                string hashedPassword = HashPassword(password);
+
+                int userId = InsertUser(login, hashedPassword);
                 if (userId > 0)
                 {
                     AssignRolesToUser(userId);
-                     CustomMessageBox.Show("Пользователь успешно создан.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    CustomMessageBox.Show("Пользователь успешно создан.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     ClearForm();
                     RefreshUserList();
                 }
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при создании пользователя:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при создании пользователя:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -137,19 +130,22 @@ namespace Diplom_Bibl.Pages
 
             try
             {
-                UpdateUser(_editingUserId.Value, login, password);
+                // Хэшируем пароль перед обновлением
+                string hashedPassword = HashPassword(password);
+
+                UpdateUser(_editingUserId.Value, login, hashedPassword);
                 // Удаляем старые роли
                 DeleteUserRoles(_editingUserId.Value);
                 // Назначаем новые
                 AssignRolesToUser(_editingUserId.Value);
 
-                 CustomMessageBox.Show("Данные пользователя обновлены.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                CustomMessageBox.Show("Данные пользователя обновлены.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
                 RefreshUserList();
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при обновлении:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при обновлении:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -157,25 +153,45 @@ namespace Diplom_Bibl.Pages
         {
             if (_editingUserId == null) return;
 
-            var result =  CustomMessageBox.Show("Удалить пользователя?\nЭто действие нельзя отменить.", "Подтверждение",
+            var result = CustomMessageBox.Show("Удалить пользователя?\nЭто действие нельзя отменить.", "Подтверждение",
                                         CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
             if (result != CustomMessageBoxResult.Yes) return;
 
             try
             {
                 DeleteUser(_editingUserId.Value);
-                 CustomMessageBox.Show("Пользователь удалён.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                CustomMessageBox.Show("Пользователь удалён.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 ClearForm();
-                RefreshUserList(); 
+                RefreshUserList();
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                 CustomMessageBox.Show("Невозможно удалить: на пользователя ссылаются другие записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Невозможно удалить: на пользователя ссылаются другие записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка удаления:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
+        }
+
+        // === МЕТОДЫ ХЭШИРОВАНИЯ ПАРОЛЕЙ ===
+
+        /// <summary>
+        /// Хэширует пароль с использованием BCrypt
+        /// </summary>
+        private string HashPassword(string password)
+        {
+            // Генерируем соль и хэшируем пароль (работа = 10 - стандартное значение)
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
+            return hashedPassword;
+        }
+
+        /// <summary>
+        /// Проверяет, соответствует ли введенный пароль хэшу
+        /// </summary>
+        private bool VerifyPassword(string enteredPassword, string storedHash)
+        {
+            return BCrypt.Net.BCrypt.Verify(enteredPassword, storedHash);
         }
 
         // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
@@ -190,7 +206,14 @@ namespace Diplom_Bibl.Pages
                 string.IsNullOrWhiteSpace(login) ||
                 string.IsNullOrWhiteSpace(password))
             {
-                 CustomMessageBox.Show("Заполните все обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Заполните все обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            // Проверка длины пароля (минимум 4 символа)
+            if (password.Length < 4)
+            {
+                CustomMessageBox.Show("Пароль должен содержать минимум 4 символа.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
@@ -198,14 +221,14 @@ namespace Diplom_Bibl.Pages
             var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
             if (roles == null || !roles.Any(r => r.IsSelected))
             {
-                 CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
             return true;
         }
 
-        private int InsertUser(string login, string password)
+        private int InsertUser(string login, string hashedPassword)
         {
             const string sql = @"
                 INSERT INTO Users (Surname, Name, Patronymic, Login, PasswordHash)
@@ -219,15 +242,15 @@ namespace Diplom_Bibl.Pages
                 {
                     cmd.Parameters.AddWithValue("@Surname", TbSurname.Text.Trim());
                     cmd.Parameters.AddWithValue("@Name", TbName.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Patronymic", TbPatronymic.Text.Trim() ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(TbPatronymic.Text) ? (object)DBNull.Value : TbPatronymic.Text.Trim());
                     cmd.Parameters.AddWithValue("@Login", login);
-                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@Password", hashedPassword); // Сохраняем хэш
                     return Convert.ToInt32(cmd.ExecuteScalar());
                 }
             }
         }
 
-        private void UpdateUser(int userId, string login, string password)
+        private void UpdateUser(int userId, string login, string hashedPassword)
         {
             const string sql = @"
                 UPDATE Users SET
@@ -246,9 +269,9 @@ namespace Diplom_Bibl.Pages
                     cmd.Parameters.AddWithValue("@Id", userId);
                     cmd.Parameters.AddWithValue("@Surname", TbSurname.Text.Trim());
                     cmd.Parameters.AddWithValue("@Name", TbName.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Patronymic", TbPatronymic.Text.Trim() ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(TbPatronymic.Text) ? (object)DBNull.Value : TbPatronymic.Text.Trim());
                     cmd.Parameters.AddWithValue("@Login", login);
-                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@Password", hashedPassword); // Сохраняем хэш
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -330,12 +353,13 @@ namespace Diplom_Bibl.Pages
         {
             NavigationService?.GoBack();
         }
+
         private void LoadUser(int userId)
         {
             const string sql = @"
-        SELECT Surname, Name, Patronymic, Login, PasswordHash
-        FROM Users
-        WHERE ID_User = @Id";
+                SELECT Surname, Name, Patronymic, Login, PasswordHash
+                FROM Users
+                WHERE ID_User = @Id";
 
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -351,15 +375,18 @@ namespace Diplom_Bibl.Pages
                             TbName.Text = reader["Name"].ToString();
                             TbPatronymic.Text = reader["Patronymic"]?.ToString() ?? "";
                             TbLogin.Text = reader["Login"].ToString();
-                            PbPassword.Password = reader["PasswordHash"].ToString();
+
+                            // Поле пароля не заполняем при редактировании
+                            // Пользователь должен ввести новый пароль, если хочет его изменить
+                            PbPassword.Password = "";
+                            PbPassword.Tag = reader["PasswordHash"].ToString(); // Сохраняем хэш в Tag
 
                             // Загружаем роли пользователя
                             LoadUserRoles(userId);
-                          
                         }
                         else
                         {
-                             CustomMessageBox.Show("Пользователь не найден.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                            CustomMessageBox.Show("Пользователь не найден.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             NavigationService?.GoBack();
                             return;
                         }
@@ -372,13 +399,14 @@ namespace Diplom_Bibl.Pages
             BtnSaveChanges.Visibility = Visibility.Visible;
             BtnDelete.Visibility = Visibility.Visible;
         }
+
         private void LoadUserRoles(int userId)
         {
             const string sql = @"
-        SELECT ur.ID_Role
-        FROM UserRolesAssignments ura
-        JOIN UserRoles ur ON ura.ID_Role = ur.ID_Role
-        WHERE ura.ID_User = @UserId";
+                SELECT ur.ID_Role
+                FROM UserRolesAssignments ura
+                JOIN UserRoles ur ON ura.ID_Role = ur.ID_Role
+                WHERE ura.ID_User = @UserId";
 
             var assignedRoleIds = new HashSet<int>();
 
@@ -408,6 +436,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
         }
+
         private void LvUsers_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (LvUsers.SelectedItem is UserListItem user)
@@ -419,16 +448,17 @@ namespace Diplom_Bibl.Pages
                 BtnDelete.Visibility = Visibility.Visible;
             }
         }
+
         private void LoadUsers()
         {
             const string sql = @"
-        SELECT u.ID_User, u.Surname, u.Name, u.Patronymic, u.Login,
-               STRING_AGG(r.RoleName, ', ') AS RoleNames
-        FROM Users u
-        LEFT JOIN UserRolesAssignments ura ON u.ID_User = ura.ID_User
-        LEFT JOIN UserRoles r ON ura.ID_Role = r.ID_Role
-        GROUP BY u.ID_User, u.Surname, u.Name, u.Patronymic, u.Login
-        ORDER BY u.Surname, u.Name";
+                SELECT u.ID_User, u.Surname, u.Name, u.Patronymic, u.Login,
+                       STRING_AGG(r.RoleName, ', ') AS RoleNames
+                FROM Users u
+                LEFT JOIN UserRolesAssignments ura ON u.ID_User = ura.ID_User
+                LEFT JOIN UserRoles r ON ura.ID_Role = r.ID_Role
+                GROUP BY u.ID_User, u.Surname, u.Name, u.Patronymic, u.Login
+                ORDER BY u.Surname, u.Name";
 
             var users = new ObservableCollection<UserListItem>();
 
@@ -453,14 +483,13 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            _users = users; // ← сохраняем
+            _users = users;
             LvUsers.ItemsSource = _users;
         }
+
         private void RefreshUserList()
         {
-            LoadUsers(); // Перезагружает _users и обновляет LvUsers.ItemsSource
+            LoadUsers();
         }
-
     }
-
 }
