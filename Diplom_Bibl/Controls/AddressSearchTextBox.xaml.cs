@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Dadata;
 using Dadata.Model;
+using Diplom_Bibl.Controls; // для CustomMessageBox
 
 namespace Diplom_Bibl.Controls
 {
@@ -20,6 +22,7 @@ namespace Diplom_Bibl.Controls
         private SuggestClientAsync _suggestClient;
         private CleanClientAsync _cleanClient;
         private DispatcherTimer _searchTimer;
+        private bool _isInternetWarningShown = false; // флаг, чтобы не спамить сообщением
 
         public static readonly DependencyProperty SelectedAddressProperty =
             DependencyProperty.Register("SelectedAddress", typeof(string), typeof(AddressSearchTextBox),
@@ -69,6 +72,7 @@ namespace Diplom_Bibl.Controls
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка инициализации DaData: {ex.Message}");
+                ShowNoInternetMessage();
             }
         }
 
@@ -83,10 +87,52 @@ namespace Diplom_Bibl.Controls
             };
         }
 
+        /// <summary>
+        /// Проверяет наличие интернет-соединения
+        /// </summary>
+        private bool IsInternetAvailable()
+        {
+            try
+            {
+                using (var ping = new Ping())
+                {
+                    // Пинг до DNS Google (быстрый и надёжный)
+                    var reply = ping.Send("8.8.8.8", 2000);
+                    return reply != null && reply.Status == IPStatus.Success;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Показывает предупреждение об отсутствии интернета (не чаще одного раза за сеанс)
+        /// </summary>
+        private void ShowNoInternetMessage()
+        {
+            if (!_isInternetWarningShown)
+            {
+                _isInternetWarningShown = true;
+                // Используем тот же стиль сообщений, что и во всём проекте
+                CustomMessageBox.Show("Отсутствует подключение к интернету. Поиск адресов недоступен.",
+                    "Нет соединения", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+            }
+        }
+
         private async Task SearchAddresses(string query)
         {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
             {
+                SuggestionsPopup.IsOpen = false;
+                return;
+            }
+
+            // Проверяем интернет-соединение
+            if (!IsInternetAvailable())
+            {
+                ShowNoInternetMessage();
                 SuggestionsPopup.IsOpen = false;
                 return;
             }
@@ -104,8 +150,6 @@ namespace Diplom_Bibl.Controls
                 {
                     count = 10,
                     language = "ru",
-                    // Можно добавить фильтр по городу, если нужно
-                    // locations = new[] { new Address { city = "Москва" } }
                 };
 
                 var response = await _suggestClient.SuggestAddress(request);
@@ -129,21 +173,25 @@ namespace Diplom_Bibl.Controls
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка поиска адреса: {ex.Message}");
-                // В случае ошибки показываем тестовые данные
+                // Если ошибка сетевого характера, показываем предупреждение
+                if (ex is System.Net.Http.HttpRequestException ||
+                    ex.Message.Contains("network") ||
+                    ex.Message.Contains("internet"))
+                {
+                    ShowNoInternetMessage();
+                }
+                // В любом случае показываем тестовые данные для демонстрации
                 ShowTestData(query);
             }
         }
 
-        // Тестовые данные на случай отсутствия API
+        // Тестовые данные на случай отсутствия API или интернета
         private void ShowTestData(string query)
         {
             var testSuggestions = new List<string>
             {
-                $"г. Москва, ул. {query}, д. 1",
-                $"г. Москва, ул. {query}, д. 10",
-                $"г. Санкт-Петербург, {query} пр., д. 15",
-                $"г. Екатеринбург, ул. {query}, д. 5",
-                $"г. Новосибирск, ул. {query}, д. 7"
+               {query}
+               
             };
 
             SuggestionsListBox.ItemsSource = testSuggestions;
@@ -157,7 +205,7 @@ namespace Diplom_Bibl.Controls
                 string selectedAddress = SuggestionsListBox.SelectedItem.ToString();
 
                 // Если есть клиент для стандартизации, можно улучшить адрес
-                if (_cleanClient != null)
+                if (_cleanClient != null && IsInternetAvailable())
                 {
                     try
                     {
@@ -199,7 +247,6 @@ namespace Diplom_Bibl.Controls
             }
         }
 
-        // ИСПРАВЛЕНО: Переименовал метод с TextChanged на AddressTextBox_TextChanged
         private void AddressTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             // Перезапускаем таймер при каждом изменении текста

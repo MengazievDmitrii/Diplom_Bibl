@@ -419,6 +419,11 @@ namespace Diplom_Bibl.Pages
                 SearchBox.Foreground = Brushes.Gray;
             }
         }
+
+        private void AddSpecialityBtn_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService.Navigate(new AddSpeciality());
+        }
     }
     
 }

@@ -393,9 +393,10 @@ namespace Diplom_Bibl.Pages
 
         private void ImportReadersBtn_Click(object sender, RoutedEventArgs e)
         {
-            // Импорт из Excel
-            CustomMessageBox.Show("Функция импорта из Excel будет добавлена позже.",
-                "Информация", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+            NavigationService?.Navigate(new ImportReaders());
+            //// Импорт из Excel
+            //CustomMessageBox.Show("Функция импорта из Excel будет добавлена позже.",
+            //    "Информация", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
         }
 
         private void ReadersListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)

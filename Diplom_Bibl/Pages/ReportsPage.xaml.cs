@@ -39,7 +39,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ShowReportWindow(data, "Отчёт по выдаче литературы");
+            ShowReportWindow(data, "Отчёт по выдаче литературы", StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value);
         }
 
         private void ExportExcel_Click(object sender, RoutedEventArgs e)
@@ -54,7 +54,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ExportBookIssuanceToExcel(data);
+            ExportBookIssuanceToExcel(data, StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value);
         }
 
         private void PrintReport_Click(object sender, RoutedEventArgs e)
@@ -69,18 +69,16 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            CreateAndShowPDF(data, "Отчёт_Выдача_литературы", new[]
+            CreateAndShowPDF(data, "Отчёт_Выдача_литературы", StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value, new[]
             {
                 "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
-                "Тип читателя", "Группа/Должность", "План. возврат", "Дата возврата",
-                "Статус", "Дней просрочки"
+                "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки"
             }, item => new string[]
             {
                 ((BookIssuanceReport)item).IssuanceDate.ToString("dd.MM.yyyy HH:mm"),
                 ((BookIssuanceReport)item).BookTitle,
                 ((BookIssuanceReport)item).InventoryNumber,
                 ((BookIssuanceReport)item).ReaderName,
-                ((BookIssuanceReport)item).ReaderType,
                 ((BookIssuanceReport)item).GroupOrPost,
                 ((BookIssuanceReport)item).PlannedReturnDate.ToString("dd.MM.yyyy"),
                 ((BookIssuanceReport)item).ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена",
@@ -99,7 +97,6 @@ namespace Diplom_Bibl.Pages
                     b.TitleBook,
                     b.InventaryNumber,
                     CONCAT(r.LastName, ' ', r.FirstName, ' ', ISNULL(r.MiddleName, '')) AS ReaderName,
-                    rt.TypeName AS ReaderType,
                     CASE 
                         WHEN rt.TypeName = 'Студент' THEN ISNULL(g.GroupCode, '')
                         WHEN rt.TypeName = 'Сотрудник' THEN ISNULL(p.Post_Name, '')
@@ -144,12 +141,11 @@ namespace Diplom_Bibl.Pages
                                     BookTitle = reader.GetString(1),
                                     InventoryNumber = reader.GetString(2),
                                     ReaderName = reader.GetString(3),
-                                    ReaderType = reader.GetString(4),
-                                    GroupOrPost = reader.GetString(5),
-                                    PlannedReturnDate = reader.GetDateTime(6),
-                                    ReturnDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
-                                    Status = reader.GetString(8),
-                                    DaysOverdue = reader.GetInt32(9)
+                                    GroupOrPost = reader.GetString(4),
+                                    PlannedReturnDate = reader.GetDateTime(5),
+                                    ReturnDate = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
+                                    Status = reader.GetString(7),
+                                    DaysOverdue = reader.GetInt32(8)
                                 };
                                 data.Add(report);
                             }
@@ -177,7 +173,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ShowReportWindow(data, "Читательская активность");
+            ShowReportWindow(data, "Читательская активность", null, null);
         }
 
         private void ExportReaderActivityExcel_Click(object sender, RoutedEventArgs e)
@@ -203,7 +199,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            CreateAndShowPDF(data, "Отчёт_Читательская_активность", new[]
+            CreateAndShowPDF(data, "Отчёт_Читательская_активность", null, null, new[]
             {
                 "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
                 "Возвращено", "На руках", "Просрочено", "Последняя выдача"
@@ -289,10 +285,10 @@ namespace Diplom_Bibl.Pages
             return data;
         }
 
-        // ==================== ОТЧЁТ 3: ФОНД БИБЛИОТЕКИ ====================
+        // ==================== ОТЧЁТ 3: ФОНД БИБЛИОТЕКИ (С ГРУППИРОВКОЙ) ====================
         private void ViewFundReport_Click(object sender, RoutedEventArgs e)
         {
-            var data = LoadBookFundReport();
+            var data = LoadBookFundReportGrouped();
             if (data.Count == 0)
             {
                 CustomMessageBox.Show("Нет данных о книгах.", "Информация",
@@ -300,12 +296,12 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ShowReportWindow(data, "Состояние библиотечного фонда");
+            ShowReportWindow(data, "Состояние библиотечного фонда", null, null);
         }
 
         private void ExportFundReportPDF_Click(object sender, RoutedEventArgs e)
         {
-            var data = LoadBookFundReport();
+            var data = LoadBookFundReportGrouped();
             if (data.Count == 0)
             {
                 CustomMessageBox.Show("Нет данных о книгах.", "Информация",
@@ -313,49 +309,42 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            CreateAndShowPDF(data, "Отчёт_Фонд_библиотеки", new[]
+            CreateAndShowPDF(data, "Отчёт_Фонд_библиотеки", null, null, new[]
             {
-                "Инв. номер", "Название", "Автор", "Издательство", "Год",
-                "Жанр", "Статус", "Цена", "Всего", "Доступно", "В использовании"
+                "Название книги", "Автор", "Издательство", "Год", "Жанр",
+                "Всего", "Доступно", "В использовании"
             }, item => new string[]
             {
-                ((BookFundReport)item).InventoryNumber,
-                ((BookFundReport)item).Title,
-                ((BookFundReport)item).AuthorName,
-                ((BookFundReport)item).Publisher,
-                ((BookFundReport)item).Year.ToString(),
-                ((BookFundReport)item).Genre,
-                ((BookFundReport)item).Status,
-                ((BookFundReport)item).Price.HasValue ? ((BookFundReport)item).Price.Value.ToString("F2") : "0.00",
-                ((BookFundReport)item).TotalCopies.ToString(),
-                ((BookFundReport)item).AvailableCopies.ToString(),
-                ((BookFundReport)item).CopiesInUse.ToString()
+                ((BookFundGroupedReport)item).Title,
+                ((BookFundGroupedReport)item).AuthorName,
+                ((BookFundGroupedReport)item).Publisher,
+                ((BookFundGroupedReport)item).Year.ToString(),
+                ((BookFundGroupedReport)item).Genre,
+                ((BookFundGroupedReport)item).TotalCopies.ToString(),
+                ((BookFundGroupedReport)item).AvailableCopies.ToString(),
+                ((BookFundGroupedReport)item).CopiesInUse.ToString()
             });
         }
 
-        private ObservableCollection<BookFundReport> LoadBookFundReport()
+        private ObservableCollection<BookFundGroupedReport> LoadBookFundReportGrouped()
         {
-            var data = new ObservableCollection<BookFundReport>();
+            var data = new ObservableCollection<BookFundGroupedReport>();
 
             string query = @"
                 SELECT 
-                    b.IDBook,
-                    b.InventaryNumber,
                     b.TitleBook,
-                    CONCAT(a.SurnameAuthor, ' ', a.NameAuthor, ' ', ISNULL(a.PatronymicAuthor, '')) AS AuthorName,
-                    ISNULL(ph.TitlePublishingHouse, '') AS Publisher,
-                    b.YearPublishing AS Year,
-                    ISNULL(g.TitleGener, '') AS Genre,
-                    ISNULL(s.Title_Status, '') AS Status,
-                    b.Price,
-                    b.TotalCopies,
-                    b.AvailableCopies,
-                    b.CopiesInUse
+                    MAX(CONCAT(a.SurnameAuthor, ' ', a.NameAuthor, ' ', ISNULL(a.PatronymicAuthor, ''))) AS AuthorName,
+                    MAX(ISNULL(ph.TitlePublishingHouse, '')) AS Publisher,
+                    MAX(b.YearPublishing) AS Year,
+                    MAX(ISNULL(g.TitleGener, '')) AS Genre,
+                    SUM(b.TotalCopies) AS TotalCopies,
+                    SUM(b.AvailableCopies) AS AvailableCopies,
+                    SUM(b.CopiesInUse) AS CopiesInUse
                 FROM Books b
                 INNER JOIN Authors a ON b.Author = a.ID_Autor
                 LEFT JOIN PublishingHouse ph ON b.PublishingHouse = ph.IDPublishingHouse
                 LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
-                LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
+                GROUP BY b.TitleBook
                 ORDER BY b.TitleBook";
 
             try
@@ -368,26 +357,16 @@ namespace Diplom_Bibl.Pages
                     {
                         while (reader.Read())
                         {
-                            decimal? price = null;
-                            if (!reader.IsDBNull(8))
+                            var report = new BookFundGroupedReport
                             {
-                                price = reader.GetDecimal(8);
-                            }
-
-                            var report = new BookFundReport
-                            {
-                                IDBook = reader.GetInt32(0),
-                                InventoryNumber = reader.GetString(1),
-                                Title = reader.GetString(2),
-                                AuthorName = reader.GetString(3),
-                                Publisher = reader.GetString(4),
-                                Year = reader.GetInt32(5),
-                                Genre = reader.GetString(6),
-                                Status = reader.GetString(7),
-                                Price = price,
-                                TotalCopies = reader.GetInt32(9),
-                                AvailableCopies = reader.GetInt32(10),
-                                CopiesInUse = reader.GetInt32(11)
+                                Title = reader.GetString(0),
+                                AuthorName = reader.GetString(1),
+                                Publisher = reader.GetString(2),
+                                Year = reader.GetInt32(3),
+                                Genre = reader.GetString(4),
+                                TotalCopies = reader.GetInt32(5),
+                                AvailableCopies = reader.GetInt32(6),
+                                CopiesInUse = reader.GetInt32(7)
                             };
                             data.Add(report);
                         }
@@ -416,7 +395,8 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ShowReportWindow(data, "Информационное обслуживание");
+            var dataWithTotal = AddTotalRow(data);
+            ShowInfoServiceReportWindow(dataWithTotal, StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value);
         }
 
         private void ExportExcelButton_Click(object sender, RoutedEventArgs e)
@@ -431,7 +411,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            ExportInfoServiceToExcel(data);
+            ExportInfoServiceToExcel(data, StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value);
         }
 
         private ObservableCollection<InfoServiceReport> LoadInfoServiceReport(DateTime start, DateTime end)
@@ -480,6 +460,129 @@ namespace Diplom_Bibl.Pages
             return data;
         }
 
+        private ObservableCollection<InfoServiceReportWithTotal> AddTotalRow(ObservableCollection<InfoServiceReport> data)
+        {
+            var result = new ObservableCollection<InfoServiceReportWithTotal>();
+
+            foreach (var item in data)
+            {
+                result.Add(new InfoServiceReportWithTotal
+                {
+                    DateRecord = item.DateRecord,
+                    DeliveryBook = item.DeliveryBook,
+                    DeliveryCertificate = item.DeliveryCertificate,
+                    EventsCount = item.EventsCount,
+                    IsTotal = false
+                });
+            }
+
+            int totalBooks = data.Sum(x => x.DeliveryBook);
+            int totalCertificates = data.Sum(x => x.DeliveryCertificate);
+            int totalEvents = data.Sum(x => x.EventsCount);
+
+            result.Add(new InfoServiceReportWithTotal
+            {
+                DateRecord = DateTime.MinValue,
+                DeliveryBook = totalBooks,
+                DeliveryCertificate = totalCertificates,
+                EventsCount = totalEvents,
+                IsTotal = true
+            });
+
+            return result;
+        }
+
+        private void ShowInfoServiceReportWindow(ObservableCollection<InfoServiceReportWithTotal> data, DateTime startDate, DateTime endDate)
+        {
+            var reportWindow = new Window
+            {
+                Title = "Информационное обслуживание",
+                Width = 1000,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+
+            var mainPanel = new StackPanel();
+
+            var headerPanel = new StackPanel { Margin = new Thickness(10, 10, 10, 5) };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = "Информационное обслуживание",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}",
+                FontSize = 12,
+                Foreground = System.Windows.Media.Brushes.Gray
+            });
+
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}",
+                FontSize = 11,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+
+            mainPanel.Children.Add(headerPanel);
+
+            var dataGrid = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                Margin = new Thickness(10),
+                ItemsSource = data,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+            };
+
+            dataGrid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Дата",
+                Binding = new System.Windows.Data.Binding("DisplayDate"),
+                Width = new DataGridLength(120)
+            });
+
+            dataGrid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Выдано книг",
+                Binding = new System.Windows.Data.Binding("DeliveryBook"),
+                Width = new DataGridLength(100)
+            });
+
+            dataGrid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Выдано справок",
+                Binding = new System.Windows.Data.Binding("DeliveryCertificate"),
+                Width = new DataGridLength(100)
+            });
+
+            dataGrid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Обслужено на мероприятиях (чел.)",
+                Binding = new System.Windows.Data.Binding("EventsCount"),
+                Width = new DataGridLength(180)
+            });
+
+            dataGrid.LoadingRow += (s, e) =>
+            {
+                var item = e.Row.DataContext as InfoServiceReportWithTotal;
+                if (item != null && item.IsTotal)
+                {
+                    e.Row.Background = System.Windows.Media.Brushes.LightGray;
+                    e.Row.FontWeight = FontWeights.Bold;
+                }
+            };
+
+            mainPanel.Children.Add(dataGrid);
+            reportWindow.Content = mainPanel;
+            reportWindow.ShowDialog();
+        }
+
         // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
         private bool ValidateDates()
         {
@@ -503,7 +606,7 @@ namespace Diplom_Bibl.Pages
             return true;
         }
 
-        private void ShowReportWindow(object data, string title)
+        private void ShowReportWindow(object data, string title, DateTime? startDate, DateTime? endDate)
         {
             var enumerableData = data as System.Collections.IEnumerable;
             if (enumerableData == null)
@@ -516,10 +619,41 @@ namespace Diplom_Bibl.Pages
             var reportWindow = new Window
             {
                 Title = title,
-                Width = 1200,
+                Width = 1300,
                 Height = 800,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen
             };
+
+            var mainPanel = new StackPanel();
+
+            var headerPanel = new StackPanel { Margin = new Thickness(10, 10, 10, 5) };
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 0, 5)
+            });
+
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                headerPanel.Children.Add(new TextBlock
+                {
+                    Text = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}",
+                    FontSize = 12,
+                    Foreground = System.Windows.Media.Brushes.Gray
+                });
+            }
+
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}",
+                FontSize = 11,
+                Foreground = System.Windows.Media.Brushes.Gray,
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+
+            mainPanel.Children.Add(headerPanel);
 
             var dataGrid = new DataGrid
             {
@@ -531,7 +665,6 @@ namespace Diplom_Bibl.Pages
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
 
-            // Настраиваем заголовки колонок на русском языке
             dataGrid.AutoGeneratingColumn += (s, e) =>
             {
                 switch (e.PropertyName)
@@ -540,7 +673,6 @@ namespace Diplom_Bibl.Pages
                     case "BookTitle": e.Column.Header = "Название книги"; break;
                     case "InventoryNumber": e.Column.Header = "Инв. номер"; break;
                     case "ReaderName": e.Column.Header = "Читатель"; break;
-                    case "ReaderType": e.Column.Header = "Тип читателя"; break;
                     case "GroupOrPost": e.Column.Header = "Группа/Должность"; break;
                     case "PlannedReturnDate": e.Column.Header = "План. возврат"; break;
                     case "ReturnDate": e.Column.Header = "Дата возврата"; break;
@@ -558,20 +690,22 @@ namespace Diplom_Bibl.Pages
                     case "Publisher": e.Column.Header = "Издательство"; break;
                     case "Year": e.Column.Header = "Год"; break;
                     case "Genre": e.Column.Header = "Жанр"; break;
-                    case "Price": e.Column.Header = "Цена"; break;
                     case "TotalCopies": e.Column.Header = "Всего"; break;
                     case "AvailableCopies": e.Column.Header = "Доступно"; break;
                     case "CopiesInUse": e.Column.Header = "В использовании"; break;
-                    case "IdRecord": e.Column.Header = "ID"; break;
-                    case "DateRecord": e.Column.Header = "Дата"; break;
+                    case "Title": e.Column.Header = "Название книги"; break;
+                    case "ReaderID": e.Column.Visibility = Visibility.Collapsed; break;
+                    case "IDBook": e.Column.Visibility = Visibility.Collapsed; break;
+                    case "IdRecord": e.Column.Visibility = Visibility.Collapsed; break;
+                    case "IsTotal": e.Column.Visibility = Visibility.Collapsed; break;
+                    case "DisplayDate": e.Column.Header = "Дата"; break;
                     case "DeliveryBook": e.Column.Header = "Выдано книг"; break;
                     case "DeliveryCertificate": e.Column.Header = "Выдано справок"; break;
                     case "EventsCount": e.Column.Header = "Обслужено на мероприятиях (чел.)"; break;
-                    case "ReaderID": e.Column.Visibility = Visibility.Collapsed; break;
-                    case "IDBook": e.Column.Visibility = Visibility.Collapsed; break;
                 }
 
-                // Форматирование дат
+                e.Column.Width = new DataGridLength(1, DataGridLengthUnitType.Auto);
+
                 if (e.PropertyName == "IssuanceDate" || e.PropertyName == "PlannedReturnDate" || e.PropertyName == "DateRecord")
                 {
                     if (e.Column is DataGridTextColumn textColumn)
@@ -586,33 +720,22 @@ namespace Diplom_Bibl.Pages
                         textColumn.Binding.StringFormat = "dd.MM.yyyy";
                     }
                 }
-                else if (e.PropertyName == "Price")
-                {
-                    if (e.Column is DataGridTextColumn textColumn)
-                    {
-                        textColumn.Binding.StringFormat = "F2";
-                    }
-                }
             };
 
-            var grid = new Grid();
-            grid.Children.Add(dataGrid);
-            reportWindow.Content = grid;
+            mainPanel.Children.Add(dataGrid);
+            reportWindow.Content = mainPanel;
             reportWindow.ShowDialog();
         }
 
-        // ==================== ГЕНЕРАЦИЯ PDF И ОТКРЫТИЕ ДЛЯ ПЕЧАТИ ====================
+        // ==================== ГЕНЕРАЦИЯ PDF ====================
 
-        /// <summary>
-        /// Создает PDF и открывает его в программе по умолчанию (для просмотра и печати)
-        /// </summary>
-        private void CreateAndShowPDF<T>(ObservableCollection<T> data, string reportName, string[] headers, Func<T, string[]> getValues)
+        private void CreateAndShowPDF<T>(ObservableCollection<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
         {
             string tempFile = Path.GetTempFileName() + ".pdf";
 
             try
             {
-                GeneratePDF(data, tempFile, reportName, headers, getValues);
+                GeneratePDFWithHeader(data, tempFile, reportName, startDate, endDate, headers, getValues);
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempFile) { UseShellExecute = true });
             }
             catch (Exception ex)
@@ -622,7 +745,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void GeneratePDF<T>(ObservableCollection<T> data, string filePath, string title, string[] headers, Func<T, string[]> getValues)
+        private void GeneratePDFWithHeader<T>(ObservableCollection<T> data, string filePath, string title, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
         {
             using (PdfDocument document = new PdfDocument())
             {
@@ -635,7 +758,6 @@ namespace Diplom_Bibl.Pages
 
                 using (XGraphics gfx = XGraphics.FromPdfPage(page))
                 {
-                    // Используем стандартные стили шрифтов для старой версии PDFsharp
                     XFont titleFont = new XFont("Arial", 16, XFontStyle.Bold);
                     XFont headerFont = new XFont("Arial", 10, XFontStyle.Bold);
                     XFont dataFont = new XFont("Arial", 9, XFontStyle.Regular);
@@ -644,19 +766,25 @@ namespace Diplom_Bibl.Pages
                     double yPoint = 40;
                     double leftMargin = 30;
                     double rowHeight = 25;
-                    double[] columnWidths = CalculateColumnWidths(headers.Length, page.Width.Point - 60);
 
-                    // Заголовок отчета
+                    double[] columnWidths = CalculateAutoColumnWidths(gfx, headers, data, getValues, dataFont, page.Width.Point - 60);
+
                     gfx.DrawString(title, titleFont, XBrushes.Black, new XRect(0, yPoint, page.Width.Point, 30), XStringFormats.TopCenter);
-                    yPoint += 40;
+                    yPoint += 35;
 
-                    // Дата генерации
-                    string dateGenerated = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm}";
+                    if (startDate.HasValue && endDate.HasValue)
+                    {
+                        string periodText = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}";
+                        gfx.DrawString(periodText, italicFont, XBrushes.Gray,
+                            new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
+                        yPoint += 18;
+                    }
+
+                    string dateGenerated = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
                     gfx.DrawString(dateGenerated, italicFont, XBrushes.Gray,
                         new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
                     yPoint += 25;
 
-                    // Заголовки таблицы
                     double currentX = leftMargin;
                     for (int i = 0; i < headers.Length; i++)
                     {
@@ -667,7 +795,6 @@ namespace Diplom_Bibl.Pages
                     }
                     yPoint += rowHeight;
 
-                    // Данные таблицы
                     foreach (var item in data)
                     {
                         string[] values = getValues(item);
@@ -676,13 +803,12 @@ namespace Diplom_Bibl.Pages
                         for (int i = 0; i < values.Length; i++)
                         {
                             gfx.DrawRectangle(XBrushes.White, currentX, yPoint, columnWidths[i], rowHeight);
-                            gfx.DrawString(values[i], dataFont, XBrushes.Black,
-                                new XRect(currentX + 5, yPoint, columnWidths[i] - 10, rowHeight), XStringFormats.TopLeft);
+                            gfx.DrawString(TruncateString(values[i], (int)(columnWidths[i] / 5)), dataFont, XBrushes.Black,
+                                new XRect(currentX + 3, yPoint, columnWidths[i] - 6, rowHeight), XStringFormats.TopLeft);
                             currentX += columnWidths[i];
                         }
                         yPoint += rowHeight;
 
-                        // Если страница заполнена, добавляем новую
                         if (yPoint > page.Height.Point - 50)
                         {
                             page = document.AddPage();
@@ -699,10 +825,6 @@ namespace Diplom_Bibl.Pages
                                     currentX += columnWidths[i];
                                 }
                                 yPoint += rowHeight;
-
-                                // Продолжаем с текущего item
-                                // Для простоты, продолжаем рисовать на новой странице
-                                // В реальном проекте нужно переписать логику для корректного переноса
                             }
                         }
                     }
@@ -712,21 +834,40 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private double[] CalculateColumnWidths(int columnCount, double totalWidth)
+        private double[] CalculateAutoColumnWidths<T>(XGraphics gfx, string[] headers, ObservableCollection<T> data, Func<T, string[]> getValues, XFont font, double totalWidth)
         {
-            double[] widths = new double[columnCount];
-            double equalWidth = totalWidth / columnCount;
+            double[] widths = new double[headers.Length];
 
-            for (int i = 0; i < columnCount; i++)
+            for (int i = 0; i < headers.Length; i++)
             {
-                widths[i] = equalWidth;
+                widths[i] = gfx.MeasureString(headers[i], font).Width + 10;
+            }
+
+            foreach (var item in data)
+            {
+                string[] values = getValues(item);
+                for (int i = 0; i < values.Length && i < headers.Length; i++)
+                {
+                    double textWidth = gfx.MeasureString(values[i], font).Width + 15;
+                    if (textWidth > widths[i])
+                    {
+                        widths[i] = Math.Min(textWidth, 150);
+                    }
+                }
             }
 
             return widths;
         }
 
+        private string TruncateString(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+                return text;
+            return text.Substring(0, maxLength - 3) + "...";
+        }
+
         // ==================== ЭКСПОРТ В EXCEL ====================
-        private void ExportBookIssuanceToExcel(ObservableCollection<BookIssuanceReport> data, bool openAfterExport = false)
+        private void ExportBookIssuanceToExcel(ObservableCollection<BookIssuanceReport> data, DateTime startDate, DateTime endDate, bool openAfterExport = false)
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
@@ -738,18 +879,16 @@ namespace Diplom_Bibl.Pages
             {
                 try
                 {
-                    ExportToExcelGeneric(data, saveFileDialog.FileName, new[]
+                    ExportToExcelGeneric(data, saveFileDialog.FileName, startDate, endDate, "Отчёт по выдаче литературы", new[]
                     {
                         "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
-                        "Тип читателя", "Группа/Должность", "План. возврат", "Дата возврата",
-                        "Статус", "Дней просрочки"
+                        "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки"
                     }, item => new object[]
                     {
                         ((BookIssuanceReport)item).IssuanceDate.ToString("dd.MM.yyyy HH:mm"),
                         ((BookIssuanceReport)item).BookTitle,
                         ((BookIssuanceReport)item).InventoryNumber,
                         ((BookIssuanceReport)item).ReaderName,
-                        ((BookIssuanceReport)item).ReaderType,
                         ((BookIssuanceReport)item).GroupOrPost,
                         ((BookIssuanceReport)item).PlannedReturnDate.ToString("dd.MM.yyyy"),
                         ((BookIssuanceReport)item).ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена",
@@ -787,7 +926,7 @@ namespace Diplom_Bibl.Pages
             {
                 try
                 {
-                    ExportToExcelGeneric(data, saveFileDialog.FileName, new[]
+                    ExportToExcelGeneric(data, saveFileDialog.FileName, null, null, "Читательская активность", new[]
                     {
                         "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
                         "Возвращено", "На руках", "Просрочено", "Последняя выдача"
@@ -815,49 +954,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void ExportFundReportToExcel(ObservableCollection<BookFundReport> data)
-        {
-            SaveFileDialog saveFileDialog = new SaveFileDialog
-            {
-                Filter = "Excel файлы (*.xlsx)|*.xlsx",
-                FileName = $"Отчёт_Фонд_библиотеки_{DateTime.Now:yyyyMMdd_HHmm}.xlsx"
-            };
-
-            if (saveFileDialog.ShowDialog() == true)
-            {
-                try
-                {
-                    ExportToExcelGeneric(data, saveFileDialog.FileName, new[]
-                    {
-                        "Инв. номер", "Название", "Автор", "Издательство", "Год",
-                        "Жанр", "Статус", "Цена", "Всего", "Доступно", "В использовании"
-                    }, item => new object[]
-                    {
-                        ((BookFundReport)item).InventoryNumber,
-                        ((BookFundReport)item).Title,
-                        ((BookFundReport)item).AuthorName,
-                        ((BookFundReport)item).Publisher,
-                        ((BookFundReport)item).Year,
-                        ((BookFundReport)item).Genre,
-                        ((BookFundReport)item).Status,
-                        ((BookFundReport)item).Price.HasValue ? ((BookFundReport)item).Price.Value.ToString("F2") : "0.00",
-                        ((BookFundReport)item).TotalCopies,
-                        ((BookFundReport)item).AvailableCopies,
-                        ((BookFundReport)item).CopiesInUse
-                    });
-
-                    CustomMessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    CustomMessageBox.Show($"Ошибка экспорта: {ex.Message}", "Ошибка",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-                }
-            }
-        }
-
-        private void ExportInfoServiceToExcel(ObservableCollection<InfoServiceReport> data)
+        private void ExportInfoServiceToExcel(ObservableCollection<InfoServiceReport> data, DateTime startDate, DateTime endDate)
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
@@ -869,18 +966,7 @@ namespace Diplom_Bibl.Pages
             {
                 try
                 {
-                    ExportToExcelGeneric(data, saveFileDialog.FileName, new[]
-                    {
-                        "ID", "Дата", "Выдано книг", "Выдано справок", "Обслужено на мероприятиях (чел.)"
-                    }, item => new object[]
-                    {
-                        ((InfoServiceReport)item).IdRecord,
-                        ((InfoServiceReport)item).DisplayDate,
-                        ((InfoServiceReport)item).DeliveryBook,
-                        ((InfoServiceReport)item).DeliveryCertificate,
-                        ((InfoServiceReport)item).EventsCount
-                    });
-
+                    ExportInfoServiceToExcelGeneric(data, saveFileDialog.FileName, startDate, endDate);
                     CustomMessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 }
@@ -892,7 +978,96 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void ExportToExcelGeneric<T>(ObservableCollection<T> data, string filePath, string[] headers, Func<T, object[]> getValues)
+        private void ExportInfoServiceToExcelGeneric(ObservableCollection<InfoServiceReport> data, string filePath, DateTime startDate, DateTime endDate)
+        {
+            Excel.Application excelApp = null;
+            Excel.Workbook workbook = null;
+            Excel.Worksheet worksheet = null;
+
+            try
+            {
+                excelApp = new Excel.Application();
+                excelApp.Visible = false;
+
+                workbook = excelApp.Workbooks.Add();
+                worksheet = workbook.ActiveSheet;
+                worksheet.Name = "Информационное обслуживание";
+
+                int currentRow = 1;
+
+                worksheet.Cells[currentRow, 1] = "Информационное обслуживание";
+                var titleRange = (Excel.Range)worksheet.Cells[currentRow, 1];
+                titleRange.Font.Bold = true;
+                titleRange.Font.Size = 16;
+                titleRange.Merge(worksheet.Cells[currentRow, 4]);
+                currentRow += 2;
+
+                worksheet.Cells[currentRow, 1] = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}";
+                currentRow++;
+
+                worksheet.Cells[currentRow, 1] = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                currentRow += 2;
+
+                string[] headers = { "Дата", "Выдано книг", "Выдано справок", "Обслужено на мероприятиях (чел.)" };
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cells[currentRow, i + 1] = headers[i];
+                    var range = (Excel.Range)worksheet.Cells[currentRow, i + 1];
+                    range.Font.Bold = true;
+                    range.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
+                }
+                currentRow++;
+
+                int totalBooks = 0;
+                int totalCertificates = 0;
+                int totalEvents = 0;
+
+                foreach (var item in data)
+                {
+                    worksheet.Cells[currentRow, 1] = item.DisplayDate;
+                    worksheet.Cells[currentRow, 2] = item.DeliveryBook;
+                    worksheet.Cells[currentRow, 3] = item.DeliveryCertificate;
+                    worksheet.Cells[currentRow, 4] = item.EventsCount;
+
+                    totalBooks += item.DeliveryBook;
+                    totalCertificates += item.DeliveryCertificate;
+                    totalEvents += item.EventsCount;
+
+                    currentRow++;
+                }
+
+                currentRow++;
+                worksheet.Cells[currentRow, 1] = "ИТОГО:";
+                var totalRange = (Excel.Range)worksheet.Cells[currentRow, 1];
+                totalRange.Font.Bold = true;
+                worksheet.Cells[currentRow, 2] = totalBooks;
+                worksheet.Cells[currentRow, 3] = totalCertificates;
+                worksheet.Cells[currentRow, 4] = totalEvents;
+
+                ((Excel.Range)worksheet.Cells[currentRow, 2]).Font.Bold = true;
+                ((Excel.Range)worksheet.Cells[currentRow, 3]).Font.Bold = true;
+                ((Excel.Range)worksheet.Cells[currentRow, 4]).Font.Bold = true;
+
+                worksheet.Columns.AutoFit();
+                workbook.SaveAs(filePath, Excel.XlFileFormat.xlOpenXMLWorkbook);
+            }
+            finally
+            {
+                if (worksheet != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
+                if (workbook != null)
+                {
+                    workbook.Close(false);
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
+                }
+                if (excelApp != null)
+                {
+                    excelApp.Quit();
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
+                }
+            }
+        }
+
+        private void ExportToExcelGeneric<T>(ObservableCollection<T> data, string filePath, DateTime? startDate, DateTime? endDate, string title, string[] headers, Func<T, object[]> getValues)
         {
             Excel.Application excelApp = null;
             Excel.Workbook workbook = null;
@@ -907,27 +1082,50 @@ namespace Diplom_Bibl.Pages
                 worksheet = workbook.ActiveSheet;
                 worksheet.Name = "Отчёт";
 
-                for (int i = 0; i < headers.Length; i++)
+                int currentRow = 1;
+
+                worksheet.Cells[currentRow, 1] = title;
+                var titleRange = (Excel.Range)worksheet.Cells[currentRow, 1];
+                titleRange.Font.Bold = true;
+                titleRange.Font.Size = 16;
+                titleRange.Merge(worksheet.Cells[currentRow, headers.Length]);
+                currentRow += 2;
+
+                if (startDate.HasValue && endDate.HasValue)
                 {
-                    worksheet.Cells[1, i + 1] = headers[i];
-                    var range = (Excel.Range)worksheet.Cells[1, i + 1];
-                    range.Font.Bold = true;
+                    worksheet.Cells[currentRow, 1] = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}";
+                    currentRow++;
                 }
 
-                int row = 2;
+                worksheet.Cells[currentRow, 1] = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                currentRow += 2;
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cells[currentRow, i + 1] = headers[i];
+                    var range = (Excel.Range)worksheet.Cells[currentRow, i + 1];
+                    range.Font.Bold = true;
+                    range.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
+                }
+                currentRow++;
+
                 foreach (var item in data)
                 {
                     var values = getValues(item);
                     for (int col = 0; col < values.Length; col++)
                     {
-                        worksheet.Cells[row, col + 1] = values[col];
+                        worksheet.Cells[currentRow, col + 1] = values[col];
                     }
-                    row++;
+                    currentRow++;
                 }
 
-                worksheet.Cells[row, 1] = "Итого:";
-                var итогRange = (Excel.Range)worksheet.Cells[row, 1];
-                итогRange.Font.Bold = true;
+                if (data.Count > 0)
+                {
+                    worksheet.Cells[currentRow, 1] = "Итого записей:";
+                    worksheet.Cells[currentRow, 2] = data.Count;
+                    var итогRange = (Excel.Range)worksheet.Cells[currentRow, 1];
+                    итогRange.Font.Bold = true;
+                }
 
                 worksheet.Columns.AutoFit();
                 workbook.SaveAs(filePath, Excel.XlFileFormat.xlOpenXMLWorkbook);
@@ -956,7 +1154,6 @@ namespace Diplom_Bibl.Pages
         public string BookTitle { get; set; } = "";
         public string InventoryNumber { get; set; } = "";
         public string ReaderName { get; set; } = "";
-        public string ReaderType { get; set; } = "";
         public string GroupOrPost { get; set; } = "";
         public DateTime PlannedReturnDate { get; set; }
         public DateTime? ReturnDate { get; set; }
@@ -978,17 +1175,13 @@ namespace Diplom_Bibl.Pages
         public DateTime? LastIssuanceDate { get; set; }
     }
 
-    public class BookFundReport
+    public class BookFundGroupedReport
     {
-        public int IDBook { get; set; }
-        public string InventoryNumber { get; set; } = "";
         public string Title { get; set; } = "";
         public string AuthorName { get; set; } = "";
         public string Publisher { get; set; } = "";
         public int Year { get; set; }
         public string Genre { get; set; } = "";
-        public string Status { get; set; } = "";
-        public decimal? Price { get; set; }
         public int TotalCopies { get; set; }
         public int AvailableCopies { get; set; }
         public int CopiesInUse { get; set; }
@@ -1002,5 +1195,15 @@ namespace Diplom_Bibl.Pages
         public int DeliveryCertificate { get; set; }
         public int EventsCount { get; set; }
         public string DisplayDate => DateRecord.ToString("dd.MM.yyyy");
+    }
+
+    public class InfoServiceReportWithTotal
+    {
+        public DateTime DateRecord { get; set; }
+        public int DeliveryBook { get; set; }
+        public int DeliveryCertificate { get; set; }
+        public int EventsCount { get; set; }
+        public bool IsTotal { get; set; }
+        public string DisplayDate => IsTotal ? "ИТОГО:" : DateRecord.ToString("dd.MM.yyyy");
     }
 }

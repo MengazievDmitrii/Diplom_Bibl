@@ -3,26 +3,30 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace Diplom_Bibl
+namespace Diplom_Bibl.Converters
 {
+    /// <summary>
+    /// Конвертер для преобразования null или пустой строки в Visibility
+    /// </summary>
     public class IsNullOrEmptyToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Проверяем, является ли значение строкой и пуста ли она
-            if (value is string str)
+            string text = value as string;
+
+            if (parameter != null && parameter.ToString() == "inverse")
             {
-                return string.IsNullOrEmpty(str) ? Visibility.Visible : Visibility.Collapsed;
+                // Обратный режим: пусто = Visible, не пусто = Collapsed
+                return string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
             }
 
-            // Если значение не строка, проверяем на null
-            return value == null ? Visibility.Visible : Visibility.Collapsed;
+            // Прямой режим: не пусто = Visible, пусто = Collapsed
+            return string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Обратное преобразование не требуется
-            return Binding.DoNothing;
+            throw new NotImplementedException();
         }
     }
 }

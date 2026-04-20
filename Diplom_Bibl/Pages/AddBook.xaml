@@ -28,7 +28,9 @@
                 <StackPanel Margin="0,0,15,0">
                     <StackPanel Margin="0,0,0,15">
                         <TextBlock Text="Инвентарный номер *" Style="{StaticResource LabelStyle}"/>
-                        <TextBox x:Name="TbInventoryNumber" Style="{StaticResource InputFieldStyle}"/>
+                        <TextBox x:Name="TbInventoryNumber" 
+         Style="{StaticResource InputFieldStyle}"
+         LostFocus="TbInventoryNumber_LostFocus"/>
                     </StackPanel>
 
                     <StackPanel Margin="0,0,0,15">

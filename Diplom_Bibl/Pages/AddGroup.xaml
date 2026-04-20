@@ -32,7 +32,11 @@
                     <TextBlock Text="Код группы" Style="{StaticResource LabelStyle}"/>
                     <TextBox Text="" Name="CodeGroup" Style="{StaticResource InputFieldStyle}" VerticalContentAlignment="Center"/>
                     <TextBlock Text="Специальность" Style="{StaticResource LabelStyle}"/>
-                    <ComboBox x:Name="NameSpecialityCB" DisplayMemberPath="Display" SelectedValuePath="SpecialityID"/>
+                    <StackPanel Orientation="Horizontal" Width="AUTO">
+                        <ComboBox x:Name="NameSpecialityCB" DisplayMemberPath="Display" SelectedValuePath="SpecialityID" Width="355"/>
+                        <Button x:Name="AddSpecialityBtn" Content="+" Style="{StaticResource SaveButtonStyle}" Width="42" Click="AddSpecialityBtn_Click"/>
+                    </StackPanel>
+                    
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Button x:Name="SaveNewRecordButton" 

@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Windows
 {
-    /// <summary>
-    /// Логика взаимодействия для AutorisationWindow.xaml
-    /// </summary>
     public partial class AutorisationWindow : Window
     {
         private readonly string _connectionString =
@@ -19,28 +17,38 @@ namespace Diplom_Bibl.Windows
         public AutorisationWindow()
         {
             InitializeComponent();
+            LoginPlaceholder.Visibility = string.IsNullOrEmpty(LoginBox.Text)
+        ? Visibility.Visible
+        : Visibility.Hidden;
+            // Подписываемся на событие KeyDown для окна
+            this.KeyDown += OnWindowKeyDown;
+
+            // Подписываемся для полей ввода
+       
+            LoginBox.KeyDown += OnLoginBoxKeyDown;
+            PasswordBox.KeyDown += OnPasswordBoxKeyDown;
+            VisiblePasswordBox.KeyDown += OnVisiblePasswordBoxKeyDown;
         }
 
         private void TogglePasswordVisibility_Checked(object sender, RoutedEventArgs e)
         {
-            // Копируем пароль из PasswordBox в TextBox
             VisiblePasswordBox.Text = PasswordBox.Password;
-            // Переключаем видимость
             PasswordBox.Visibility = Visibility.Collapsed;
             VisiblePasswordBox.Visibility = Visibility.Visible;
-            // Меняем цвет иконки глаза (например, на синий)
             EyeIcon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007BFF"));
+
+            VisiblePasswordBox.Focus();
+            VisiblePasswordBox.CaretIndex = VisiblePasswordBox.Text.Length;
         }
 
         private void TogglePasswordVisibility_Unchecked(object sender, RoutedEventArgs e)
         {
-            // Копируем пароль из TextBox обратно в PasswordBox
             PasswordBox.Password = VisiblePasswordBox.Text;
-            // Переключаем видимость
             VisiblePasswordBox.Visibility = Visibility.Collapsed;
             PasswordBox.Visibility = Visibility.Visible;
-            // Меняем цвет иконки глаза обратно (например, на серый)
             EyeIcon.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999999"));
+
+            PasswordBox.Focus();
         }
 
         private void PasswordBox_GotFocus(object sender, RoutedEventArgs e)
@@ -56,6 +64,11 @@ namespace Diplom_Bibl.Windows
         private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
             UpdatePasswordPlaceholder();
+
+            if (VisiblePasswordBox.Visibility == Visibility.Visible)
+            {
+                VisiblePasswordBox.Text = PasswordBox.Password;
+            }
         }
 
         private void UpdatePasswordPlaceholder()
@@ -65,20 +78,72 @@ namespace Diplom_Bibl.Windows
                 : Visibility.Hidden;
         }
 
-        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        // ==================== ОБРАБОТЧИКИ КЛАВИШИ ENTER ====================
+
+        private void OnWindowKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                PerformLogin();
+                e.Handled = true;
+            }
+        }
+
+        private void OnLoginBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (PasswordBox.Visibility == Visibility.Visible)
+                {
+                    PasswordBox.Focus();
+                }
+                else
+                {
+                    VisiblePasswordBox.Focus();
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void OnPasswordBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                PerformLogin();
+                e.Handled = true;
+            }
+        }
+
+        private void OnVisiblePasswordBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                PasswordBox.Password = VisiblePasswordBox.Text;
+                PerformLogin();
+                e.Handled = true;
+            }
+        }
+
+        private void PerformLogin()
         {
             string login = LoginBox.Text?.Trim();
             string password = PasswordBox.Password?.Trim();
 
+            if (string.IsNullOrEmpty(password) && VisiblePasswordBox.Visibility == Visibility.Visible)
+            {
+                password = VisiblePasswordBox.Text?.Trim();
+                PasswordBox.Password = password;
+            }
+
             if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
             {
-                CustomMessageBoxHelper.Show("Введите логин и пароль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBoxHelper.Show("Введите логин и пароль.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             try
             {
-                // === Шаг 1: Получаем хэш пароля из БД ===
                 int userId = -1;
                 string fullName = "";
                 string storedHash = "";
@@ -108,20 +173,20 @@ namespace Diplom_Bibl.Windows
 
                 if (userId == -1)
                 {
-                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     return;
                 }
 
-                // === Шаг 2: Проверка пароля через BCrypt ===
                 bool isPasswordValid = VerifyPassword(password, storedHash);
 
                 if (!isPasswordValid)
                 {
-                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBoxHelper.Show("Неверный логин или пароль.", "Ошибка входа",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     return;
                 }
 
-                // === Шаг 3: Загрузка ролей ===
                 var roles = new List<string>();
                 using (var conn2 = new SqlConnection(_connectionString))
                 {
@@ -143,20 +208,22 @@ namespace Diplom_Bibl.Windows
                     }
                 }
 
-                // === Шаг 4: Открытие главного окна ===
                 var mainWindow = new MainWindow(userId, fullName, roles);
                 mainWindow.Show();
                 this.Close();
             }
             catch (Exception ex)
             {
-                CustomMessageBoxHelper.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBoxHelper.Show($"Ошибка при входе:\n{ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-        /// <summary>
-        /// Проверяет, соответствует ли введенный пароль сохраненному хэшу
-        /// </summary>
+        private void LoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            PerformLogin();
+        }
+
         private bool VerifyPassword(string enteredPassword, string storedHash)
         {
             if (string.IsNullOrEmpty(enteredPassword) || string.IsNullOrEmpty(storedHash))
@@ -164,15 +231,18 @@ namespace Diplom_Bibl.Windows
 
             try
             {
-                // Используем BCrypt для проверки пароля
                 return BCrypt.Net.BCrypt.Verify(enteredPassword, storedHash);
             }
             catch
             {
-                // Если пароль старый (не захеширован), пробуем сравнить как обычную строку
-                // Это для обратной совместимости с существующими пользователями
                 return enteredPassword == storedHash;
             }
+        }
+        private void LoginBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            LoginPlaceholder.Visibility = string.IsNullOrEmpty(LoginBox.Text)
+                ? Visibility.Visible
+                : Visibility.Hidden;
         }
     }
 }
