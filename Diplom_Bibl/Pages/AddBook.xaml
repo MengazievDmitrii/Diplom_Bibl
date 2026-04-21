@@ -29,8 +29,8 @@
                     <StackPanel Margin="0,0,0,15">
                         <TextBlock Text="Инвентарный номер *" Style="{StaticResource LabelStyle}"/>
                         <TextBox x:Name="TbInventoryNumber" 
-         Style="{StaticResource InputFieldStyle}"
-         LostFocus="TbInventoryNumber_LostFocus"/>
+                                 Style="{StaticResource InputFieldStyle}"
+                                 LostFocus="TbInventoryNumber_LostFocus"/>
                     </StackPanel>
 
                     <StackPanel Margin="0,0,0,15">
@@ -49,14 +49,42 @@
                                 Style="{StaticResource PrimaryButtonStyle}"/>
                     </StackPanel>
 
-                    <!-- Вид книги -->
+                    <!-- Категория книги -->
                     <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
                         <StackPanel Width="380">
-                            <TextBlock Text="Вид книги *" Style="{StaticResource LabelStyle}"/>
-                            <ComboBox x:Name="CbViewBook" Style="{StaticResource InputFieldStyleCb}"
-                                      DisplayMemberPath="DisplayViewBook" SelectedValuePath="ID"/>
+                            <TextBlock Text="Категория книги *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbCategory" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="CategoryName" 
+                                      SelectedValuePath="ID_Category"/>
                         </StackPanel>
-                        <Button Content="+" Width="30" Click="BtnAddViewBook_Click" Margin="5,20,0,0"
+                        <Button x:Name="BtnAddCategory" Content="+" Width="30" Click="BtnAddCategory_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Вид издания -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Вид издания *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbEditionType" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="EditionTypeName" 
+                                      SelectedValuePath="ID_EditionType"/>
+                        </StackPanel>
+                        <Button x:Name="BtnAddEditionType" Content="+" Width="30" Click="BtnAddEditionType_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Формат издания -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Формат издания *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbFormat" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="FormatName" 
+                                      SelectedValuePath="ID_Format"/>
+                        </StackPanel>
+                        <Button x:Name="BtnAddFormat" Content="+" Width="30" Click="BtnAddFormat_Click" Margin="5,20,0,0"
                                 Style="{StaticResource PrimaryButtonStyle}"/>
                     </StackPanel>
 
@@ -153,7 +181,6 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Поиск -->
                 <Border Grid.Row="0" Background="White" CornerRadius="8" 
                         BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
                         Padding="10" Margin="0,0,0,15">
@@ -165,9 +192,6 @@
                     </Grid>
                 </Border>
 
-                <!-- Список книг -->
-
-                <!-- Список книг - DataGrid с заголовками -->
                 <DataGrid x:Name="LvBooks" Grid.Row="1" 
                           MouseDoubleClick="LvBooks_MouseDoubleClick"
                           AutoGenerateColumns="False"
@@ -209,12 +233,10 @@
             </Grid>
         </Grid>
 
-        <!-- Кнопка закрытия -->
         <Button Grid.Row="2" Content="← Закрыть" Style="{StaticResource PrimaryButtonStyle}"
                 Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
                 HorizontalAlignment="Center" Width="160" Click="ClosePage_Click"/>
 
-        <!-- Индикатор загрузки списка книг -->
         <Grid x:Name="BooksLoadingPanel" 
               Background="#80FFFFFF" 
               Visibility="Collapsed"

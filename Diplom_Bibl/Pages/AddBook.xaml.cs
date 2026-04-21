@@ -22,6 +22,9 @@ namespace Diplom_Bibl.Pages
         public string Price { get; set; } = "";
         public string AuthorName { get; set; } = "";
         public string PublishingHouseName { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string EditionType { get; set; } = "";
+        public string Format { get; set; } = "";
     }
 
     public partial class AddBook : Page
@@ -32,6 +35,7 @@ namespace Diplom_Bibl.Pages
         private CancellationTokenSource _cancellationTokenSource;
         private bool _isLoadingBooks = false;
         private bool _isClosing = false;
+        private int _defaultStatusId = 1;
 
         public AddBook()
         {
@@ -62,7 +66,6 @@ namespace Diplom_Bibl.Pages
             await Task.Delay(10);
             await LoadDataAsync();
 
-            // Автогенерация номера для новой книги
             if (!_currentBookId.HasValue && string.IsNullOrWhiteSpace(TbInventoryNumber.Text))
             {
                 string nextNumber = await GetNextInventoryNumberAsync();
@@ -86,11 +89,13 @@ namespace Diplom_Bibl.Pages
             try
             {
                 await Task.Run(() => LoadAuthors());
-                await Task.Run(() => LoadViewBooks());
                 await Task.Run(() => LoadPublishers());
                 await Task.Run(() => LoadGenres());
-                await Task.Run(() => LoadStatuses());
+                await Task.Run(() => LoadStatusesFiltered());
                 await Task.Run(() => LoadReceipts());
+                await Task.Run(() => LoadEditionTypes());
+                await Task.Run(() => LoadCategories());
+                await Task.Run(() => LoadFormats());
 
                 _cancellationTokenSource = new CancellationTokenSource();
                 await LoadBooksToListAsync(_cancellationTokenSource.Token);
@@ -146,7 +151,7 @@ namespace Diplom_Bibl.Pages
             });
         }
 
-        // ==================== МАСКА ВВОДА ДЛЯ ИНВЕНТАРНОГО НОМЕРА ====================
+        // ==================== МАСКА ВВОДА ====================
         private void TbInventoryNumber_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !Regex.IsMatch(e.Text, @"^\d+$");
@@ -188,6 +193,7 @@ namespace Diplom_Bibl.Pages
 
         // ==================== МАСКА ВВОДА ДЛЯ ГОДА ====================
         private void TbYear_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !IsTextNumeric(e.Text);
+
         private void TbYear_Pasting(object sender, DataObjectPastingEventArgs e)
         {
             if (e.DataObject.GetDataPresent(typeof(string)))
@@ -237,21 +243,18 @@ namespace Diplom_Bibl.Pages
             string currentText = textBox?.Text ?? "";
             string newText = currentText + text;
 
-            // Разрешаем только цифры, запятую и точку
             if (!Regex.IsMatch(text, @"^[\d,.]$"))
             {
                 e.Handled = true;
                 return;
             }
 
-            // Проверяем, чтобы не было больше одного разделителя
             if ((text == "," || text == ".") && (currentText.Contains(",") || currentText.Contains(".")))
             {
                 e.Handled = true;
                 return;
             }
 
-            // Проверяем, чтобы после разделителя было не более 2 цифр
             int separatorIndex = currentText.IndexOfAny(new[] { ',', '.' });
             if (separatorIndex >= 0)
             {
@@ -263,6 +266,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
         }
+
         private void TbPrice_Pasting(object sender, DataObjectPastingEventArgs e)
         {
             if (e.DataObject.GetDataPresent(typeof(string)))
@@ -283,13 +287,9 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            // Приводим разделитель к запятой (для единообразия)
             string normalized = input.Replace('.', ',');
-
-            // Удаляем всё, кроме цифр и запятой
             normalized = Regex.Replace(normalized, @"[^\d,]", "");
 
-            // Оставляем только первую запятую (удаляем лишние)
             int firstComma = normalized.IndexOf(',');
             if (firstComma >= 0)
             {
@@ -298,26 +298,21 @@ namespace Diplom_Bibl.Pages
                 normalized = before + "," + after;
             }
 
-            // Удаляем запятую в конце, если она есть
             if (normalized.EndsWith(","))
                 normalized = normalized.TrimEnd(',');
 
-            // Парсим число с использованием культуры, где разделитель — запятая
             if (decimal.TryParse(normalized, NumberStyles.Any, new CultureInfo("ru-RU"), out decimal value))
             {
-                // Определяем, была ли в исходном вводе дробная часть
                 bool hadFraction = normalized.Contains(",");
 
                 if (hadFraction)
                 {
-                    // Если есть дробная часть, показываем с двумя знаками (дополняем нулями)
                     string[] parts = normalized.Split(',');
                     string fraction = parts[1].PadRight(2, '0');
                     TbPrice.Text = $"{parts[0]},{fraction}";
                 }
                 else
                 {
-                    // Если целое число — показываем без копеек
                     TbPrice.Text = value.ToString("0", new CultureInfo("ru-RU"));
                 }
             }
@@ -328,7 +323,49 @@ namespace Diplom_Bibl.Pages
                 TbPrice.Clear();
             }
         }
+
         // ==================== ЗАГРУЗКА ДАННЫХ ====================
+
+        private void LoadStatusesFiltered()
+        {
+            try
+            {
+                const string sql = "SELECT ID_Status, Title_Status FROM StatusBook WHERE Title_Status NOT LIKE '%Списана%' AND Title_Status NOT LIKE '%Утрачен%' ORDER BY Title_Status";
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var command = new SqlCommand(sql, connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        var items = new ObservableCollection<object>();
+                        while (reader.Read())
+                        {
+                            int id = reader["ID_Status"] == DBNull.Value ? 0 : Convert.ToInt32(reader["ID_Status"]);
+                            string title = reader["Title_Status"].ToString();
+                            items.Add(new { ID = id, DisplayStatus = title });
+                            if (title.Contains("В наличии"))
+                                _defaultStatusId = id;
+                        }
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbStatus.ItemsSource = items;
+                            CbStatus.DisplayMemberPath = "DisplayStatus";
+                            CbStatus.SelectedValuePath = "ID";
+
+                            if (items.Count > 0 && !_currentBookId.HasValue)
+                            {
+                                CbStatus.SelectedValue = _defaultStatusId;
+                            }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+            }
+        }
+
         private async Task LoadBooksToListAsync(CancellationToken cancellationToken)
         {
             if (_isLoadingBooks) return;
@@ -431,38 +468,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadViewBooks()
-        {
-            try
-            {
-                const string sql = "SELECT ID_View_Book, View_Book FROM ViewBook ORDER BY View_Book";
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    connection.Open();
-                    using (var command = new SqlCommand(sql, connection))
-                    using (var reader = command.ExecuteReader())
-                    {
-                        var items = new ObservableCollection<object>();
-                        while (reader.Read())
-                        {
-                            int id = reader["ID_View_Book"] == DBNull.Value ? 0 : Convert.ToInt32(reader["ID_View_Book"]);
-                            items.Add(new { ID = id, DisplayViewBook = reader["View_Book"].ToString() });
-                        }
-                        Dispatcher.Invoke(() =>
-                        {
-                            CbViewBook.ItemsSource = items;
-                            CbViewBook.DisplayMemberPath = "DisplayViewBook";
-                            CbViewBook.SelectedValuePath = "ID";
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки видов книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
-            }
-        }
-
         private void LoadPublishers()
         {
             try
@@ -527,38 +532,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadStatuses()
-        {
-            try
-            {
-                const string sql = "SELECT ID_Status, Title_Status FROM StatusBook ORDER BY Title_Status";
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    connection.Open();
-                    using (var command = new SqlCommand(sql, connection))
-                    using (var reader = command.ExecuteReader())
-                    {
-                        var items = new ObservableCollection<object>();
-                        while (reader.Read())
-                        {
-                            int id = reader["ID_Status"] == DBNull.Value ? 0 : Convert.ToInt32(reader["ID_Status"]);
-                            items.Add(new { ID = id, DisplayStatus = reader["Title_Status"].ToString() });
-                        }
-                        Dispatcher.Invoke(() =>
-                        {
-                            CbStatus.ItemsSource = items;
-                            CbStatus.DisplayMemberPath = "DisplayStatus";
-                            CbStatus.SelectedValuePath = "ID";
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
-            }
-        }
-
         private void LoadReceipts()
         {
             try
@@ -592,6 +565,130 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        private void LoadCategories()
+        {
+            try
+            {
+                const string sql = "SELECT ID_Category, CategoryName FROM BookCategories ORDER BY CategoryName";
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var command = new SqlCommand(sql, connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        var items = new ObservableCollection<object>();
+                        while (reader.Read())
+                        {
+                            items.Add(new
+                            {
+                                ID_Category = reader["ID_Category"],
+                                CategoryName = reader["CategoryName"].ToString()
+                            });
+                        }
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbCategory.ItemsSource = items;
+                            CbCategory.DisplayMemberPath = "CategoryName";
+                            CbCategory.SelectedValuePath = "ID_Category";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки категорий: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+            }
+        }
+
+        private void LoadEditionTypes()
+        {
+            try
+            {
+                const string sql = "SELECT ID_EditionType, EditionTypeName FROM EditionTypes ORDER BY EditionTypeName";
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var command = new SqlCommand(sql, connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        var items = new ObservableCollection<object>();
+                        while (reader.Read())
+                        {
+                            items.Add(new
+                            {
+                                ID_EditionType = reader["ID_EditionType"],
+                                EditionTypeName = reader["EditionTypeName"].ToString()
+                            });
+                        }
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbEditionType.ItemsSource = items;
+                            CbEditionType.DisplayMemberPath = "EditionTypeName";
+                            CbEditionType.SelectedValuePath = "ID_EditionType";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки видов изданий: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+            }
+        }
+
+        // Загрузка форматов изданий из БД (упрощённая версия)
+        private void LoadFormats()
+        {
+            try
+            {
+                const string sql = "SELECT ID_Format, FormatName FROM PublicationFormats ORDER BY FormatName";
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var command = new SqlCommand(sql, connection))
+                    using (var reader = command.ExecuteReader())
+                    {
+                        var items = new ObservableCollection<object>();
+                        while (reader.Read())
+                        {
+                            items.Add(new
+                            {
+                                ID_Format = reader["ID_Format"],
+                                FormatName = reader["FormatName"].ToString()
+                            });
+                        }
+                        Dispatcher.Invoke(() =>
+                        {
+                            CbFormat.ItemsSource = items;
+                            CbFormat.DisplayMemberPath = "FormatName";
+                            CbFormat.SelectedValuePath = "ID_Format";
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => CustomMessageBox.Show($"Ошибка загрузки форматов: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+            }
+        }
+
+        private void BtnAddCategory_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService?.Navigate(new AddBookCategory());
+        }
+
+        private void BtnAddEditionType_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService?.Navigate(new AddEditionType());
+        }
+
+        private void BtnAddFormat_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService?.Navigate(new AddPublicationFormat());
+        }
+
         private async Task LoadBookDataAsync(int bookId)
         {
             await Task.Run(() =>
@@ -601,8 +698,9 @@ namespace Diplom_Bibl.Pages
                     const string query = @"
                         SELECT 
                             b.IDBook, b.InventaryNumber, b.TitleBook, b.Author, b.PublishingHouse,
-                            b.YearPublishing, b.Gener, b.StatusBook, b.ID_View_Book, b.Price,
-                            b.Anotation, b.IDReceip
+                            b.YearPublishing, b.Gener, b.StatusBook, b.Price,
+                            b.Anotation, b.IDReceip, b.TotalCopies, 
+                            b.CategoryID, b.EditionTypeID, b.FormatID
                         FROM Books b WHERE b.IDBook = @BookId";
 
                     using (var connection = new SqlConnection(_connectionString))
@@ -622,10 +720,13 @@ namespace Diplom_Bibl.Pages
                                     var yearPublishing = Convert.ToInt32(reader["YearPublishing"]);
                                     var gener = reader["Gener"] != DBNull.Value ? Convert.ToInt32(reader["Gener"]) : (int?)null;
                                     var statusBook = reader["StatusBook"] != DBNull.Value ? Convert.ToInt32(reader["StatusBook"]) : (int?)null;
-                                    var idViewBook = Convert.ToInt32(reader["ID_View_Book"]);
                                     var price = reader["Price"] != DBNull.Value ? Convert.ToDecimal(reader["Price"]) : 0;
                                     var anotation = reader["Anotation"]?.ToString() ?? "";
                                     var idReceip = reader["IDReceip"] != DBNull.Value ? Convert.ToInt32(reader["IDReceip"]) : (int?)null;
+                                    var totalCopies = reader["TotalCopies"] != DBNull.Value ? Convert.ToInt32(reader["TotalCopies"]) : 1;
+                                    int? categoryId = reader["CategoryID"] != DBNull.Value ? Convert.ToInt32(reader["CategoryID"]) : (int?)null;
+                                    int? editionTypeId = reader["EditionTypeID"] != DBNull.Value ? Convert.ToInt32(reader["EditionTypeID"]) : (int?)null;
+                                    int? formatId = reader["FormatID"] != DBNull.Value ? Convert.ToInt32(reader["FormatID"]) : (int?)null;
 
                                     Dispatcher.Invoke(() =>
                                     {
@@ -634,12 +735,15 @@ namespace Diplom_Bibl.Pages
                                         TbYear.Text = yearPublishing.ToString();
                                         TbAnnotation.Text = anotation;
                                         TbPrice.Text = price.ToString("F2", CultureInfo.InvariantCulture).Replace('.', ',');
+
                                         CbAuthor.SelectedValue = author;
-                                        CbViewBook.SelectedValue = idViewBook;
                                         if (publishingHouse.HasValue) CbPublisher.SelectedValue = publishingHouse.Value;
                                         if (gener.HasValue) CbGenre.SelectedValue = gener.Value;
                                         if (statusBook.HasValue) CbStatus.SelectedValue = statusBook.Value;
                                         if (idReceip.HasValue) CbReceipt.SelectedValue = idReceip.Value;
+                                        if (categoryId.HasValue) CbCategory.SelectedValue = categoryId.Value;
+                                        if (editionTypeId.HasValue) CbEditionType.SelectedValue = editionTypeId.Value;
+                                        if (formatId.HasValue) CbFormat.SelectedValue = formatId.Value;
                                     });
                                 }
                             }
@@ -695,7 +799,7 @@ namespace Diplom_Bibl.Pages
         private async void BtnSaveNew_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(TbInventoryNumber.Text) || string.IsNullOrWhiteSpace(TbTitle.Text) ||
-                CbAuthor.SelectedValue == null || CbViewBook.SelectedValue == null || !int.TryParse(TbYear.Text, out int year))
+                CbAuthor.SelectedValue == null || !int.TryParse(TbYear.Text, out int year))
             {
                 CustomMessageBox.Show("Заполните обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -716,12 +820,14 @@ namespace Diplom_Bibl.Pages
             string inventoryNumber = TbInventoryNumber.Text.Trim();
             string title = TbTitle.Text.Trim();
             int authorId = (int)CbAuthor.SelectedValue;
-            int viewBookId = (int)CbViewBook.SelectedValue;
             object publisherId = CbPublisher.SelectedValue ?? DBNull.Value;
             object genreId = CbGenre.SelectedValue ?? DBNull.Value;
-            object statusId = CbStatus.SelectedValue ?? DBNull.Value;
+            object statusId = CbStatus.SelectedValue ?? (object)_defaultStatusId;
             string annotation = TbAnnotation.Text.Trim();
             object receiptId = CbReceipt.SelectedValue ?? DBNull.Value;
+            int? categoryId = CbCategory.SelectedValue as int?;
+            int? editionTypeId = CbEditionType.SelectedValue as int?;
+            int? formatId = CbFormat.SelectedValue as int?;
 
             try
             {
@@ -729,8 +835,10 @@ namespace Diplom_Bibl.Pages
                 {
                     const string sql = @"
                         INSERT INTO Books (InventaryNumber, TitleBook, Author, PublishingHouse, YearPublishing,
-                            Gener, StatusBook, Anotation, IDReceip, ID_View_Book, Price)
-                        VALUES (@Inv, @Title, @Author, @Pub, @Year, @Genre, @Status, @Annot, @Receipt, @View, @Price)";
+                            Gener, StatusBook, Anotation, IDReceip, Price, TotalCopies, AvailableCopies, CopiesInUse, 
+                            CategoryID, EditionTypeID, FormatID)
+                        VALUES (@Inv, @Title, @Author, @Pub, @Year, @Genre, @Status, @Annot, @Receipt, @Price, 1, 1, 0, 
+                            @CategoryID, @EditionTypeID, @FormatID)";
                     using (var conn = new SqlConnection(_connectionString))
                     {
                         conn.Open();
@@ -745,8 +853,10 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@Status", statusId);
                             cmd.Parameters.AddWithValue("@Annot", string.IsNullOrEmpty(annotation) ? DBNull.Value : (object)annotation);
                             cmd.Parameters.AddWithValue("@Receipt", receiptId);
-                            cmd.Parameters.AddWithValue("@View", viewBookId);
                             cmd.Parameters.AddWithValue("@Price", price);
+                            cmd.Parameters.AddWithValue("@CategoryID", categoryId ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@EditionTypeID", editionTypeId ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@FormatID", formatId ?? (object)DBNull.Value);
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -770,7 +880,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
             if (string.IsNullOrWhiteSpace(TbInventoryNumber.Text) || string.IsNullOrWhiteSpace(TbTitle.Text) ||
-                CbAuthor.SelectedValue == null || CbViewBook.SelectedValue == null || !int.TryParse(TbYear.Text, out int year))
+                CbAuthor.SelectedValue == null || !int.TryParse(TbYear.Text, out int year))
             {
                 CustomMessageBox.Show("Заполните обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -792,7 +902,6 @@ namespace Diplom_Bibl.Pages
             string inventoryNumber = TbInventoryNumber.Text.Trim();
             string title = TbTitle.Text.Trim();
             int authorId = (int)CbAuthor.SelectedValue;
-            int viewBookId = (int)CbViewBook.SelectedValue;
             object publisherId = CbPublisher.SelectedValue ?? DBNull.Value;
             object genreId = CbGenre.SelectedValue ?? DBNull.Value;
             object statusId = CbStatus.SelectedValue ?? DBNull.Value;
@@ -806,7 +915,8 @@ namespace Diplom_Bibl.Pages
                     const string updateQuery = @"
                         UPDATE Books SET InventaryNumber=@Inv, TitleBook=@Title, Author=@Author, PublishingHouse=@Pub,
                             YearPublishing=@Year, Gener=@Genre, StatusBook=@Status, Anotation=@Annot,
-                            IDReceip=@Receipt, ID_View_Book=@View, Price=@Price WHERE IDBook=@Id";
+                            IDReceip=@Receipt, Price=@Price, TotalCopies=@TotalCopies
+                        WHERE IDBook=@Id";
                     using (var conn = new SqlConnection(_connectionString))
                     {
                         conn.Open();
@@ -821,7 +931,6 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@Status", statusId);
                             cmd.Parameters.AddWithValue("@Annot", string.IsNullOrEmpty(annotation) ? DBNull.Value : (object)annotation);
                             cmd.Parameters.AddWithValue("@Receipt", receiptId);
-                            cmd.Parameters.AddWithValue("@View", viewBookId);
                             cmd.Parameters.AddWithValue("@Price", price);
                             cmd.Parameters.AddWithValue("@Id", bookId);
                             cmd.ExecuteNonQuery();
@@ -832,7 +941,6 @@ namespace Diplom_Bibl.Pages
                 await Dispatcher.InvokeAsync(() => ClearForm());
                 _cancellationTokenSource = new CancellationTokenSource();
                 await LoadBooksToListAsync(_cancellationTokenSource.Token);
-               
             }
             catch (Exception ex)
             {
@@ -889,11 +997,13 @@ namespace Diplom_Bibl.Pages
                 TbAnnotation.Clear();
                 TbPrice.Clear();
                 CbAuthor.SelectedIndex = -1;
-                CbViewBook.SelectedIndex = -1;
                 CbPublisher.SelectedIndex = -1;
                 CbGenre.SelectedIndex = -1;
-                CbStatus.SelectedIndex = -1;
+                CbStatus.SelectedValue = _defaultStatusId;
                 CbReceipt.SelectedIndex = -1;
+                CbCategory.SelectedIndex = -1;
+                CbEditionType.SelectedIndex = -1;
+                CbFormat.SelectedIndex = -1;
                 _currentBookId = null;
                 BtnSaveNew.Visibility = Visibility.Visible;
                 BtnSaveChanges.Visibility = Visibility.Collapsed;
@@ -904,7 +1014,6 @@ namespace Diplom_Bibl.Pages
         }
 
         private void BtnAddAuthor_Click(object sender, RoutedEventArgs e) => NavigationService.Navigate(new AddAuthor());
-        private void BtnAddViewBook_Click(object sender, RoutedEventArgs e) => NavigationService.Navigate(new AddViewBook());
         private void BtnAddPublisher_Click(object sender, RoutedEventArgs e) => NavigationService.Navigate(new AddPublishingHouse());
         private void BtnAddGenre_Click(object sender, RoutedEventArgs e) => NavigationService.Navigate(new AddGener());
         private void BtnAddStatus_Click(object sender, RoutedEventArgs e) => NavigationService.Navigate(new AddStatusBook());

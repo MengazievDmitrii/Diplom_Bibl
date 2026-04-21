@@ -583,6 +583,11 @@ namespace Diplom_Bibl.Pages
             reportWindow.ShowDialog();
         }
 
+        private void OpenButton_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService?.Navigate(new InventoryActReport());
+        }
+
         // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
         private bool ValidateDates()
         {

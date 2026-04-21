@@ -1,0 +1,65 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.AddEditionType"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Управление типами изданий книг" Loaded="Page_Loaded"
+      Background="#F5F5F5">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Управление типами изданий" 
+                   Style="{StaticResource SectionTitleStyle}"/>
+
+        <Grid Grid.Row="1" Margin="0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Форма ввода -->
+            <StackPanel Grid.Column="0" Width="400" Margin="15">
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Название типа издания *" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbEditionTypeName" Style="{StaticResource InputFieldStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Описание" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbDescription" AcceptsReturn="True" Height="80" 
+                             Style="{StaticResource InputFieldStyle}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="BtnSaveNew" Content="Сохранить"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="BtnSaveNew_Click" Width="160" Margin="0,0,10,0"/>
+                    <Button x:Name="BtnSaveChanges" Content="Сохранить изменения"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="BtnSaveChanges_Click" Visibility="Collapsed" Margin="0,0,10,0"/>
+                    <Button x:Name="BtnDelete" Content="Удалить"
+                            Style="{StaticResource DeleteButtonStyle}"
+                            Click="BtnDelete_Click" Visibility="Collapsed" Width="100"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Список категорий -->
+            <DataGrid Grid.Column="1" x:Name="DgEditionType" AutoGenerateColumns="False" IsReadOnly="True"
+                      RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
+                      MouseDoubleClick="DgEditionType_MouseDoubleClick">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Название" Binding="{Binding EditionTypeName}" Width="200"/>
+                    <DataGridTextColumn Header="Описание" Binding="{Binding Description}" Width="250"/>
+
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <Button Grid.Row="2" Content="← Закрыть" Style="{StaticResource PrimaryButtonStyle}"
+                Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
+                HorizontalAlignment="Center" Width="160" Click="ClosePage_Click" Margin="0,20,0,0"/>
+    </Grid>
+</Page>

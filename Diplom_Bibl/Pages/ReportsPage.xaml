@@ -184,7 +184,7 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
-                 <!--Отчёт 1: Выдача литературы--> 
+                <!--Отчёт 1: Выдача литературы-->
                 <Border Style="{StaticResource ReportCardStyle}">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -193,17 +193,17 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        
-                 <!--Иконка--> 
-                
+
+                        <!--Иконка-->
+
                         <Path Grid.Column="0"
                               Data="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"
                               Style="{StaticResource ReportIconStyle}"
                               Margin="0,0,16,0"/>
 
-                        
-                 <!--Текст--> 
-                
+
+                        <!--Текст-->
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Выдача литературы"
                                        Style="{StaticResource ReportTitleStyle}"/>
@@ -211,9 +211,9 @@
                                        Style="{StaticResource ReportDescStyle}"/>
                         </StackPanel>
 
-                        
-                 <!--Кнопки--> 
-                
+
+                        <!--Кнопки-->
+
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
                             <Button Content="Просмотр" 
                                     Style="{StaticResource ReportButtonStyle}"
@@ -333,6 +333,39 @@
                                     Background="{StaticResource SuccessColor}" 
                                     Foreground="White"
                                     Click="ExportExcelButton_Click"/>
+                            <!-- ДОБАВЛЕНО: Click обработчик -->
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <!-- Отчёт 4: Проверка библиотечного фонда -->
+                <Border Style="{StaticResource ReportCardStyle}" Width="446">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+                              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                              Style="{StaticResource ReportIconStyle}"
+                              Margin="0,0,16,0"
+                              Fill="{StaticResource DangerColor}"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Проверка библиотечного фонда"
+                                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="-"
+                                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Grid.ColumnSpan="2" HorizontalAlignment="Right" Width="70">
+                            <Button x:Name="OpenButton"
+                                    Content="Открыть" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource AccentColor}" 
+                                    Foreground="White" 
+                                    Margin="0,0,8,0"
+                                    Click="OpenButton_Click"/>
+                            <!-- УБРАНО: Click="ViewReport_Click" -->
+
                             <!-- ДОБАВЛЕНО: Click обработчик -->
                         </StackPanel>
                     </Grid>
