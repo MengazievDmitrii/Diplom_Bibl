@@ -13,7 +13,7 @@ namespace Diplom_Bibl.Pages
         private readonly string connectionString =
             "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;";
 
-        private int? _currentViewBookId = null;
+        private int? _currentViewIDBook = null;
         private System.Collections.ObjectModel.ObservableCollection<object> _allViewBooks;
 
         public AddViewBook()
@@ -86,7 +86,7 @@ namespace Diplom_Bibl.Pages
         private void ClearFields()
         {
             View_Book_Tb.Clear();
-            _currentViewBookId = null;
+            _currentViewIDBook = null;
             SaveNewRecordButton.Visibility = Visibility.Visible;
             SaveChangesButton.Visibility = Visibility.Collapsed;
             DeleteButton.Visibility = Visibility.Collapsed;
@@ -142,7 +142,7 @@ namespace Diplom_Bibl.Pages
 
         private void SaveChangesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentViewBookId.HasValue)
+            if (!_currentViewIDBook.HasValue)
             {
                  CustomMessageBox.Show("Нет выбранной записи для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -168,7 +168,7 @@ namespace Diplom_Bibl.Pages
                     using (var command = new SqlCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@View_Book", viewName);
-                        command.Parameters.AddWithValue("@Id", _currentViewBookId.Value);
+                        command.Parameters.AddWithValue("@Id", _currentViewIDBook.Value);
 
                         int rows = command.ExecuteNonQuery();
                         if (rows > 0)
@@ -194,7 +194,7 @@ namespace Diplom_Bibl.Pages
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentViewBookId.HasValue)
+            if (!_currentViewIDBook.HasValue)
             {
                  CustomMessageBox.Show("Нет выбранной записи для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -215,7 +215,7 @@ namespace Diplom_Bibl.Pages
                     connection.Open();
                     using (var command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@Id", _currentViewBookId.Value);
+                        command.Parameters.AddWithValue("@Id", _currentViewIDBook.Value);
                         int rows = command.ExecuteNonQuery();
 
                         if (rows > 0)
@@ -252,7 +252,7 @@ namespace Diplom_Bibl.Pages
             try
             {
                 dynamic view = item;
-                _currentViewBookId = view.ID_View_Book;
+                _currentViewIDBook = view.ID_View_Book;
                 View_Book_Tb.Text = view.View_Book;
 
                 SaveNewRecordButton.Visibility = Visibility.Collapsed;

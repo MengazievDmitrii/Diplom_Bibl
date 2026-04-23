@@ -399,7 +399,7 @@ namespace Diplom_Bibl.Pages
 
                 string title = TitleBox.Text.Trim();
                 int authorId = (int)AuthorCombo.SelectedValue;
-                int viewBookId = (int)ViewBookCombo.SelectedValue;
+                int viewIDBook = (int)ViewBookCombo.SelectedValue;
                 int? publisherId = PublisherCombo.SelectedValue as int?;
                 int? genreId = GenreCombo.SelectedValue as int?;
                 int year = int.Parse(YearBox.Text);
@@ -447,7 +447,7 @@ namespace Diplom_Bibl.Pages
                                     cmd.Parameters.AddWithValue("@Year", year);
                                     cmd.Parameters.AddWithValue("@Genre", genreId ?? (object)DBNull.Value);
                                     cmd.Parameters.AddWithValue("@Status", statusId);
-                                    cmd.Parameters.AddWithValue("@View", viewBookId);
+                                    cmd.Parameters.AddWithValue("@View", viewIDBook);
                                     cmd.Parameters.AddWithValue("@Price", price);
                                     cmd.Parameters.AddWithValue("@ReceiptId", receiptId ?? (object)DBNull.Value);
 

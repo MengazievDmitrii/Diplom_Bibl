@@ -5,17 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Diplom_Bibl"
         mc:Ignorable="d"
-        Title="Библиотечная система НМК" Loaded="Window_Loaded">
+        Title="Библиотечная система НМК" Loaded="Window_Loaded"
+        Height="700" Width="1200">
     <Window.Resources>
-        <!-- Цвета -->
+        <!-- Цвета и стили (оставляем без изменений) -->
         <SolidColorBrush x:Key="PrimaryColor" Color="#0056B3"/>
         <SolidColorBrush x:Key="PrimaryLightColor" Color="#E3F2FD"/>
         <SolidColorBrush x:Key="AccentColor" Color="#007BFF"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#FFC107"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
+        <SolidColorBrush x:Key="LightGray" Color="#E9ECEF"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#DEE2E6"/>
         <SolidColorBrush x:Key="TextColor" Color="#333333"/>
         <SolidColorBrush x:Key="MenuBgColor" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="MenuHoverColor" Color="#F0F8FF"/>
         <SolidColorBrush x:Key="MenuActiveColor" Color="#E3F2FD"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
         <!-- Стиль для кнопок меню -->
         <Style x:Key="MenuButtonStyle" TargetType="Button">
@@ -55,7 +60,6 @@
             </Setter>
         </Style>
 
-        <!-- Стиль для активной кнопки -->
         <Style x:Key="ActiveMenuButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
             <Setter Property="Background" Value="{StaticResource MenuActiveColor}"/>
             <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
@@ -66,16 +70,13 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240"/>
-            <!-- Меню -->
             <ColumnDefinition Width="*"/>
-            <!-- Контент -->
         </Grid.ColumnDefinitions>
 
         <!-- Левое меню -->
         <Border Grid.Column="0" Background="{StaticResource MenuBgColor}" 
                 BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,1,0">
             <StackPanel>
-                <!-- Заголовок меню -->
                 <StackPanel Orientation="Horizontal" Margin="16,24,16,32">
                     <TextBlock Text="📚" FontSize="24" Margin="0,0,8,0"/>
                     <TextBlock Text="Библиотека НМК-1" 
@@ -84,12 +85,35 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Пункты меню -->
+                <!-- Панель уведомлений -->
+                <Border Margin="12,0,12,12" Background="{StaticResource PrimaryLightColor}"
+                        CornerRadius="8" Padding="10" Cursor="Hand"
+                        MouseLeftButtonDown="NotificationPanel_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="🔔" FontSize="16"/>
+                        <TextBlock Grid.Column="1" Text="Уведомления" Margin="8,0,0,0" 
+                                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Border Grid.Column="2" Background="{StaticResource DangerColor}"
+                                CornerRadius="10" Padding="5,2" MinWidth="20"
+                                HorizontalAlignment="Right">
+                            <TextBlock x:Name="TbUnreadCount" Text="0" Foreground="White"
+                                       FontSize="10" FontWeight="Bold"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Остальные кнопки меню -->
                 <Button x:Name="BtnInfoService" 
                         Style="{StaticResource MenuButtonStyle}"
                         Tag="Информационное обслуживание"
-                        Click="MenuButton_Click" Width="240" Height="58" RenderTransformOrigin="0.5,0.5" Margin="0,4,0,4">
-
+                        Click="MenuButton_Click" Width="240" Height="58" Margin="0,4,0,4">
                     <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
                           Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
                           Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"/>
@@ -121,20 +145,36 @@
                           Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
                           Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"/>
                 </Button>
+
+                <Button x:Name="BtnRequestBook" 
+                        Style="{StaticResource MenuButtonStyle}"
+                        Tag="Подать заявку"
+                        Click="MenuButton_Click">
+                    <Path Data="M4 6h16v12H4V6zm2 2v2h12V8H6zm0 4v2h12v-2H6z"
+                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                          Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"/>
+                </Button>
+
+                <Button x:Name="BtnRequestsManagement" 
+                        Style="{StaticResource MenuButtonStyle}"
+                        Tag="Управление заявками"
+                        Click="MenuButton_Click">
+                    <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h-4v-2h4v2zm0-4h-4v-2h4v2zm6 4h-4v-2h4v2zm0-4h-4v-2h4v2z"
+                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                          Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"/>
+                </Button>
+
                 <Button x:Name="BtnSitings" 
                         Style="{StaticResource MenuButtonStyle}"
                         Tag="Настройки"
                         Click="MenuButton_Click">
                     <Path Data="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.53c.07-.3.09-.62.09-.97 0-.35-.02-.67-.09-.97l2.03-1.55c.18-.14.23-.39.13-.61l-1.92-3.32c-.1-.18-.31-.29-.53-.29h-2.53c-.46 0-.89-.25-1.13-.65L14.2 2.11c-.24-.4-.65-.65-1.13-.65s-.9.25-1.13.65L10.07 5.39c-.24.4-.65.65-1.13.65H6.41c-.22 0-.43.11-.53.29L4.06 9.65c-.1.22-.05.47.13.61l2.03 1.55c-.07.3-.09.62-.09.97 0 .35.02.67.09.97l-2.03 1.55c-.18.14-.23.39-.13.61l1.92 3.32c.1.18.31.29.53.29h2.53c.46 0 .89.25 1.13.65l1.87 3.28c.24.4.65.65 1.13.65s.9-.25 1.13-.65l1.87-3.28c.24-.4.65-.65 1.13-.65h2.53c.22 0 .43-.11.53-.29l1.92-3.32c.1-.22.05-.47-.13-.61l-2.03-1.55z"
-      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
-      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0" />
+                              Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                              Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0" />
                 </Button>
 
-
-                <!-- Разделитель -->
                 <Separator Margin="16,24" Height="1" Background="{StaticResource BorderColor}"/>
 
-                <!-- Кнопка выхода -->
                 <Button x:Name="BtnLogout"
                         Style="{StaticResource MenuButtonStyle}"
                         Tag="Выход"
@@ -156,4 +196,3 @@
         </Grid>
     </Grid>
 </Window>
-

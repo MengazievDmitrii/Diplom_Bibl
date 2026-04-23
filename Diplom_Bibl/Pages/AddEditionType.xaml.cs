@@ -173,7 +173,7 @@ namespace Diplom_Bibl.Pages
             try
             {
                 const string query = @"
-                    UPDATE BookCategories 
+                    UPDATE EditionTypes 
                     SET EditionTypeName = @Name, Description = @Description
                     WHERE ID_EditionType = @Id";
 

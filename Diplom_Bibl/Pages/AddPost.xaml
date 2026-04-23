@@ -111,7 +111,7 @@
                     <DataTemplate>
                         <Border Padding="8" 
                                 Margin="2" 
-                                CornerRadius="4" 
+                                
                                 Background="{StaticResource PrimaryLightColor}"
                                 BorderBrush="{StaticResource BorderColor}"
                                 BorderThickness="1">

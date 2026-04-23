@@ -474,7 +474,7 @@
                                     <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                         <TextBlock Text="Доступно" Style="{StaticResource LabelStyle}"/>
                                         <Border Background="{StaticResource LightGray}"
-                                                CornerRadius="4"
+                                               
                                                 Padding="8"
                                                 Height="36">
                                             <TextBlock x:Name="AvailableQuantityText" 

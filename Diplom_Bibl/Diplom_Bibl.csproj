@@ -275,6 +275,9 @@
     <Compile Include="Pages\AdmissionBook.xaml.cs">
       <DependentUpon>AdmissionBook.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\BookRequestsManagement.xaml.cs">
+      <DependentUpon>BookRequestsManagement.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\BulkAddBooks.xaml.cs">
       <DependentUpon>BulkAddBooks.xaml</DependentUpon>
     </Compile>
@@ -294,6 +297,9 @@
     <Compile Include="Pages\Readers.xaml.cs">
       <DependentUpon>Readers.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\RequestBook.xaml.cs">
+      <DependentUpon>RequestBook.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\ReturnBooksPage.xaml.cs">
       <DependentUpon>ReturnBooksPage.xaml</DependentUpon>
     </Compile>
@@ -306,6 +312,7 @@
     <Compile Include="Services\BookIssuanceService.cs" />
     <Compile Include="Services\BookService.cs" />
     <Compile Include="Services\GenreService.cs" />
+    <Compile Include="Services\NotificationService.cs" />
     <Compile Include="Services\ReceiptNumberGenerator.cs" />
     <Compile Include="Services\ReceiptService.cs" />
     <Compile Include="Services\UserService.cs" />
@@ -441,6 +448,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Pages\BookRequestsManagement.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Pages\BulkAddBooks.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -462,6 +473,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\Readers.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\RequestBook.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

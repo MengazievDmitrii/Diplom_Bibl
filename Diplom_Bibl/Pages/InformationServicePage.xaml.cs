@@ -38,6 +38,25 @@ namespace Diplom_Bibl.Pages
         private int _statusAvailableId = 1; // "В наличии"
         private int _statusIssuedId = 3;    // "Выдана"
 
+        // Данные из заявки для автоматического заполнения
+        private int? _pendingRequestId = null;
+        private int? _pendingUserId = null;
+        private int? _pendingGroupId = null;
+        private string _pendingUserName = "";
+        private string _pendingGroupCode = "";
+        private string _pendingLessonName = "";
+        private DateTime? _pendingLessonDate = null;
+
+        // Класс для книг из заявки (с количеством)
+        public class RequestBookItem
+        {
+            public int IDBook { get; set; }
+            public string TitleBook { get; set; } = "";
+            public string AuthorName { get; set; } = "";
+            public int Quantity { get; set; }
+            public int AvailableCopies { get; set; }
+        }
+
         public InformationServicePage()
         {
             InitializeComponent();
@@ -61,10 +80,24 @@ namespace Diplom_Bibl.Pages
             LoadTeachers();
             LoadBooks();
             InitializeStats();
-            LoadStatusIds(); // Загружаем ID статусов
+            LoadStatusIds();
 
             // Подписываемся на события
             this.Loaded += (s, e) => UpdateInventoryPreview();
+        }
+
+        /// <summary>
+        /// Устанавливает данные из заявки для автоматического заполнения
+        /// </summary>
+        public void SetDataFromRequest(int requestId, int userId, int? groupId, string userName, string groupCode, string lessonName, DateTime lessonDate)
+        {
+            _pendingRequestId = requestId;
+            _pendingUserId = userId;
+            _pendingGroupId = groupId;
+            _pendingUserName = userName;
+            _pendingGroupCode = groupCode;
+            _pendingLessonName = lessonName;
+            _pendingLessonDate = lessonDate;
         }
 
         private void LoadStatusIds()
@@ -75,7 +108,6 @@ namespace Diplom_Bibl.Pages
                 {
                     conn.Open();
 
-                    // Получаем ID статуса "В наличии"
                     string availableQuery = "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%'";
                     using (var cmd = new SqlCommand(availableQuery, conn))
                     {
@@ -84,7 +116,6 @@ namespace Diplom_Bibl.Pages
                             _statusAvailableId = Convert.ToInt32(result);
                     }
 
-                    // Получаем ID статуса "Выдана"
                     string issuedQuery = "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Выдана%'";
                     using (var cmd = new SqlCommand(issuedQuery, conn))
                     {
@@ -134,12 +165,6 @@ namespace Diplom_Bibl.Pages
                             else
                             {
                                 _currentRecordId = null;
-                                // НЕ ОБНУЛЯЕМ поля, если записи нет!
-                                // Оставляем текущие значения
-                                // BooksCountBox.Text = "0";
-                                // ReferencesCountBox.Text = "0";
-                                // EventsCountBox.Text = "0";
-
                                 SaveNewRecordButton.Visibility = Visibility.Visible;
                                 SaveChangesButton.Visibility = Visibility.Collapsed;
                                 DeleteButton.Visibility = Visibility.Collapsed;
@@ -155,6 +180,7 @@ namespace Diplom_Bibl.Pages
                 CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
         private void UpdateStatsDisplay()
         {
             if (BooksCountStat != null)
@@ -175,7 +201,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -187,9 +213,10 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
         private void LoadTeachers()
         {
             try
@@ -199,10 +226,11 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки преподавателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки преподавателей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 _teachers = new ObservableCollection<BookIssuanceService.TeacherInfo>();
             }
         }
+
         private void LoadBooks()
         {
             try
@@ -211,7 +239,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -221,7 +249,6 @@ namespace Diplom_Bibl.Pages
             {
                 _todayIssues = _issuanceService.GetIssuancesByDate(DateTime.Today);
 
-                // Добавляем цвета для просрочки
                 foreach (var item in _todayIssues)
                 {
                     item.OverdueColor = item.IsOverdue ?
@@ -230,16 +257,10 @@ namespace Diplom_Bibl.Pages
                 }
 
                 IssuesDataGrid.ItemsSource = _todayIssues;
-
-                System.Diagnostics.Debug.WriteLine($"LoadTodayIssues: загружено {_todayIssues.Count} записей");
-                foreach (var item in _todayIssues)
-                {
-                    System.Diagnostics.Debug.WriteLine($"  - {item.IssuanceType}: {item.DisplayBook}");
-                }
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -278,10 +299,8 @@ namespace Diplom_Bibl.Pages
                 {
                     if (ReaderSearchSection != null)
                         ReaderSearchSection.Visibility = Visibility.Visible;
-
                     if (GroupSearchSection != null)
                         GroupSearchSection.Visibility = Visibility.Collapsed;
-
                     if (QuantityBox != null)
                     {
                         QuantityBox.Text = "1";
@@ -292,10 +311,8 @@ namespace Diplom_Bibl.Pages
                 {
                     if (ReaderSearchSection != null)
                         ReaderSearchSection.Visibility = Visibility.Collapsed;
-
                     if (GroupSearchSection != null)
                         GroupSearchSection.Visibility = Visibility.Visible;
-
                     if (QuantityBox != null && _selectedBook != null)
                     {
                         QuantityBox.IsEnabled = true;
@@ -466,17 +483,12 @@ namespace Diplom_Bibl.Pages
 
                 string search = TeacherSearchBox.Text.Trim();
 
-                // Проверяем, не является ли текст плейсхолдером
                 if (search == "Введите фамилию преподавателя..." || string.IsNullOrWhiteSpace(search))
                 {
                     TeachersListBox.Visibility = Visibility.Collapsed;
                     return;
                 }
 
-                // Для отладки
-                System.Diagnostics.Debug.WriteLine($"Поиск преподавателя: {search}");
-
-                // Фильтруем существующую коллекцию _teachers (не обращаемся к базе каждый раз)
                 var filtered = _teachers.Where(t =>
                     t.LastName.ToLower().Contains(search.ToLower()) ||
                     t.FirstName.ToLower().Contains(search.ToLower())).Take(10).ToList();
@@ -507,8 +519,6 @@ namespace Diplom_Bibl.Pages
                     TeacherSearchBox.Text = selected.FullName;
                     TeacherSearchBox.Foreground = Brushes.Black;
                     TeachersListBox.Visibility = Visibility.Collapsed;
-
-                    System.Diagnostics.Debug.WriteLine($"Выбран преподаватель: {selected.FullName}");
                 }
             }
             catch (Exception ex)
@@ -548,7 +558,6 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            // Получаем студентов через сервис
             _students = _issuanceService.GetReadersStudent(search);
 
             if (_students.Any())
@@ -625,7 +634,6 @@ namespace Diplom_Bibl.Pages
             {
                 _selectedBook = selected;
 
-                // Обновляем отображение выбранной книги
                 SelectedBookTitle.Text = selected.TitleBook;
                 SelectedBookAuthor.Text = selected.AuthorName;
                 SelectedBookPanel.Visibility = Visibility.Visible;
@@ -634,7 +642,6 @@ namespace Diplom_Bibl.Pages
                 BookSearchBox.Foreground = Brushes.Black;
                 BooksListBox.Visibility = Visibility.Collapsed;
 
-                // Показываем общее доступное количество
                 AvailableQuantityText.Text = selected.AvailableCopies.ToString();
                 UpdateInventoryPreview();
             }
@@ -651,10 +658,9 @@ namespace Diplom_Bibl.Pages
 
         private void CreateIssueButton_Click(object sender, RoutedEventArgs e)
         {
-            // Валидация
             if (_selectedBook == null)
             {
-                 CustomMessageBox.Show("Выберите книгу для выдачи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите книгу для выдачи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -663,64 +669,53 @@ namespace Diplom_Bibl.Pages
             {
                 if (!int.TryParse(QuantityBox?.Text, out requestedQuantity) || requestedQuantity <= 0)
                 {
-                     CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
             }
-            System.Diagnostics.Debug.WriteLine($"Выбрана книга: {_selectedBook.TitleBook}, Автор: {_selectedBook.AuthorName}");
-            System.Diagnostics.Debug.WriteLine($"Всего доступно: {_selectedBook.AvailableCopies}, Запрошено: {requestedQuantity}");
 
-            // Проверяем доступное количество
             if (requestedQuantity > _selectedBook.AvailableCopies)
             {
-                 CustomMessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
+                CustomMessageBox.Show($"Недостаточно экземпляров. Доступно: {_selectedBook.AvailableCopies}",
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
             if (ReaderTypeRadio.IsChecked == true)
             {
-                // Выдача читателю
                 if (_selectedReader == null)
                 {
-                     CustomMessageBox.Show("Выберите читателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Выберите читателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
-
                 CreateIndividualIssuance(requestedQuantity);
             }
             else
             {
-                // Выдача группе
                 if (_selectedGroup == null)
                 {
-                     CustomMessageBox.Show("Выберите группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Выберите группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
-
                 if (_selectedTeacher == null)
                 {
-                     CustomMessageBox.Show("Выберите преподавателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Выберите преподавателя.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
-
                 if (_selectedStudent == null)
                 {
-                     CustomMessageBox.Show("Выберите студента.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Выберите студента.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
-
                 CreateGroupIssuance(requestedQuantity);
             }
         }
 
-        private void CreateIndividualIssuance(int quantity)
+        private async void CreateIndividualIssuance(int quantity)
         {
             try
             {
-                // Получаем ID книги
-                int bookId = GetAvailableBookIdWithQuantity(_selectedBook.TitleBook, _selectedBook.AuthorName, 1);
-
+                int bookId = GetAvailableIDBookWithQuantity(_selectedBook.TitleBook, _selectedBook.AuthorName, 1);
                 if (bookId == 0)
                 {
                     CustomMessageBox.Show("Не найдено доступных экземпляров книги.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
@@ -729,70 +724,47 @@ namespace Diplom_Bibl.Pages
 
                 DateTime plannedReturnDate = DateTime.Now.AddDays(14);
 
-                int issuanceId = _issuanceService.CreateIndividualIssuance(
-                    bookId,
-                    _selectedReader.ReaderID,
-                    plannedReturnDate,
-                    "Выдача через информационное обслуживание"
-                );
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand("sp_CreateIndividualIssuance", conn))
+                    {
+                        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@BookId", bookId);
+                        cmd.Parameters.AddWithValue("@ReaderId", _selectedReader.ReaderID);
+                        cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
+                        cmd.Parameters.AddWithValue("@Notes", "Выдача через информационное обслуживание");
 
-                // Обновляем статус книги на "Выдана"
-                UpdateBookStatus(bookId, _statusIssuedId);
+                        var issuanceIdParam = cmd.Parameters.Add("@IssuanceId", System.Data.SqlDbType.Int);
+                        issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
 
-                // Обновляем статистику в базе данных
-                UpdateDailyStats(quantity);
+                        await cmd.ExecuteNonQueryAsync();
 
-                // Обновляем количество книг локально
-                _selectedBook.AvailableCopies -= quantity;
-                AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+                        int issuanceId = issuanceIdParam.Value != DBNull.Value ? Convert.ToInt32(issuanceIdParam.Value) : 0;
 
-                 CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                        UpdateDailyStats(quantity);
+                        _selectedBook.AvailableCopies -= quantity;
+                        AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+                        LoadBooks();
 
-                // Очищаем форму
+                        CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    }
+                }
+
                 ClearSelectedBook_Click(null, null);
                 _selectedReader = null;
                 ReaderSearchBox.Text = "Введите фамилию или номер билета...";
                 ReaderSearchBox.Foreground = Brushes.Gray;
 
-                // Обновляем список выдач и книг
                 LoadTodayIssues();
-                LoadBooks();
-                LoadTodayStats(); // Перезагружаем статистику из базы
+                LoadTodayStats();
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при создании выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-        /// <summary>
-        /// Обновляет статус книги
-        /// </summary>
-        private void UpdateBookStatus(int bookId, int statusId)
-        {
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-                    string query = "UPDATE Books SET StatusBook = @StatusId WHERE IDBook = @BookId";
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@StatusId", statusId);
-                        cmd.Parameters.AddWithValue("@BookId", bookId);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка обновления статуса книги: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Обновляет статистику за день в базе данных
-        /// </summary>
         private void UpdateDailyStats(int additionalBooks)
         {
             try
@@ -803,7 +775,6 @@ namespace Diplom_Bibl.Pages
                 {
                     conn.Open();
 
-                    // Проверяем, есть ли запись за сегодня
                     string checkQuery = "SELECT id_record, delivery_book FROM InformationServiseTb WHERE date_record = @Date";
 
                     using (var cmd = new SqlCommand(checkQuery, conn))
@@ -813,7 +784,6 @@ namespace Diplom_Bibl.Pages
                         {
                             if (reader.Read())
                             {
-                                // Запись существует - обновляем
                                 int currentId = Convert.ToInt32(reader["id_record"]);
                                 int currentBooks = Convert.ToInt32(reader["delivery_book"]);
                                 reader.Close();
@@ -833,7 +803,6 @@ namespace Diplom_Bibl.Pages
                             else
                             {
                                 reader.Close();
-                                // Записи нет - создаем новую
                                 string insertQuery = @"
                             INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count) 
                             VALUES (@Date, @Books, 0, 0)";
@@ -854,10 +823,8 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"Ошибка обновления статистики: {ex.Message}");
             }
         }
-        /// <summary>
-        /// Получает ID книги, у которой достаточно экземпляров для выдачи
-        /// </summary>
-        private int GetAvailableBookIdWithQuantity(string title, string author, int requiredQuantity)
+
+        private int GetAvailableIDBookWithQuantity(string title, string author, int requiredQuantity)
         {
             try
             {
@@ -883,10 +850,8 @@ namespace Diplom_Bibl.Pages
                         {
                             if (reader.Read())
                             {
-                                int bookId = Convert.ToInt32(reader["IDBook"]);
-                                int available = Convert.ToInt32(reader["AvailableCopies"]);
-                                System.Diagnostics.Debug.WriteLine($"Найдена книга ID={bookId} с {available} экземплярами");
-                                return bookId;
+                                int IDBook = Convert.ToInt32(reader["IDBook"]);
+                                return IDBook;
                             }
                         }
                     }
@@ -896,11 +861,10 @@ namespace Diplom_Bibl.Pages
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книги: {ex.Message}");
             }
-
             return 0;
         }
 
-        private void CreateGroupIssuance(int quantity)
+        private async void CreateGroupIssuance(int quantity)
         {
             try
             {
@@ -908,43 +872,45 @@ namespace Diplom_Bibl.Pages
 
                 if (bookIds.Count < quantity)
                 {
-                     CustomMessageBox.Show($"Недостаточно экземпляров книги.\n" +
-                                   $"Требуется: {quantity}, доступно: {bookIds.Count}",
+                    CustomMessageBox.Show($"Недостаточно экземпляров книги.\nТребуется: {quantity}, доступно: {bookIds.Count}",
                         "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
                 DateTime plannedReturnDate = DateTime.Now.AddDays(30);
+                string bookIdsString = string.Join(",", bookIds);
 
-                int issuanceId = _issuanceService.CreateGroupIssuanceWithBooks(
-                    _selectedGroup.GroupID,
-                    _selectedTeacher.TeacherID,
-                    _selectedStudent.ReaderID,
-                    plannedReturnDate,
-                    bookIds,
-                    "Урок",
-                    "Групповая выдача"
-                );
-
-                // Обновляем статус каждой выданной книги на "Выдана"
-                foreach (int bookId in bookIds)
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    UpdateBookStatus(bookId, _statusIssuedId);
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand("sp_CreateGroupIssuance", conn))
+                    {
+                        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@GroupId", _selectedGroup.GroupID);
+                        cmd.Parameters.AddWithValue("@TeacherId", _selectedTeacher.TeacherID);
+                        cmd.Parameters.AddWithValue("@StudentId", _selectedStudent.ReaderID);
+                        cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
+                        cmd.Parameters.AddWithValue("@SubjectName", "Урок");
+                        cmd.Parameters.AddWithValue("@Notes", "Групповая выдача");
+                        cmd.Parameters.AddWithValue("@BookIds", bookIdsString);
+
+                        var issuanceIdParam = cmd.Parameters.Add("@GroupIssuanceId", System.Data.SqlDbType.Int);
+                        issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
+
+                        await cmd.ExecuteNonQueryAsync();
+
+                        int issuanceId = issuanceIdParam.Value != DBNull.Value ? Convert.ToInt32(issuanceIdParam.Value) : 0;
+
+                        UpdateDailyStats(quantity);
+                        _selectedBook.AvailableCopies -= quantity;
+                        AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
+                        LoadBooks();
+
+                        CustomMessageBox.Show($"Групповая выдача успешно создана!\nID выдачи: {issuanceId}\nВыдано книг: {quantity}",
+                            "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    }
                 }
 
-                // Обновляем статистику в базе данных
-                UpdateDailyStats(quantity);
-
-                // Обновляем количество книг локально
-                _selectedBook.AvailableCopies -= quantity;
-                AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
-
-                 CustomMessageBox.Show($"Групповая выдача успешно создана!\n" +
-                               $"ID выдачи: {issuanceId}\n" +
-                               $"Выдано книг: {quantity}",
-                    "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                // Очищаем форму
                 ClearSelectedBook_Click(null, null);
                 _selectedGroup = null;
                 _selectedTeacher = null;
@@ -957,16 +923,57 @@ namespace Diplom_Bibl.Pages
                 StudentSearchBox.Text = "Введите фамилию или номер билета...";
                 StudentSearchBox.Foreground = Brushes.Gray;
 
-                // Обновляем список выдач и книг
                 LoadTodayIssues();
-                LoadBooks();
-                LoadTodayStats(); // Перезагружаем статистику из базы
+                LoadTodayStats();
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
+        private List<int> GetAvailableBookIds(string title, string author, int requiredQuantity)
+        {
+            var bookIds = new List<int>();
+
+            try
+            {
+                string sql = @"
+            SELECT TOP (@RequiredQuantity) b.IDBook
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE b.TitleBook = @Title 
+              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+              AND b.AvailableCopies > 0
+              AND b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%')
+            ORDER BY b.IDBook";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        cmd.Parameters.AddWithValue("@Author", author);
+                        cmd.Parameters.AddWithValue("@RequiredQuantity", requiredQuantity);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                bookIds.Add(Convert.ToInt32(reader["IDBook"]));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книг: {ex.Message}");
+            }
+            return bookIds;
+        }
+
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !char.IsDigit(e.Text, 0);
@@ -1014,8 +1021,7 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@ID", _currentRecordId.Value);
                             cmd.ExecuteNonQuery();
                         }
-
-                         CustomMessageBox.Show("Запись обновлена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                        CustomMessageBox.Show("Запись обновлена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     }
                     else
                     {
@@ -1027,7 +1033,7 @@ namespace Diplom_Bibl.Pages
 
                             if (count > 0)
                             {
-                                 CustomMessageBox.Show("Запись за эту дату уже существует! Используйте редактирование.",
+                                CustomMessageBox.Show("Запись за эту дату уже существует! Используйте редактирование.",
                                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                                 return;
                             }
@@ -1045,16 +1051,14 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@Events", events);
                             cmd.ExecuteNonQuery();
                         }
-
-                         CustomMessageBox.Show("Запись сохранена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                        CustomMessageBox.Show("Запись сохранена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     }
                 }
-
                 LoadTodayStats();
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -1063,7 +1067,7 @@ namespace Diplom_Bibl.Pages
             if (!_currentRecordId.HasValue)
                 return;
 
-            var result =  CustomMessageBox.Show("Удалить запись за этот день?", "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+            var result = CustomMessageBox.Show("Удалить запись за этот день?", "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
             if (result == CustomMessageBoxResult.Yes)
             {
@@ -1079,73 +1083,346 @@ namespace Diplom_Bibl.Pages
                             cmd.ExecuteNonQuery();
                         }
                     }
-
                     LoadTodayStats();
-                     CustomMessageBox.Show("Запись удалена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    CustomMessageBox.Show("Запись удалена!", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                     CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
-        }
-        /// <summary>
-        /// Получает список ID книг, которые будут выданы (по одному ID на каждый экземпляр)
-        /// </summary>
-        private List<int> GetAvailableBookIds(string title, string author, int requiredQuantity)
-        {
-            var bookIds = new List<int>();
-
-            try
-            {
-                string sql = @"
-            SELECT TOP (@RequiredQuantity) b.IDBook
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.TitleBook = @Title 
-              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
-              AND b.AvailableCopies > 0
-            ORDER BY b.IDBook";
-
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Title", title);
-                        cmd.Parameters.AddWithValue("@Author", author);
-                        cmd.Parameters.AddWithValue("@RequiredQuantity", requiredQuantity);
-
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                bookIds.Add(Convert.ToInt32(reader["IDBook"]));
-                            }
-                        }
-                    }
-                }
-
-                System.Diagnostics.Debug.WriteLine($"Найдено книг: {bookIds.Count} из {requiredQuantity} требуемых");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книг: {ex.Message}");
-            }
-
-            return bookIds;
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             LoadTodayStats();
             LoadTeachers();
+
+            if (_pendingRequestId.HasValue)
+            {
+                AutoFillFromRequest();
+            }
         }
 
+
+        private async void AutoFillFromRequest()
+        {
+            try
+            {
+                // Групповая выдача (есть группа)
+                if (_pendingGroupId.HasValue && _pendingGroupId > 0)
+                {
+                    GroupTypeRadio.IsChecked = true;
+                    await LoadAndSelectGroup(_pendingGroupCode);
+                    await LoadAndSelectStudent(_pendingUserId.Value, _pendingUserName);
+                }
+                // Индивидуальная выдача
+                else
+                {
+                    ReaderTypeRadio.IsChecked = true;
+
+                    // Если UserTypeID = 3 (Сотрудник), то загружаем в поле преподаватель
+                    // Если UserTypeID = 1 (Студент), то загружаем в поле читатель
+                    if (_pendingUserTypeId == 3) // Сотрудник -> Преподаватель
+                    {
+                        await LoadAndSelectReader(_pendingUserId.Value, _pendingUserName);
+                    }
+                    else // Студент -> Читатель
+                    {
+                        await LoadAndSelectTeacher(_pendingUserId.Value, _pendingUserName);
+                    }
+                }
+
+                await LoadRequestBooks(_pendingRequestId.Value);
+
+                CustomMessageBox.Show($"Данные из заявки №{_pendingRequestId} загружены.",
+                    "Информация", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка автозаполнения: {ex.Message}");
+                CustomMessageBox.Show($"Ошибка загрузки данных из заявки: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadAndSelectTeacher(int userId, string userName)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string query = @"
+                SELECT ReaderID, LastName, FirstName, MiddleName, CardNumber 
+                FROM ReaderForm 
+                WHERE ReaderID = @UserId";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var teacher = new BookIssuanceService.TeacherInfo
+                                {
+                                    TeacherID = Convert.ToInt32(reader["ReaderID"]),
+                                    LastName = reader["LastName"].ToString(),
+                                    FirstName = reader["FirstName"].ToString(),
+                                    MiddleName = reader["MiddleName"]?.ToString()
+                                };
+                                _selectedTeacher = teacher;
+                                TeacherSearchBox.Text = teacher.FullName;
+                                TeacherSearchBox.Foreground = Brushes.Black;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки преподавателя: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadAndSelectGroup(string groupCode)
+        {
+            if (string.IsNullOrEmpty(groupCode)) return;
+            try
+            {
+                var group = _groups.FirstOrDefault(g => g.GroupCode == groupCode);
+                if (group != null)
+                {
+                    _selectedGroup = group;
+                    GroupSearchBox.Text = group.GroupCode;
+                    GroupSearchBox.Foreground = Brushes.Black;
+                    await LoadStudentsByGroup(group.GroupID);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки группы: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadStudentsByGroup(int groupId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string query = @"
+                        SELECT DISTINCT
+                            rf.ReaderID,
+                            rf.LastName,
+                            rf.FirstName,
+                            rf.MiddleName,
+                            rf.CardNumber
+                        FROM ReaderForm rf
+                        JOIN StudentsGroups sg ON rf.ReaderID = sg.StudentID
+                        WHERE sg.GroupID = @GroupId
+                        ORDER BY rf.LastName, rf.FirstName";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@GroupId", groupId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            _students.Clear();
+                            while (await reader.ReadAsync())
+                            {
+                                _students.Add(new BookIssuanceService.ReaderInfo
+                                {
+                                    ReaderID = Convert.ToInt32(reader["ReaderID"]),
+                                    LastName = reader["LastName"].ToString(),
+                                    FirstName = reader["FirstName"].ToString(),
+                                    MiddleName = reader["MiddleName"]?.ToString(),
+                                    CardNumber = reader["CardNumber"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки студентов: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadAndSelectStudent(int userId, string userName)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string query = @"
+                        SELECT ReaderID, LastName, FirstName, MiddleName, CardNumber 
+                        FROM ReaderForm 
+                        WHERE ReaderID = @UserId";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var student = new BookIssuanceService.ReaderInfo
+                                {
+                                    ReaderID = Convert.ToInt32(reader["ReaderID"]),
+                                    LastName = reader["LastName"].ToString(),
+                                    FirstName = reader["FirstName"].ToString(),
+                                    MiddleName = reader["MiddleName"]?.ToString(),
+                                    CardNumber = reader["CardNumber"].ToString()
+                                };
+                                _selectedStudent = student;
+                                StudentSearchBox.Text = student.DisplayInfo;
+                                StudentSearchBox.Foreground = Brushes.Black;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки студента: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadAndSelectReader(int userId, string userName)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string query = @"
+                        SELECT ReaderID, LastName, FirstName, MiddleName, CardNumber 
+                        FROM ReaderForm 
+                        WHERE ReaderID = @UserId";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                var readerInfo = new BookIssuanceService.ReaderInfo
+                                {
+                                    ReaderID = Convert.ToInt32(reader["ReaderID"]),
+                                    LastName = reader["LastName"].ToString(),
+                                    FirstName = reader["FirstName"].ToString(),
+                                    MiddleName = reader["MiddleName"]?.ToString(),
+                                    CardNumber = reader["CardNumber"].ToString()
+                                };
+                                _selectedReader = readerInfo;
+                                ReaderSearchBox.Text = readerInfo.DisplayInfo;
+                                ReaderSearchBox.Foreground = Brushes.Black;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки читателя: {ex.Message}");
+            }
+        }
+
+        private async System.Threading.Tasks.Task LoadRequestBooks(int requestId)
+        {
+            try
+            {
+                string query = @"
+                    SELECT 
+                        ri.BookID,
+                        b.TitleBook,
+                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                        ri.Quantity
+                    FROM RequestItems ri
+                    JOIN Books b ON ri.BookID = b.IDBook
+                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                    WHERE ri.RequestID = @RequestId AND ri.StatusID = 1";
+
+                var booksFromRequest = new List<RequestBookItem>();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@RequestId", requestId);
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                booksFromRequest.Add(new RequestBookItem
+                                {
+                                    IDBook = Convert.ToInt32(reader["BookID"]),
+                                    TitleBook = reader["TitleBook"].ToString(),
+                                    AuthorName = reader["AuthorName"].ToString(),
+                                    Quantity = Convert.ToInt32(reader["Quantity"]),
+                                    AvailableCopies = 1
+                                });
+                            }
+                        }
+                    }
+                }
+
+                if (booksFromRequest.Any())
+                {
+                    var firstBook = booksFromRequest.First();
+                    var fullBook = _books.FirstOrDefault(b => b.IDBook == firstBook.IDBook);
+
+                    if (fullBook != null)
+                    {
+                        _selectedBook = fullBook;
+                        SelectedBookTitle.Text = fullBook.TitleBook;
+                        SelectedBookAuthor.Text = fullBook.AuthorName;
+                        SelectedBookPanel.Visibility = Visibility.Visible;
+                        BookSearchBox.Text = fullBook.TitleBook;
+                        AvailableQuantityText.Text = fullBook.AvailableCopies.ToString();
+
+                        if (GroupTypeRadio.IsChecked == true)
+                        {
+                            QuantityBox.Text = firstBook.Quantity.ToString();
+                            QuantityBox.IsEnabled = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки книг из заявки: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Устанавливает данные из заявки для автоматического заполнения (индивидуальная выдача)
+        /// </summary>
+        public void SetDataFromRequestIndividual(int requestId, int userId, string userName, string lessonName, DateTime lessonDate, int userTypeId)
+        {
+            _pendingRequestId = requestId;
+            _pendingUserId = userId;
+            _pendingUserName = userName;
+            _pendingLessonName = lessonName;
+            _pendingLessonDate = lessonDate;
+            _pendingUserTypeId = userTypeId;
+            _pendingGroupId = null; // Индивидуальная выдача
+        }
+
+        // Добавьте поле в класс InformationServicePage
+        private int? _pendingUserTypeId = null;
         private void ReturnBooksButton_Click(object sender, RoutedEventArgs e)
         {
             NavigationService.Navigate(new ReturnBooksPage());
         }
+
         private void InitializeStats()
         {
             try
@@ -1180,7 +1457,6 @@ namespace Diplom_Bibl.Pages
                             else
                             {
                                 _currentRecordId = null;
-                                // Если записи нет, показываем нули (только при первой загрузке)
                                 BooksCountBox.Text = "0";
                                 ReferencesCountBox.Text = "0";
                                 EventsCountBox.Text = "0";
@@ -1197,7 +1473,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
     }

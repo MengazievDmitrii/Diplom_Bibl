@@ -23,7 +23,7 @@ namespace Diplom_Bibl.Pages
     public partial class AddStatusBook : Page
     {
         private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
-        private int? _currentStatusBookId = null; // Переменная для хранения ID текущей загруженной записи
+        private int? _currentStatusIDBook = null; // Переменная для хранения ID текущей загруженной записи
         private System.Collections.ObjectModel.ObservableCollection<object> _allStatusBooks;
         public AddStatusBook()
         {
@@ -145,7 +145,7 @@ namespace Diplom_Bibl.Pages
                                             "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             // После сохранения новой записи, можно перезагрузить её, чтобы ID появился
                             // или просто сбросить currentRecordId, если не планируете сразу редактировать
-                            _currentStatusBookId = null; // Сбрасываем, так как это новая запись, ID которой мы не знаем
+                            _currentStatusIDBook = null; // Сбрасываем, так как это новая запись, ID которой мы не знаем
                             // Или вызвать LoadFirstRecordForDate(DateTime.Parse(date)) для получения ID, если это важно
                             LoadStatusBook();
                         }
@@ -174,7 +174,7 @@ namespace Diplom_Bibl.Pages
         // --- Обработчик сохранения изменений существующей записи ---
         private void SaveChangesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentStatusBookId.HasValue)
+            if (!_currentStatusIDBook.HasValue)
             {
                  CustomMessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -210,7 +210,7 @@ namespace Diplom_Bibl.Pages
                         command.Parameters.AddWithValue("@Title_Status", titlestatus);
 
 
-                        command.Parameters.AddWithValue("@Id", _currentStatusBookId.Value); // Используем ID текущей записи
+                        command.Parameters.AddWithValue("@Id", _currentStatusIDBook.Value); // Используем ID текущей записи
 
                         int rowsAffected = command.ExecuteNonQuery();
 
@@ -225,7 +225,7 @@ namespace Diplom_Bibl.Pages
                         {
                              CustomMessageBox.Show("Запись не была обновлена. Возможно, она была удалена другим процессом.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearInputFields();
-                            _currentStatusBookId = null;
+                            _currentStatusIDBook = null;
                             // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
                             SaveNewRecordButton.Visibility = Visibility.Visible;
                             SaveChangesButton.Visibility = Visibility.Collapsed;
@@ -249,7 +249,7 @@ namespace Diplom_Bibl.Pages
         // --- Обработчик удаления записи ---
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentStatusBookId.HasValue)
+            if (!_currentStatusIDBook.HasValue)
             {
                  CustomMessageBox.Show("Нет загруженной записи для удаления. Выберите статус.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -270,7 +270,7 @@ namespace Diplom_Bibl.Pages
                         connection.Open();
                         using (SqlCommand command = new SqlCommand(deleteQuery, connection))
                         {
-                            command.Parameters.AddWithValue("@Id", _currentStatusBookId.Value);
+                            command.Parameters.AddWithValue("@Id", _currentStatusIDBook.Value);
 
                             int rowsAffected = command.ExecuteNonQuery();
 
@@ -278,7 +278,7 @@ namespace Diplom_Bibl.Pages
                             {
                                  CustomMessageBox.Show("Запись успешно удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                                 ClearInputFields(); // Очищаем поля после удаления
-                                _currentStatusBookId = null;
+                                _currentStatusIDBook = null;
                                 LoadStatusBook();
                                 // --- Скрываем кнопки изменения/удаления, показываем "Сохранить новую" ---
                                 SaveNewRecordButton.Visibility = Visibility.Visible;
@@ -328,7 +328,7 @@ namespace Diplom_Bibl.Pages
 
                 TitleStatus.Text = title;
 
-                _currentStatusBookId = statusId; // ← если у вас есть такая переменная
+                _currentStatusIDBook = statusId; // ← если у вас есть такая переменная
 
                 //Переключаем кнопки(если нужно)
                 SaveNewRecordButton.Visibility = Visibility.Collapsed;

@@ -1,0 +1,273 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\bookrequestsmanagement.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\bookrequestsmanagement.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\bookrequestsmanagement.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\bookrequestsmanagement.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|c:\\users\\menga\\source\\repos\\diplom_bibl\\diplom_bibl\\pages\\informationservicepage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\informationservicepage.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\addbookcategory.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\addbookcategory.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|c:\\users\\menga\\source\\repos\\diplom_bibl\\diplom_bibl\\pages\\requestbook.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\requestbook.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|c:\\users\\menga\\source\\repos\\diplom_bibl\\diplom_bibl\\services\\bookissuanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\services\\bookissuanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\informationservicepage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\informationservicepage.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\addeditiontype.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\addeditiontype.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\inventoryactreport.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\inventoryactreport.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\requestbook.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\requestbook.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\services\\notificationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\services\\notificationservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\windows\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\windows\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\windows\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\windows\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\diplom_bibl\\pages\\inventoryactreport.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FB5C69AC-E3EB-4042-BAD9-77F6C3E3243F}|Diplom_Bibl\\Diplom_Bibl.csproj|solutionrelative:diplom_bibl\\pages\\inventoryactreport.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 1,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedHeight": 402,
+          "SelectedChildIndex": 13,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{d78612c7-9962-4b83-95d9-268046dad23a}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:4:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "RequestBook.xaml",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\RequestBook.xaml",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\RequestBook.xaml",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\RequestBook.xaml",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\RequestBook.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-04-23T13:50:54.234Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "BookIssuanceService.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Services\\BookIssuanceService.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Services\\BookIssuanceService.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Services\\BookIssuanceService.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Services\\BookIssuanceService.cs",
+              "ViewState": "AgIAAB0CAAAAAAAAAAAAAEECAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-23T13:45:58.402Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "AddEditionType.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\AddEditionType.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\AddEditionType.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\AddEditionType.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\AddEditionType.xaml.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAGsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T12:52:38.672Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "AddBookCategory.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\AddBookCategory.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\AddBookCategory.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\AddBookCategory.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\AddBookCategory.xaml.cs",
+              "ViewState": "AgIAAGQAAAAAAAAAAAASwGwAAAAbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T12:52:36.528Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "InformationServicePage.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InformationServicePage.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\InformationServicePage.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InformationServicePage.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\InformationServicePage.xaml.cs",
+              "ViewState": "AgIAAFwEAAAAAAAAAAAawGUEAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T12:37:29.165Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "NotificationService.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Services\\NotificationService.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Services\\NotificationService.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Services\\NotificationService.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Services\\NotificationService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T12:09:04.762Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "BookRequestsManagement.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\BookRequestsManagement.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\BookRequestsManagement.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\BookRequestsManagement.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\BookRequestsManagement.xaml.cs",
+              "ViewState": "AgIAAA8CAAAAAAAAAAAAAA8CAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T11:58:25.139Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "BookRequestsManagement.xaml",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\BookRequestsManagement.xaml",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\BookRequestsManagement.xaml",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\BookRequestsManagement.xaml",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\BookRequestsManagement.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-04-22T11:56:58.002Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "MainWindow.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Windows\\MainWindow.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Windows\\MainWindow.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Windows\\MainWindow.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Windows\\MainWindow.xaml.cs",
+              "ViewState": "AgIAAHgAAAAAAAAAAAAowJgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T11:14:52.356Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Windows\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Windows\\MainWindow.xaml",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Windows\\MainWindow.xaml",
+              "RelativeToolTip": "Diplom_Bibl\\Windows\\MainWindow.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-04-22T11:12:13.795Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "InformationServicePage.xaml",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InformationServicePage.xaml",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\InformationServicePage.xaml",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InformationServicePage.xaml",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\InformationServicePage.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-04-22T11:12:07.833Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "RequestBook.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\RequestBook.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\RequestBook.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\RequestBook.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\RequestBook.xaml.cs",
+              "ViewState": "AgIAADUAAAAAAAAAAAAAADkAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T11:00:24.136Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "InventoryActReport.xaml",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InventoryActReport.xaml",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\InventoryActReport.xaml",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InventoryActReport.xaml",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\InventoryActReport.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-04-22T10:16:24.062Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "InventoryActReport.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InventoryActReport.xaml.cs",
+              "RelativeDocumentMoniker": "Diplom_Bibl\\Pages\\InventoryActReport.xaml.cs",
+              "ToolTip": "C:\\Users\\menga\\source\\repos\\Diplom_Bibl\\Diplom_Bibl\\Pages\\InventoryActReport.xaml.cs",
+              "RelativeToolTip": "Diplom_Bibl\\Pages\\InventoryActReport.xaml.cs",
+              "ViewState": "AgIAANoAAAAAAAAAAAAuwPIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-22T09:30:28.626Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

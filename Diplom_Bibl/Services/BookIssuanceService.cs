@@ -29,7 +29,7 @@ namespace Diplom_Bibl.Services
             public int RecipientId { get; set; }
             public string RecipientName { get; set; }
             public string RecipientType { get; set; }
-            public int BookId { get; set; }
+            public int IDBook { get; set; }
             public string BookTitle { get; set; }
             public string InventaryNumber { get; set; }
             public int Quantity { get; set; }
@@ -408,7 +408,7 @@ namespace Diplom_Bibl.Services
         /// <summary>
         /// Создание индивидуальной выдачи
         /// </summary>
-        public int CreateIndividualIssuance(int bookId, int readerId, DateTime plannedReturnDate, string notes = "")
+        public int CreateIndividualIssuance(int IDBook, int readerId, DateTime plannedReturnDate, string notes = "")
         {
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -417,7 +417,7 @@ namespace Diplom_Bibl.Services
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@BookId", bookId);
+                    cmd.Parameters.AddWithValue("@IDBook", IDBook);
                     cmd.Parameters.AddWithValue("@ReaderId", readerId);
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);
@@ -443,7 +443,7 @@ namespace Diplom_Bibl.Services
             string subjectName = "",
             string notes = "")
         {
-            // Формируем строку для процедуры "BookId1:Quantity1,BookId2:Quantity2"
+            // Формируем строку для процедуры "IDBook1:Quantity1,IDBook2:Quantity2"
             var booksList = new StringBuilder();
             foreach (var book in booksWithQuantity)
             {
@@ -527,7 +527,7 @@ namespace Diplom_Bibl.Services
             r.ReaderID AS RecipientId,
             CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
             'Читатель' AS RecipientType,
-            b.IDBook AS BookId,
+            b.IDBook AS IDBook,
             b.TitleBook AS BookTitle,
             b.InventaryNumber,
             1 AS Quantity,
@@ -550,7 +550,7 @@ namespace Diplom_Bibl.Services
             g.GroupID AS RecipientId,
             g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName AS RecipientName,
             'Группа' AS RecipientType,
-            NULL AS BookId,
+            NULL AS IDBook,
             NULL AS BookTitle,  -- Для групповых выдач название будет заполнено позже
             NULL AS InventaryNumber,
             SUM(git.Quantity) AS Quantity,
@@ -587,7 +587,7 @@ namespace Diplom_Bibl.Services
                                 RecipientId = Convert.ToInt32(reader["RecipientId"]),
                                 RecipientName = reader["RecipientName"]?.ToString() ?? "",
                                 RecipientType = reader["RecipientType"]?.ToString() ?? "",
-                                BookId = reader["BookId"] != DBNull.Value ? Convert.ToInt32(reader["BookId"]) : 0,
+                                IDBook = reader["IDBook"] != DBNull.Value ? Convert.ToInt32(reader["IDBook"]) : 0,
                                 BookTitle = reader["BookTitle"]?.ToString() ?? "",
                                 InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
                                 Quantity = Convert.ToInt32(reader["Quantity"]),
@@ -635,7 +635,7 @@ namespace Diplom_Bibl.Services
                 b.TitleBook,
                 SUM(git.Quantity) AS TotalQuantity
             FROM GroupIssuanceItems git
-            INNER JOIN Books b ON git.BookId = b.IDBook
+            INNER JOIN Books b ON git.IDBook = b.IDBook
             WHERE git.GroupIssuanceId = @GroupIssuanceId
             GROUP BY b.TitleBook
             ORDER BY b.TitleBook";
@@ -691,14 +691,14 @@ namespace Diplom_Bibl.Services
                     i.ReaderId AS RecipientId,
                     CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
                     'Читатель' AS RecipientType,
-                    b.IDBook AS BookId,
+                    b.IDBook AS IDBook,
                     b.TitleBook AS BookTitle,
                     b.InventaryNumber,
                     1 AS Quantity,
                     i.Notes
                 FROM BookIssuance i
                 INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
-                INNER JOIN Books b ON i.BookId = b.IDBook
+                INNER JOIN Books b ON i.IDBook = b.IDBook
                 WHERE i.ReaderId = @ReaderId AND i.ReturnDate IS NULL
                 ORDER BY i.PlannedReturnDate";
 
@@ -724,7 +724,7 @@ namespace Diplom_Bibl.Services
                                 RecipientId = Convert.ToInt32(reader["RecipientId"]),
                                 RecipientName = reader["RecipientName"]?.ToString() ?? "",
                                 RecipientType = reader["RecipientType"]?.ToString() ?? "",
-                                BookId = Convert.ToInt32(reader["BookId"]),
+                                IDBook = Convert.ToInt32(reader["IDBook"]),
                                 BookTitle = reader["BookTitle"]?.ToString() ?? "",
                                 InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
                                 Quantity = Convert.ToInt32(reader["Quantity"]),
@@ -745,15 +745,15 @@ namespace Diplom_Bibl.Services
      int teacherId,
      int studentId,
      DateTime plannedReturnDate,
-     List<int> bookIds,
+     List<int> IDBooks,
      string subjectName = "",
      string notes = "")
         {
-            if (bookIds == null || bookIds.Count == 0)
+            if (IDBooks == null || IDBooks.Count == 0)
                 throw new ArgumentException("Список книг не может быть пустым");
 
             // Формируем строку с ID книг через запятую
-            string bookIdsString = string.Join(",", bookIds);
+            string IDBooksString = string.Join(",", IDBooks);
 
             using (var conn = new SqlConnection(_connectionString))
             {
@@ -768,7 +768,7 @@ namespace Diplom_Bibl.Services
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrWhiteSpace(subjectName) ? DBNull.Value : (object)subjectName);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);
-                    cmd.Parameters.AddWithValue("@BookIds", bookIdsString);
+                    cmd.Parameters.AddWithValue("@IDBooks", IDBooksString);
 
                     var outputParam = cmd.Parameters.Add("@GroupIssuanceId", SqlDbType.Int);
                     outputParam.Direction = ParameterDirection.Output;

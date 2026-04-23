@@ -232,7 +232,7 @@
                                 Background="{StaticResource PrimaryLightColor}"
                                 BorderBrush="{StaticResource BorderColor}"
                                 BorderThickness="1"
-                                CornerRadius="4">
+                               >
                             <StackPanel>
                                 <TextBlock Text="{Binding DisplayInfo}" 
                                            FontSize="14" 

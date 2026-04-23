@@ -31,7 +31,7 @@ namespace Diplom_Bibl.Pages
             public string GroupCode { get; set; }
             public string TeacherName { get; set; }
             public string StudentName { get; set; }
-            public int BookId { get; set; }
+            public int IDBook { get; set; }
             public string BookTitle { get; set; }
             public string InventaryNumber { get; set; }
             public int Quantity { get; set; }
@@ -96,7 +96,7 @@ namespace Diplom_Bibl.Pages
                             GroupCode,
                             TeacherName,
                             StudentName,
-                            BookId,
+                            IDBook,
                             BookTitle,
                             InventaryNumber,
                             Quantity,
@@ -129,7 +129,7 @@ namespace Diplom_Bibl.Pages
                                     GroupCode = reader["GroupCode"]?.ToString() ?? "",
                                     TeacherName = reader["TeacherName"]?.ToString() ?? "",
                                     StudentName = reader["StudentName"]?.ToString() ?? "",
-                                    BookId = Convert.ToInt32(reader["BookId"]),
+                                    IDBook = Convert.ToInt32(reader["IDBook"]),
                                     BookTitle = reader["BookTitle"]?.ToString() ?? "",
                                     InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
                                     Quantity = Convert.ToInt32(reader["Quantity"]),

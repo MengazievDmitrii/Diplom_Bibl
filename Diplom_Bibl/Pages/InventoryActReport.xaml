@@ -1,0 +1,192 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.InventoryActReport"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Акт проверки библиотечного фонда" Loaded="Page_Loaded"
+      Background="#F5F5F5">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок организации -->
+            <TextBlock x:Name="OrganizationName" Grid.Row="0" 
+                       Text="Государственное бюджетное профессиональное образовательное учреждение &quot;Нефтекамский машиностроительный колледж&quot;"
+                       FontSize="14" FontWeight="Bold" TextAlignment="Center"
+                       TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+            <!-- Название документа -->
+            <TextBlock Grid.Row="1" Text="АКТ № ___ от &quot;__&quot; _______ 20__ г."
+                       FontSize="16" FontWeight="Bold" TextAlignment="Center"
+                       Margin="0,0,0,15"/>
+
+            <TextBlock Grid.Row="2" Text="проверки библиотечного фонда"
+                       FontSize="14" FontWeight="Normal" TextAlignment="Center"
+                       Margin="0,0,0,20"/>
+
+            <!-- Основание и комиссия -->
+            <Border Grid.Row="3" Background="White" CornerRadius="8"
+                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                    Padding="15" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock x:Name="OrderInfo" Text="Основание: приказ № ___ от ___.___.20__"
+                               FontSize="12" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Состав комиссии:" FontWeight="Bold" FontSize="12" Margin="0,0,0,5"/>
+                    <TextBlock x:Name="ChairmanInfo" Text="Председатель: _______________" FontSize="12" Margin="0,0,0,3"/>
+                    <TextBlock x:Name="Member1Info" Text="Члены комиссии: _______________" FontSize="12" Margin="0,0,0,3"/>
+                    <TextBlock x:Name="Member2Info" Text="________________" FontSize="12" Margin="0,0,0,3"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Параметры проверки -->
+            <Border Grid.Row="4" Background="White" CornerRadius="8"
+                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                    Padding="15" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="Дата проверки с:" Style="{StaticResource LabelStyle}"/>
+                        <DatePicker x:Name="StartDatePicker" Style="{StaticResource DatePickerStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                        <TextBlock Text="по:" Style="{StaticResource LabelStyle}"/>
+                        <DatePicker x:Name="EndDatePicker" Style="{StaticResource DatePickerStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                        <TextBlock Text="Статус проверки:" Style="{StaticResource LabelStyle}"/>
+                        <ComboBox x:Name="StatusFilterCombo" Style="{StaticResource InputFieldStyleCb}"
+                                  SelectionChanged="StatusFilter_SelectionChanged">
+                            <ComboBoxItem Content="Все книги" IsSelected="True"/>
+                            <ComboBoxItem Content="В наличии"/>
+                            <ComboBoxItem Content="Отсутствуют"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Категория книг:" Style="{StaticResource LabelStyle}"/>
+                        <ComboBox x:Name="CategoryFilterCombo"
+          Style="{StaticResource InputFieldStyleCb}"
+          SelectionChanged="CategoryFilter_SelectionChanged"
+          ItemsSource="{Binding BookCategories}"
+          DisplayMemberPath="CategoryName"
+          SelectedIndex="0">
+                        </ComboBox>
+
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Кнопки действий -->
+            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,15">
+                <Button Content="📄 Сформировать акт" Style="{StaticResource SaveButtonStyle}"
+                        Click="GenerateReport_Click" Width="180" Margin="0,0,10,0"/>
+                <Button Content="📥 Экспорт в Excel" Style="{StaticResource SaveButtonStyle}"
+                        Background="{StaticResource SuccessColor}" Click="ExportToExcel_Click" Width="150"/>
+            </StackPanel>
+
+            <!-- Таблица с книгами -->
+            <DataGrid Grid.Row="6" x:Name="BooksDataGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                      RowHeight="30" AlternatingRowBackground="{StaticResource LightGray}"
+                      Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                      Margin="0,0,0,15">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                        <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Height" Value="35"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Padding" Value="5,0"/>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="№ п/п" Binding="{Binding RowNumber}" Width="50"/>
+                    <DataGridTextColumn Header="Автор, заглавие" Binding="{Binding BookFullTitle}" Width="300"/>
+                    <DataGridTextColumn Header="Год издания" Binding="{Binding YearPublishing}" Width="80"/>
+                    <DataGridTextColumn Header="Цена" Binding="{Binding Price, StringFormat='F2'}" Width="80"/>
+                    <DataGridTextColumn Header="Инвентарный номер" Binding="{Binding InventaryNumber}" Width="100"/>
+                    <DataGridTemplateColumn Header="Отметка о проверке" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <ComboBox SelectedItem="{Binding VerificationStatus}"
+                                          ItemsSource="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Page}, Path=DataContext.StatusOptions}"
+                                          IsEnabled="{Binding CanEdit}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Причина отсутствия" Binding="{Binding ReasonMissing}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Итоги проверки -->
+            <Border Grid.Row="7" Background="{StaticResource PrimaryLightColor}" CornerRadius="8"
+                    Padding="15" Margin="0,0,0,15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Всего проверено книг:" FontWeight="Bold" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="TotalBooksCount" Text="0" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="В наличии:" FontWeight="Bold" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="BooksPresentCount" Text="0" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Отсутствует:" FontWeight="Bold" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="BooksMissingCount" Text="0" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Подписи -->
+            <Border Grid.Row="8" Background="White" CornerRadius="8"
+                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                    Padding="15">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Председатель комиссии: _______________ /_________________/" FontSize="11"/>
+                        <TextBlock Text="Члены комиссии: _______________ /_________________/" FontSize="11" Margin="0,5,0,0"/>
+                        <TextBlock Text="_______________ /_________________/" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="Ответственный за фонд: _______________ /_________________/" FontSize="11"/>
+                        <TextBlock Text="Бухгалтер: _______________ /_________________/" FontSize="11" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</Page>

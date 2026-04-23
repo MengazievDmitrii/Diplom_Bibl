@@ -30,7 +30,7 @@ namespace Diplom_Bibl.Pages
     public partial class AddBook : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
-        private int? _currentBookId = null;
+        private int? _currentIDBook = null;
         private ObservableCollection<BookListItem> _allBooks;
         private CancellationTokenSource _cancellationTokenSource;
         private bool _isLoadingBooks = false;
@@ -44,10 +44,10 @@ namespace Diplom_Bibl.Pages
             SubscribeInventoryNumberEvents();
         }
 
-        public AddBook(int bookId)
+        public AddBook(int IDBook)
         {
             InitializeComponent();
-            _currentBookId = bookId;
+            _currentIDBook = IDBook;
             SubscribeInventoryNumberEvents();
         }
 
@@ -66,7 +66,7 @@ namespace Diplom_Bibl.Pages
             await Task.Delay(10);
             await LoadDataAsync();
 
-            if (!_currentBookId.HasValue && string.IsNullOrWhiteSpace(TbInventoryNumber.Text))
+            if (!_currentIDBook.HasValue && string.IsNullOrWhiteSpace(TbInventoryNumber.Text))
             {
                 string nextNumber = await GetNextInventoryNumberAsync();
                 TbInventoryNumber.Text = nextNumber;
@@ -100,9 +100,9 @@ namespace Diplom_Bibl.Pages
                 _cancellationTokenSource = new CancellationTokenSource();
                 await LoadBooksToListAsync(_cancellationTokenSource.Token);
 
-                if (_currentBookId.HasValue)
+                if (_currentIDBook.HasValue)
                 {
-                    await LoadBookDataAsync(_currentBookId.Value);
+                    await LoadBookDataAsync(_currentIDBook.Value);
                     BtnSaveNew.Visibility = Visibility.Collapsed;
                     BtnSaveChanges.Visibility = Visibility.Visible;
                     BtnDelete.Visibility = Visibility.Visible;
@@ -184,7 +184,7 @@ namespace Diplom_Bibl.Pages
             if (textBox == null) return;
             string text = textBox.Text.Trim();
             if (string.IsNullOrEmpty(text)) return;
-            if (!_currentBookId.HasValue && int.TryParse(text, out int number))
+            if (!_currentIDBook.HasValue && int.TryParse(text, out int number))
             {
                 textBox.Text = number.ToString("D6");
                 textBox.CaretIndex = textBox.Text.Length;
@@ -352,7 +352,7 @@ namespace Diplom_Bibl.Pages
                             CbStatus.DisplayMemberPath = "DisplayStatus";
                             CbStatus.SelectedValuePath = "ID";
 
-                            if (items.Count > 0 && !_currentBookId.HasValue)
+                            if (items.Count > 0 && !_currentIDBook.HasValue)
                             {
                                 CbStatus.SelectedValue = _defaultStatusId;
                             }
@@ -689,7 +689,7 @@ namespace Diplom_Bibl.Pages
             NavigationService?.Navigate(new AddPublicationFormat());
         }
 
-        private async Task LoadBookDataAsync(int bookId)
+        private async Task LoadBookDataAsync(int IDBook)
         {
             await Task.Run(() =>
             {
@@ -701,14 +701,14 @@ namespace Diplom_Bibl.Pages
                             b.YearPublishing, b.Gener, b.StatusBook, b.Price,
                             b.Anotation, b.IDReceip, b.TotalCopies, 
                             b.CategoryID, b.EditionTypeID, b.FormatID
-                        FROM Books b WHERE b.IDBook = @BookId";
+                        FROM Books b WHERE b.IDBook = @IDBook";
 
                     using (var connection = new SqlConnection(_connectionString))
                     {
                         connection.Open();
                         using (var cmd = new SqlCommand(query, connection))
                         {
-                            cmd.Parameters.AddWithValue("@BookId", bookId);
+                            cmd.Parameters.AddWithValue("@IDBook", IDBook);
                             using (var reader = cmd.ExecuteReader())
                             {
                                 if (reader.Read())
@@ -781,8 +781,8 @@ namespace Diplom_Bibl.Pages
         {
             if (LvBooks.SelectedItem is BookListItem selectedItem)
             {
-                _currentBookId = selectedItem.IDBook;
-                await LoadBookDataAsync(_currentBookId.Value);
+                _currentIDBook = selectedItem.IDBook;
+                await LoadBookDataAsync(_currentIDBook.Value);
                 BtnSaveNew.Visibility = Visibility.Collapsed;
                 BtnSaveChanges.Visibility = Visibility.Visible;
                 BtnDelete.Visibility = Visibility.Visible;
@@ -874,7 +874,7 @@ namespace Diplom_Bibl.Pages
 
         private async void BtnSaveChanges_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentBookId.HasValue)
+            if (!_currentIDBook.HasValue)
             {
                 CustomMessageBox.Show("Нет выбранной книги для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -898,7 +898,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            int bookId = _currentBookId.Value;
+            int IDBook = _currentIDBook.Value;
             string inventoryNumber = TbInventoryNumber.Text.Trim();
             string title = TbTitle.Text.Trim();
             int authorId = (int)CbAuthor.SelectedValue;
@@ -915,7 +915,7 @@ namespace Diplom_Bibl.Pages
                     const string updateQuery = @"
                         UPDATE Books SET InventaryNumber=@Inv, TitleBook=@Title, Author=@Author, PublishingHouse=@Pub,
                             YearPublishing=@Year, Gener=@Genre, StatusBook=@Status, Anotation=@Annot,
-                            IDReceip=@Receipt, Price=@Price, TotalCopies=@TotalCopies
+                            IDReceip=@Receipt, Price=@Price
                         WHERE IDBook=@Id";
                     using (var conn = new SqlConnection(_connectionString))
                     {
@@ -932,7 +932,7 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@Annot", string.IsNullOrEmpty(annotation) ? DBNull.Value : (object)annotation);
                             cmd.Parameters.AddWithValue("@Receipt", receiptId);
                             cmd.Parameters.AddWithValue("@Price", price);
-                            cmd.Parameters.AddWithValue("@Id", bookId);
+                            cmd.Parameters.AddWithValue("@Id", IDBook);
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -950,7 +950,7 @@ namespace Diplom_Bibl.Pages
 
         private async void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentBookId.HasValue)
+            if (!_currentIDBook.HasValue)
             {
                 CustomMessageBox.Show("Нет выбранной книги для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
@@ -967,7 +967,7 @@ namespace Diplom_Bibl.Pages
                         conn.Open();
                         using (var cmd = new SqlCommand("DELETE FROM Books WHERE IDBook = @Id", conn))
                         {
-                            cmd.Parameters.AddWithValue("@Id", _currentBookId.Value);
+                            cmd.Parameters.AddWithValue("@Id", _currentIDBook.Value);
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -1004,7 +1004,7 @@ namespace Diplom_Bibl.Pages
                 CbCategory.SelectedIndex = -1;
                 CbEditionType.SelectedIndex = -1;
                 CbFormat.SelectedIndex = -1;
-                _currentBookId = null;
+                _currentIDBook = null;
                 BtnSaveNew.Visibility = Visibility.Visible;
                 BtnSaveChanges.Visibility = Visibility.Collapsed;
                 BtnDelete.Visibility = Visibility.Collapsed;

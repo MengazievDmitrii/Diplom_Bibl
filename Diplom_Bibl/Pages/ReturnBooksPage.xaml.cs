@@ -59,7 +59,7 @@ namespace Diplom_Bibl.Pages
         public class GroupBookItem
         {
             public int ItemId { get; set; }
-            public int BookId { get; set; }
+            public int IDBook { get; set; }
             public string BookTitle { get; set; }
             public string AuthorName { get; set; }
             public string InventaryNumber { get; set; }
@@ -228,7 +228,7 @@ namespace Diplom_Bibl.Pages
                         SUM(git.Quantity) AS TotalQuantity,
                         SUM(git.ReturnedQuantity) AS TotalReturned
                     FROM GroupIssuanceItems git
-                    INNER JOIN Books b ON git.BookId = b.IDBook
+                    INNER JOIN Books b ON git.IDBook = b.IDBook
                     LEFT JOIN Authors a ON b.Author = a.ID_Autor
                     WHERE git.GroupIssuanceId = @GroupIssuanceId
                     GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
@@ -283,7 +283,7 @@ namespace Diplom_Bibl.Pages
                         git.ReturnedQuantity,
                         b.TitleBook
                     FROM GroupIssuanceItems git
-                    INNER JOIN Books b ON git.BookId = b.IDBook
+                    INNER JOIN Books b ON git.IDBook = b.IDBook
                     WHERE git.GroupIssuanceId = @GroupIssuanceId";
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -305,7 +305,7 @@ namespace Diplom_Bibl.Pages
                                     bookGroup.Items.Add(new GroupBookItem
                                     {
                                         ItemId = Convert.ToInt32(reader["ItemId"]),
-                                        BookId = Convert.ToInt32(reader["IDBook"]),
+                                        IDBook = Convert.ToInt32(reader["IDBook"]),
                                         BookTitle = bookTitle,
                                         InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
                                         Quantity = Convert.ToInt32(reader["Quantity"]),
@@ -541,11 +541,11 @@ namespace Diplom_Bibl.Pages
                                         CopiesInUse = CopiesInUse - 1,
                                         AvailableCopies = AvailableCopies + 1,
                                         StatusBook = 1
-                                    WHERE IDBook = @BookId";
+                                    WHERE IDBook = @IDBook";
 
                                         using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                         {
-                                            cmd.Parameters.AddWithValue("@BookId", book.BookId);
+                                            cmd.Parameters.AddWithValue("@IDBook", book.IDBook);
                                             cmd.ExecuteNonQuery();
                                         }
 
@@ -700,11 +700,11 @@ namespace Diplom_Bibl.Pages
                                             CopiesInUse = CopiesInUse - 1,
                                             AvailableCopies = AvailableCopies + 1,
                                             StatusBook = 1
-                                        WHERE IDBook = @BookId";
+                                        WHERE IDBook = @IDBook";
 
                                             using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                             {
-                                                cmd.Parameters.AddWithValue("@BookId", book.BookId);
+                                                cmd.Parameters.AddWithValue("@IDBook", book.IDBook);
                                                 cmd.ExecuteNonQuery();
                                             }
 
