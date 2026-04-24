@@ -11,9 +11,6 @@ using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
-    /// <summary>
-    /// Логика взаимодействия для LibraryFundPage.xaml
-    /// </summary>
     public partial class LibraryFundPage : Page
     {
         private readonly string _conn = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
@@ -79,18 +76,19 @@ namespace Diplom_Bibl.Pages
                 {
                     if (_statusColor == null)
                     {
-                        string status = StatusName?.ToLower() ?? "";
+                        string status = StatusName?.Trim().ToLower() ?? "";
 
-                        if (status.Contains("в наличии") || status.Contains("наличие"))
-                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
-                        else if (status.Contains("выдана") || status.Contains("выдан"))
-                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107"));
-                        else if (status.Contains("списана") || status.Contains("списан"))
-                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"));
+                        // Точное определение статусов с учетом пробелов
+                        if (status.Contains("в наличии"))
+                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745")); // Зеленый
+                        else if (status.Contains("выдан"))
+                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107")); // Желтый
+                        else if (status.Contains("списана") || status.Contains("утрачен"))
+                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")); // Красный
                         else if (status.Contains("реставрация"))
-                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#17A2B8"));
+                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#17A2B8")); // Голубой
                         else
-                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D"));
+                            _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")); // Серый
                     }
                     return _statusColor;
                 }
@@ -153,7 +151,7 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                const string sql = "SELECT ID_Status, Title_Status FROM StatusBook ORDER BY Title_Status";
+                const string sql = "SELECT ID_Status, TRIM(Title_Status) AS Title_Status FROM StatusBook ORDER BY Title_Status";
 
                 var statuses = new List<StatusItem>();
                 statuses.Add(new StatusItem { ID_Status = 0, Title_Status = "Все статусы" });
@@ -169,7 +167,7 @@ namespace Diplom_Bibl.Pages
                             statuses.Add(new StatusItem
                             {
                                 ID_Status = Convert.ToInt32(reader["ID_Status"]),
-                                Title_Status = reader["Title_Status"].ToString()
+                                Title_Status = reader["Title_Status"].ToString().Trim()
                             });
                         }
                     }
@@ -183,8 +181,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -222,8 +220,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -261,8 +259,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -302,8 +300,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -324,7 +322,7 @@ namespace Diplom_Bibl.Pages
                         b.Gener,
                         ISNULL(g.TitleGener, '') AS GenreName,
                         b.StatusBook,
-                        ISNULL(s.Title_Status, '') AS StatusName
+                        ISNULL(s.Title_Status, 'Неизвестно') AS StatusName
                     FROM Books b
                     LEFT JOIN Authors a ON b.Author = a.ID_Autor
                     LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
@@ -384,8 +382,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -493,19 +491,30 @@ namespace Diplom_Bibl.Pages
 
             TotalBooksCount.Text = _allBooks.Count.ToString();
 
-            int availableStatusId = GetStatusIdByPattern("в наличии");
-            int issuedStatusId = GetStatusIdByPattern("выдан");
-            int disposedStatusId = GetStatusIdByPattern("списан");
+            // Получаем ID статусов с правильными названиями из БД
+            int availableStatusId = GetStatusIdByName("В наличии");
+            int issuedStatusId = GetStatusIdByName("Выдан");
+            int disposedStatusId = GetStatusIdByName("Списана (архив)");
+            int lostStatusId = GetStatusIdByName("Утрачен");
 
-            AvailableBooksCount.Text = _allBooks.Count(b => b.StatusID == availableStatusId).ToString();
-            IssuedBooksCount.Text = _allBooks.Count(b => b.StatusID == issuedStatusId).ToString();
-            DisposedBooksCount.Text = _allBooks.Count(b => b.StatusID == disposedStatusId).ToString();
+            int availableCount = _allBooks.Count(b => b.StatusID == availableStatusId);
+            int issuedCount = _allBooks.Count(b => b.StatusID == issuedStatusId);
+            int disposedCount = _allBooks.Count(b => b.StatusID == disposedStatusId);
+            int lostCount = _allBooks.Count(b => b.StatusID == lostStatusId);
+
+            AvailableBooksCount.Text = availableCount.ToString();
+            IssuedBooksCount.Text = issuedCount.ToString();
+            // Можно добавить счетчик списанных + утраченных
+            DisposedBooksCount.Text = (disposedCount + lostCount).ToString();
+
+            System.Diagnostics.Debug.WriteLine($"Статистика: Всего={_allBooks.Count}, В наличии={availableCount}, Выдано={issuedCount}, Списано+Утрачено={disposedCount + lostCount}");
+            System.Diagnostics.Debug.WriteLine($"ID статусов: В наличии={availableStatusId}, Выдан={issuedStatusId}, Списана (архив)={disposedStatusId}, Утрачен={lostStatusId}");
         }
 
-        private int GetStatusIdByPattern(string pattern)
+        private int GetStatusIdByName(string statusName)
         {
             var status = _allStatuses.FirstOrDefault(s =>
-                s.Title_Status != null && s.Title_Status.ToLower().Contains(pattern.ToLower()));
+                s.Title_Status != null && s.Title_Status.Trim().Equals(statusName, StringComparison.OrdinalIgnoreCase));
             return status?.ID_Status ?? 0;
         }
 
@@ -531,30 +540,27 @@ namespace Diplom_Bibl.Pages
             SetSearchPlaceholder();
         }
 
-       private void DgBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-{
-    if (DgBooks.SelectedItem is BookItem selectedBook)
-    {
-        try
+        private void DgBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // Показываем индикатор загрузки
-            Mouse.OverrideCursor = Cursors.Wait;
-            
-            // Передаем ID книги через конструктор
-            var addBookPage = new AddBook(selectedBook.IDBook);
-            NavigationService.Navigate(addBookPage);
+            if (DgBooks.SelectedItem is BookItem selectedBook)
+            {
+                try
+                {
+                    Mouse.OverrideCursor = Cursors.Wait;
+                    var addBookPage = new AddBook(selectedBook.IDBook);
+                    NavigationService.Navigate(addBookPage);
+                }
+                catch (Exception ex)
+                {
+                    CustomMessageBox.Show($"Ошибка при открытии книги: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
+                finally
+                {
+                    Mouse.OverrideCursor = null;
+                }
+            }
         }
-        catch (Exception ex)
-        {
-             CustomMessageBox.Show($"Ошибка при открытии книги: {ex.Message}", "Ошибка",
-                CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-        }
-        finally
-        {
-            Mouse.OverrideCursor = null;
-        }
-    }
-}
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
@@ -570,6 +576,5 @@ namespace Diplom_Bibl.Pages
         {
             NavigationService.Navigate(new FundMovementPage());
         }
-    
     }
 }

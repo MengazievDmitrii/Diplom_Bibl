@@ -113,7 +113,7 @@ namespace Diplom_Bibl.Pages
                         ELSE 0
                     END AS DaysOverdue
                 FROM BookIssuance i
-                INNER JOIN Books b ON i.IDBook = b.IDBook
+                INNER JOIN Books b ON i.BookId = b.IDBook
                 INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
                 INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
                 LEFT JOIN Groups g ON r.GroupID = g.GroupID

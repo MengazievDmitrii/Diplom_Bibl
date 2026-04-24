@@ -103,9 +103,8 @@
                                 Background="{TemplateBinding Background}"
                                >
                             <TextBlock Text="{TemplateBinding Content}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{TemplateBinding Foreground}"/>
+                                       VerticalAlignment="Top"
+                                       Foreground="{TemplateBinding Foreground}" Margin="0,7,0,0"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">

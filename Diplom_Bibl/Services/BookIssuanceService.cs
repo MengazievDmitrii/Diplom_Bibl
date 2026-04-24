@@ -39,49 +39,28 @@ namespace Diplom_Bibl.Services
             // Для отображения в DataGrid
             public string DisplayTime => IssuanceDate.ToString("HH:mm");
             public string DisplayRecipient => $"{RecipientName} ({RecipientType})";
+            public bool IsOverdue => !ReturnDate.HasValue && DateTime.Now > PlannedReturnDate;
+            public SolidColorBrush OverdueColor { get; set; }
 
-            // Для индивидуальных выдач показываем название книги
-            // Для групповых показываем список книг
+            // Для отображения книг
+            private string _displayBook;
             public string DisplayBook
             {
-                get
-                {
-                    if (IssuanceType == "individual")
-                    {
-                        // Для индивидуальных выдач показываем название книги
-                        return string.IsNullOrEmpty(BookTitle) ? "Книга не указана" : BookTitle;
-                    }
-                    else if (IssuanceType == "group")
-                    {
-                        // Для групповых выдач показываем список книг
-                        if (BookList != null && BookList.Any())
-                            return string.Join(", ", BookList);
-                        else
-                            return "Групповая выдача (книги не загружены)";
-                    }
-                    else
-                    {
-                        return "Неизвестный тип выдачи";
-                    }
-                }
+                get => _displayBook;
+                set => _displayBook = value;
             }
 
             public string IssuanceTypeDisplay { get; set; }
-            public SolidColorBrush OverdueColor { get; set; }
-            public bool IsOverdue => !ReturnDate.HasValue && DateTime.Now > PlannedReturnDate;
         }
 
         public class BookInfo
         {
-            public int IDBook { get; set; } // Можно оставить для ссылки, но не для отображения
+            public int IDBook { get; set; }
             public string TitleBook { get; set; }
             public string AuthorName { get; set; }
             public int AvailableCopies { get; set; }
             public int TotalCopies { get; set; }
-
-            // Для обратной совместимости (если нужно)
-            public string InventaryNumber { get; set; } // Можно не использовать
-
+            public string InventaryNumber { get; set; }
             public string DisplayInfo => $"{TitleBook} - {AuthorName} (в наличии: {AvailableCopies})";
         }
 
@@ -93,7 +72,6 @@ namespace Diplom_Bibl.Services
             public string FirstName { get; set; }
             public string MiddleName { get; set; }
             public string TypeName { get; set; }
-
             public string FullName => $"{LastName} {FirstName} {MiddleName}".Trim();
             public string DisplayInfo => $"{FullName} (№{CardNumber})";
         }
@@ -133,7 +111,8 @@ namespace Diplom_Bibl.Services
             b.TitleBook,
             ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
             SUM(b.AvailableCopies) AS TotalAvailableCopies,
-            SUM(b.TotalCopies) AS TotalCopies
+            SUM(b.TotalCopies) AS TotalCopiesSum,
+            COUNT(b.IDBook) AS CopiesCount
         FROM Books b
         LEFT JOIN Authors a ON b.Author = a.ID_Autor
         WHERE b.AvailableCopies > 0";
@@ -162,12 +141,22 @@ namespace Diplom_Bibl.Services
                         {
                             while (reader.Read())
                             {
+                                string title = reader["TitleBook"]?.ToString() ?? "";
+                                string author = reader["AuthorName"]?.ToString() ?? "";
+                                int availableCopies = Convert.ToInt32(reader["TotalAvailableCopies"]);
+                                int totalCopiesSum = Convert.ToInt32(reader["TotalCopiesSum"]);
+                                int copiesCount = Convert.ToInt32(reader["CopiesCount"]);
+
+                                // Находим минимальный IDBook для этой группы
+                                int minIdBook = GetMinIdBookForBook(title, author);
+
                                 books.Add(new BookInfo
                                 {
-                                    TitleBook = reader["TitleBook"]?.ToString() ?? "",
-                                    AuthorName = reader["AuthorName"]?.ToString() ?? "",
-                                    AvailableCopies = Convert.ToInt32(reader["TotalAvailableCopies"]),
-                                    TotalCopies = Convert.ToInt32(reader["TotalCopies"])
+                                    IDBook = minIdBook,
+                                    TitleBook = title,
+                                    AuthorName = author,
+                                    AvailableCopies = availableCopies,
+                                    TotalCopies = totalCopiesSum
                                 });
                             }
                         }
@@ -183,7 +172,42 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Получение списка читателей (студентов)
+        /// Получает минимальный IDBook для книги по названию и автору
+        /// </summary>
+        private int GetMinIdBookForBook(string title, string author)
+        {
+            try
+            {
+                string sql = @"
+            SELECT MIN(b.IDBook) AS IDBook
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE b.TitleBook = @Title 
+              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        cmd.Parameters.AddWithValue("@Author", author);
+                        var result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            return Convert.ToInt32(result);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения IDBook: {ex.Message}");
+            }
+            return 0;
+        }
+        /// <summary>
+        /// Получение списка читателей
         /// </summary>
         public ObservableCollection<ReaderInfo> GetReaders(string searchTerm = "")
         {
@@ -238,6 +262,7 @@ namespace Diplom_Bibl.Services
 
             return readers;
         }
+
         public ObservableCollection<ReaderInfo> GetReadersStudent(string searchTerm = "")
         {
             var readers_student = new ObservableCollection<ReaderInfo>();
@@ -350,15 +375,15 @@ namespace Diplom_Bibl.Services
             var teachers = new ObservableCollection<TeacherInfo>();
 
             string sql = @"
-        SELECT 
-            r.ReaderID,
-            r.LastName,
-            r.FirstName,
-            r.MiddleName,
-            rt.TypeName
-        FROM ReaderForm r
-        INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
-        WHERE rt.TypeName LIKE '%сотрудник%' OR rt.TypeName LIKE '%преподаватель%'";
+                SELECT 
+                    r.ReaderID,
+                    r.LastName,
+                    r.FirstName,
+                    r.MiddleName,
+                    rt.TypeName
+                FROM ReaderForm r
+                INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
+                WHERE rt.TypeName LIKE '%сотрудник%' OR rt.TypeName LIKE '%преподаватель%'";
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -417,7 +442,7 @@ namespace Diplom_Bibl.Services
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
-                    cmd.Parameters.AddWithValue("@IDBook", IDBook);
+                    cmd.Parameters.AddWithValue("@BookId", IDBook);
                     cmd.Parameters.AddWithValue("@ReaderId", readerId);
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);
@@ -443,7 +468,6 @@ namespace Diplom_Bibl.Services
             string subjectName = "",
             string notes = "")
         {
-            // Формируем строку для процедуры "IDBook1:Quantity1,IDBook2:Quantity2"
             var booksList = new StringBuilder();
             foreach (var book in booksWithQuantity)
             {
@@ -464,7 +488,7 @@ namespace Diplom_Bibl.Services
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrWhiteSpace(subjectName) ? DBNull.Value : (object)subjectName);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);
-                    cmd.Parameters.AddWithValue("@BooksList", booksList.ToString());
+                    cmd.Parameters.AddWithValue("@BookIds", booksList.ToString());
 
                     var outputParam = cmd.Parameters.Add("@GroupIssuanceId", SqlDbType.Int);
                     outputParam.Direction = ParameterDirection.Output;
@@ -508,171 +532,177 @@ namespace Diplom_Bibl.Services
                 throw;
             }
         }
+
         /// <summary>
-        /// Получение списка выдач за период
+        /// Получает список выдач за указанную дату (синхронная версия)
         /// </summary>
         public ObservableCollection<IssuanceItem> GetIssuancesByDate(DateTime date)
         {
             var issuances = new ObservableCollection<IssuanceItem>();
 
-            string sql = @"
-        -- Индивидуальные выдачи
-        SELECT 
-            'individual' AS IssuanceType,
-            i.IssuanceId AS Id,
-            i.IssuanceDate,
-            i.PlannedReturnDate,
-            i.ReturnDate,
-            i.Status,
-            r.ReaderID AS RecipientId,
-            CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
-            'Читатель' AS RecipientType,
-            b.IDBook AS IDBook,
-            b.TitleBook AS BookTitle,
-            b.InventaryNumber,
-            1 AS Quantity,
-            i.Notes
-        FROM BookIssuance i
-        INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
-        INNER JOIN Books b ON i.BookId = b.IDBook
-        WHERE CAST(i.IssuanceDate AS DATE) = @Date
-
-        UNION ALL
-
-        -- Групповые выдачи (сгруппированные)
-        SELECT 
-            'group' AS IssuanceType,
-            gi.GroupIssuanceId AS Id,
-            gi.IssuanceDate,
-            gi.PlannedReturnDate,
-            gi.ReturnDate,
-            gi.Status,
-            g.GroupID AS RecipientId,
-            g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName AS RecipientName,
-            'Группа' AS RecipientType,
-            NULL AS IDBook,
-            NULL AS BookTitle,  -- Для групповых выдач название будет заполнено позже
-            NULL AS InventaryNumber,
-            SUM(git.Quantity) AS Quantity,
-            gi.Notes
-        FROM GroupBookIssuance gi
-        INNER JOIN Groups g ON gi.GroupId = g.GroupID
-        INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
-        INNER JOIN GroupIssuanceItems git ON gi.GroupIssuanceId = git.GroupIssuanceId
-        WHERE CAST(gi.IssuanceDate AS DATE) = @Date
-        GROUP BY gi.GroupIssuanceId, gi.IssuanceDate, gi.PlannedReturnDate, gi.ReturnDate, 
-                 gi.Status, g.GroupID, g.GroupCode, t.LastName, t.FirstName, gi.Notes
-
-        ORDER BY IssuanceDate DESC";
-
-            using (var conn = new SqlConnection(_connectionString))
-            {
-                conn.Open();
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@Date", date.Date);
-
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            var issuance = new IssuanceItem
-                            {
-                                IssuanceType = reader["IssuanceType"]?.ToString() ?? "",
-                                Id = Convert.ToInt32(reader["Id"]),
-                                IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
-                                PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
-                                ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
-                                Status = reader["Status"]?.ToString() ?? "",
-                                RecipientId = Convert.ToInt32(reader["RecipientId"]),
-                                RecipientName = reader["RecipientName"]?.ToString() ?? "",
-                                RecipientType = reader["RecipientType"]?.ToString() ?? "",
-                                IDBook = reader["IDBook"] != DBNull.Value ? Convert.ToInt32(reader["IDBook"]) : 0,
-                                BookTitle = reader["BookTitle"]?.ToString() ?? "",
-                                InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
-                                Quantity = Convert.ToInt32(reader["Quantity"]),
-                                Notes = reader["Notes"]?.ToString() ?? "",
-                                BookList = new List<string>()
-                            };
-
-                            issuances.Add(issuance);
-                        }
-                    }
-                }
-            }
-
-            // Для групповых выдач загружаем список книг отдельно
-            foreach (var issuance in issuances.Where(i => i.IssuanceType == "group"))
-            {
-                issuance.BookList = GetGroupBookTitles(issuance.Id);
-                // Для отладки
-                System.Diagnostics.Debug.WriteLine($"Групповая выдача {issuance.Id}: загружено {issuance.BookList.Count} книг");
-            }
-
-            // Для отладки индивидуальных выдач
-            foreach (var issuance in issuances.Where(i => i.IssuanceType == "individual"))
-            {
-                System.Diagnostics.Debug.WriteLine($"Индивидуальная выдача {issuance.Id}: книга '{issuance.BookTitle}'");
-            }
-
-            System.Diagnostics.Debug.WriteLine($"Загружено выдач: {issuances.Count} (инд: {issuances.Count(i => i.IssuanceType == "individual")}, групп: {issuances.Count(i => i.IssuanceType == "group")})");
-
-            return issuances;
-        }
-
-        /// <summary>
-        /// <summary>
-        /// Получает список книг для групповой выдачи (с группировкой по названию)
-        /// </summary>
-        private List<string> GetGroupBookTitles(int groupIssuanceId)
-        {
-            var books = new List<string>();
-
             try
             {
-                string sql = @"
-            SELECT 
-                b.TitleBook,
-                SUM(git.Quantity) AS TotalQuantity
-            FROM GroupIssuanceItems git
-            INNER JOIN Books b ON git.IDBook = b.IDBook
-            WHERE git.GroupIssuanceId = @GroupIssuanceId
-            GROUP BY b.TitleBook
-            ORDER BY b.TitleBook";
+                // Индивидуальные выдачи
+                string individualQuery = @"
+                    SELECT 
+                        'individual' AS IssuanceType,
+                        i.IssuanceId AS Id,
+                        i.IssuanceDate,
+                        i.PlannedReturnDate,
+                        i.ReturnDate,
+                        i.Status,
+                        r.ReaderID AS RecipientId,
+                        CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
+                        'Читатель' AS RecipientType,
+                        b.IDBook AS IDBook,
+                        b.TitleBook AS BookTitle,
+                        b.InventaryNumber,
+                        1 AS Quantity,
+                        i.Notes
+                    FROM BookIssuance i
+                    INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
+                    INNER JOIN Books b ON i.BookId = b.IDBook
+                    WHERE CAST(i.IssuanceDate AS DATE) = @Date";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
 
+                    // Получаем индивидуальные выдачи
+                    using (var cmd = new SqlCommand(individualQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", date.Date);
                         using (var reader = cmd.ExecuteReader())
                         {
                             while (reader.Read())
                             {
-                                string title = reader["TitleBook"]?.ToString() ?? "";
-                                int quantity = Convert.ToInt32(reader["TotalQuantity"]);
+                                var item = new IssuanceItem
+                                {
+                                    IssuanceType = reader["IssuanceType"].ToString(),
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                    PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                    ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
+                                    Status = reader["Status"].ToString(),
+                                    RecipientId = reader["RecipientId"] != DBNull.Value ? Convert.ToInt32(reader["RecipientId"]) : 0,
+                                    RecipientName = reader["RecipientName"].ToString(),
+                                    RecipientType = reader["RecipientType"].ToString(),
+                                    IDBook = reader["IDBook"] != DBNull.Value ? Convert.ToInt32(reader["IDBook"]) : 0,
+                                    BookTitle = reader["BookTitle"]?.ToString() ?? "",
+                                    InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
+                                    Quantity = Convert.ToInt32(reader["Quantity"]),
+                                    Notes = reader["Notes"]?.ToString() ?? "",
+                                    DisplayBook = reader["BookTitle"]?.ToString() ?? ""
+                                };
+                                item.OverdueColor = item.IsOverdue ?
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                                issuances.Add(item);
+                            }
+                        }
+                    }
 
-                                books.Add($"{title} ({quantity} шт.)");
+                    // Групповые выдачи
+                    string groupQuery = @"
+                        SELECT 
+                            gi.GroupIssuanceId AS Id,
+                            gi.IssuanceDate,
+                            gi.PlannedReturnDate,
+                            gi.ReturnDate,
+                            gi.Status,
+                            g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName AS RecipientName,
+                            'Группа' AS RecipientType,
+                            gi.Notes
+                        FROM GroupBookIssuance gi
+                        INNER JOIN Groups g ON gi.GroupId = g.GroupID
+                        INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+                        WHERE CAST(gi.IssuanceDate AS DATE) = @Date";
 
-                                System.Diagnostics.Debug.WriteLine($"Книга: {title}, количество: {quantity}");
+                    using (var cmd = new SqlCommand(groupQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", date.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int groupIssuanceId = Convert.ToInt32(reader["Id"]);
+                                string booksList = GetGroupIssuanceBooksList(groupIssuanceId);
+
+                                var item = new IssuanceItem
+                                {
+                                    IssuanceType = "group",
+                                    Id = groupIssuanceId,
+                                    IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                    PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                    ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
+                                    Status = reader["Status"].ToString(),
+                                    RecipientName = reader["RecipientName"].ToString(),
+                                    RecipientType = reader["RecipientType"].ToString(),
+                                    Quantity = 0,
+                                    DisplayBook = booksList,
+                                    Notes = reader["Notes"]?.ToString() ?? ""
+                                };
+                                item.OverdueColor = item.IsOverdue ?
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                                issuances.Add(item);
                             }
                         }
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Загружено книг для групповой выдачи {groupIssuanceId}: {books.Count}");
+                System.Diagnostics.Debug.WriteLine($"Загружено выдач: {issuances.Count}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки книг для групповой выдачи {groupIssuanceId}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки выдач: {ex.Message}");
+                throw;
             }
 
-            return books;
+            return issuances;
         }
 
+        /// <summary>
+        /// Получает список книг для групповой выдачи
+        /// </summary>
+        private string GetGroupIssuanceBooksList(int groupIssuanceId)
+        {
+            try
+            {
+                string query = @"
+            SELECT b.TitleBook, git.Quantity
+            FROM GroupIssuanceItems git
+            INNER JOIN Books b ON git.BookId = b.IDBook
+            WHERE git.GroupIssuanceId = @GroupIssuanceId";
 
+                var books = new List<string>();
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                string title = reader["TitleBook"].ToString();
+                                int quantity = Convert.ToInt32(reader["Quantity"]);
+                                books.Add($"{title} ({quantity} экз.)");
+                            }
+                        }
+                    }
+                }
+
+                return string.Join(", ", books);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки книг групповой выдачи: {ex.Message}");
+                return "Ошибка загрузки";
+            }
+        }
         /// <summary>
         /// Получение активных выдач читателя
         /// </summary>
@@ -680,59 +710,148 @@ namespace Diplom_Bibl.Services
         {
             var issuances = new ObservableCollection<IssuanceItem>();
 
-            string sql = @"
-                SELECT 
-                    'individual' AS IssuanceType,
-                    i.IssuanceId AS Id,
-                    i.IssuanceDate,
-                    i.PlannedReturnDate,
-                    i.ReturnDate,
-                    i.Status,
-                    i.ReaderId AS RecipientId,
-                    CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
-                    'Читатель' AS RecipientType,
-                    b.IDBook AS IDBook,
-                    b.TitleBook AS BookTitle,
-                    b.InventaryNumber,
-                    1 AS Quantity,
-                    i.Notes
-                FROM BookIssuance i
-                INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
-                INNER JOIN Books b ON i.IDBook = b.IDBook
-                WHERE i.ReaderId = @ReaderId AND i.ReturnDate IS NULL
-                ORDER BY i.PlannedReturnDate";
-
-            using (var conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@ReaderId", readerId);
+                string sql = @"
+            SELECT 
+                'individual' AS IssuanceType,
+                i.IssuanceId AS Id,
+                i.IssuanceDate,
+                i.PlannedReturnDate,
+                i.ReturnDate,
+                i.Status,
+                i.ReaderId AS RecipientId,
+                CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
+                'Читатель' AS RecipientType,
+                b.IDBook AS IDBook,
+                b.TitleBook AS BookTitle,
+                b.InventaryNumber,
+                1 AS Quantity,
+                i.Notes
+            FROM BookIssuance i
+            INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
+            INNER JOIN Books b ON i.BookId = b.IDBook
+            WHERE i.ReaderId = @ReaderId AND i.ReturnDate IS NULL
+            ORDER BY i.PlannedReturnDate";
 
-                    using (var reader = cmd.ExecuteReader())
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
                     {
-                        while (reader.Read())
+                        cmd.Parameters.AddWithValue("@ReaderId", readerId);
+
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            issuances.Add(new IssuanceItem
+                            while (reader.Read())
                             {
-                                IssuanceType = reader["IssuanceType"]?.ToString() ?? "",
-                                Id = Convert.ToInt32(reader["Id"]),
-                                IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
-                                PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
-                                ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
-                                Status = reader["Status"]?.ToString() ?? "",
-                                RecipientId = Convert.ToInt32(reader["RecipientId"]),
-                                RecipientName = reader["RecipientName"]?.ToString() ?? "",
-                                RecipientType = reader["RecipientType"]?.ToString() ?? "",
-                                IDBook = Convert.ToInt32(reader["IDBook"]),
-                                BookTitle = reader["BookTitle"]?.ToString() ?? "",
-                                InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
-                                Quantity = Convert.ToInt32(reader["Quantity"]),
-                                Notes = reader["Notes"]?.ToString() ?? ""
-                            });
+                                var item = new IssuanceItem
+                                {
+                                    IssuanceType = reader["IssuanceType"]?.ToString() ?? "",
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                    PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                    ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
+                                    Status = reader["Status"]?.ToString() ?? "",
+                                    RecipientId = Convert.ToInt32(reader["RecipientId"]),
+                                    RecipientName = reader["RecipientName"]?.ToString() ?? "",
+                                    RecipientType = reader["RecipientType"]?.ToString() ?? "",
+                                    IDBook = Convert.ToInt32(reader["IDBook"]),
+                                    BookTitle = reader["BookTitle"]?.ToString() ?? "",
+                                    InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
+                                    Quantity = Convert.ToInt32(reader["Quantity"]),
+                                    Notes = reader["Notes"]?.ToString() ?? "",
+                                    DisplayBook = reader["BookTitle"]?.ToString() ?? ""
+                                };
+                                item.OverdueColor = item.IsOverdue ?
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                                issuances.Add(item);
+                            }
                         }
                     }
                 }
+
+                System.Diagnostics.Debug.WriteLine($"Загружено индивидуальных выдач: {issuances.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки индивидуальных выдач: {ex.Message}");
+                throw;
+            }
+
+            return issuances;
+        }
+
+        public ObservableCollection<IssuanceItem> GetTeacherActiveGroupIssuances(int teacherId)
+        {
+            var issuances = new ObservableCollection<IssuanceItem>();
+
+            try
+            {
+                string sql = @"
+            SELECT 
+                'group' AS IssuanceType,
+                gi.GroupIssuanceId AS Id,
+                gi.IssuanceDate,
+                gi.PlannedReturnDate,
+                gi.ReturnDate,
+                gi.Status,
+                gi.TeacherId AS RecipientId,
+                g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName + ' (' + s.LastName + ' ' + s.FirstName + ')' AS RecipientName,
+                'Группа' AS RecipientType,
+                gi.Notes
+            FROM GroupBookIssuance gi
+            INNER JOIN Groups g ON gi.GroupId = g.GroupID
+            INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+            INNER JOIN ReaderForm s ON gi.StudentId = s.ReaderID
+            WHERE gi.TeacherId = @TeacherId AND gi.ReturnDate IS NULL
+            ORDER BY gi.PlannedReturnDate";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@TeacherId", teacherId);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int groupIssuanceId = Convert.ToInt32(reader["Id"]);
+                                string booksList = GetGroupIssuanceBooksList(groupIssuanceId);
+
+                                var item = new IssuanceItem
+                                {
+                                    IssuanceType = reader["IssuanceType"]?.ToString() ?? "",
+                                    Id = groupIssuanceId,
+                                    IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                    PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                    ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
+                                    Status = reader["Status"]?.ToString() ?? "",
+                                    RecipientId = Convert.ToInt32(reader["RecipientId"]),
+                                    RecipientName = reader["RecipientName"]?.ToString() ?? "",
+                                    RecipientType = reader["RecipientType"]?.ToString() ?? "",
+                                    Quantity = 0,
+                                    Notes = reader["Notes"]?.ToString() ?? "",
+                                    DisplayBook = booksList,
+                                    BookList = booksList.Split(',').Select(b => b.Trim()).ToList()
+                                };
+                                item.OverdueColor = item.IsOverdue ?
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
+                                    new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                                issuances.Add(item);
+                            }
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Загружено групповых выдач: {issuances.Count}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки групповых выдач: {ex.Message}");
             }
 
             return issuances;
@@ -741,24 +860,23 @@ namespace Diplom_Bibl.Services
         /// Создание групповой выдачи с несколькими книгами
         /// </summary>
         public int CreateGroupIssuanceWithBooks(
-     int groupId,
-     int teacherId,
-     int studentId,
-     DateTime plannedReturnDate,
-     List<int> IDBooks,
-     string subjectName = "",
-     string notes = "")
+            int groupId,
+            int teacherId,
+            int studentId,
+            DateTime plannedReturnDate,
+            List<int> IDBooks,
+            string subjectName = "",
+            string notes = "")
         {
             if (IDBooks == null || IDBooks.Count == 0)
                 throw new ArgumentException("Список книг не может быть пустым");
 
-            // Формируем строку с ID книг через запятую
             string IDBooksString = string.Join(",", IDBooks);
 
             using (var conn = new SqlConnection(_connectionString))
             {
                 conn.Open();
-                using (var cmd = new SqlCommand("sp_CreateGroupIssuanceWithBooks", conn))
+                using (var cmd = new SqlCommand("sp_CreateGroupIssuance", conn))
                 {
                     cmd.CommandType = CommandType.StoredProcedure;
 
@@ -768,7 +886,7 @@ namespace Diplom_Bibl.Services
                     cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
                     cmd.Parameters.AddWithValue("@SubjectName", string.IsNullOrWhiteSpace(subjectName) ? DBNull.Value : (object)subjectName);
                     cmd.Parameters.AddWithValue("@Notes", string.IsNullOrWhiteSpace(notes) ? DBNull.Value : (object)notes);
-                    cmd.Parameters.AddWithValue("@IDBooks", IDBooksString);
+                    cmd.Parameters.AddWithValue("@BookIds", IDBooksString);
 
                     var outputParam = cmd.Parameters.Add("@GroupIssuanceId", SqlDbType.Int);
                     outputParam.Direction = ParameterDirection.Output;

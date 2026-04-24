@@ -17,14 +17,14 @@ namespace Diplom_Bibl.Pages
     public partial class ReturnBooksPage : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
-        private BookIssuanceService _issuanceService;
+        private readonly BookIssuanceService _issuanceService;
         private ObservableCollection<BookIssuanceService.ReaderInfo> _readers;
-        private ObservableCollection<BookIssuanceService.IssuanceItem> _activeIssuances;
-        private ObservableCollection<GroupIssuanceDisplayItem> _groupIssuances;
+        private ObservableCollection<object> _allIssuances;
+
         private BookIssuanceService.ReaderInfo _selectedReader;
         private bool _isPlaceholderActive = true;
 
-        // Класс для отображения групповых выдач
+        // Класс для отображения групповых выдач с деталями
         public class GroupIssuanceDisplayItem
         {
             public int GroupIssuanceId { get; set; }
@@ -85,8 +85,7 @@ namespace Diplom_Bibl.Pages
             InitializeComponent();
             _issuanceService = new BookIssuanceService(_connectionString);
             _readers = new ObservableCollection<BookIssuanceService.ReaderInfo>();
-            _activeIssuances = new ObservableCollection<BookIssuanceService.IssuanceItem>();
-            _groupIssuances = new ObservableCollection<GroupIssuanceDisplayItem>();
+            _allIssuances = new ObservableCollection<object>();
 
             LoadReaders();
         }
@@ -99,87 +98,105 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка",
+                CustomMessageBox.Show($"Ошибка загрузки читателей: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-        private void LoadActiveIssuances(int readerId, string readerType)
+        private async void LoadActiveIssuances(int readerId, string readerType)
         {
             try
             {
                 System.Diagnostics.Debug.WriteLine($"=== ЗАГРУЗКА ВЫДАЧ для читателя ID={readerId}, тип={readerType} ===");
 
-                // Загружаем индивидуальные выдачи
-                _activeIssuances = _issuanceService.GetReaderActiveIssuances(readerId);
-                System.Diagnostics.Debug.WriteLine($"Загружено индивидуальных выдач: {_activeIssuances.Count}");
+                _allIssuances.Clear();
 
-                foreach (var item in _activeIssuances)
+                // Загружаем индивидуальные выдачи
+                var activeIssuances = _issuanceService.GetReaderActiveIssuances(readerId);
+                System.Diagnostics.Debug.WriteLine($"Загружено индивидуальных выдач: {activeIssuances.Count}");
+
+                foreach (var item in activeIssuances)
                 {
-                    item.IssuanceTypeDisplay = "Индивидуальная";
-                    item.OverdueColor = item.IsOverdue ?
-                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
-                        new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
+                    _allIssuances.Add(new
+                    {
+                        Type = "individual",
+                        item.Id,
+                        item.BookTitle,
+                        item.InventaryNumber,
+                        item.IssuanceDate,
+                        item.PlannedReturnDate,
+                        item.Status,
+                        IsOverdue = item.IsOverdue,
+                        OverdueColor = item.OverdueColor,
+                        DisplayName = $"📚 {item.BookTitle}",
+                        SubInfo = $"Инв. №: {item.InventaryNumber}",
+                        ReturnButtonVisible = true,
+                        ReturnAllButtonVisible = false,
+                        BookGroups = (object)null
+                    });
                 }
 
-                // Загружаем групповые выдачи ТОЛЬКО если это преподаватель
-                _groupIssuances.Clear();
-
-                if (readerType.ToLower().Contains("сотрудник"))
+                // Загружаем групповые выдачи, если это сотрудник/преподаватель
+                if (readerType.ToLower().Contains("сотрудник") || readerType.ToLower().Contains("преподаватель"))
                 {
-                    LoadAllGroupIssuances();
+                    await LoadGroupIssuancesForDisplay(readerId);
                 }
                 else
                 {
                     System.Diagnostics.Debug.WriteLine($"Читатель не является сотрудником, групповые выдачи не загружаются");
                 }
 
-                DisplayAllIssuances();
+                Dispatcher.Invoke(() =>
+                {
+                    IssuancesList.ItemsSource = _allIssuances;
+                    BooksSection.Visibility = _allIssuances.Any() ? Visibility.Visible : Visibility.Collapsed;
+                    NoBooksText.Visibility = _allIssuances.Any() ? Visibility.Collapsed : Visibility.Visible;
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки выдач: {ex.Message}");
-                 CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка",
+                CustomMessageBox.Show($"Ошибка загрузки выдач: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-        private void LoadAllGroupIssuances()
+
+        private async System.Threading.Tasks.Task LoadGroupIssuancesForDisplay(int teacherId)
         {
             try
             {
-                _groupIssuances.Clear();
-
-                // Загружаем ТОЛЬКО групповые выдачи, где текущий читатель является преподавателем
                 string sql = @"
-            SELECT 
-                gi.GroupIssuanceId,
-                g.GroupCode,
-                gi.SubjectName,
-                gi.IssuanceDate,
-                gi.PlannedReturnDate,
-                gi.Status,
-                t.ReaderID AS TeacherId,
-                t.LastName + ' ' + t.FirstName + ' ' + ISNULL(t.MiddleName, '') AS TeacherName,
-                s.ReaderID AS StudentId,
-                s.LastName + ' ' + s.FirstName + ' ' + ISNULL(s.MiddleName, '') AS StudentName
-            FROM GroupBookIssuance gi
-            INNER JOIN Groups g ON gi.GroupId = g.GroupID
-            INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
-            LEFT JOIN ReaderForm s ON gi.StudentId = s.ReaderID
-            WHERE gi.Status = 'Выдана' 
-              AND gi.TeacherId = @TeacherId  -- Фильтр по конкретному преподавателю
-            ORDER BY gi.PlannedReturnDate";
+                    SELECT 
+                        gi.GroupIssuanceId,
+                        g.GroupCode,
+                        gi.SubjectName,
+                        gi.IssuanceDate,
+                        gi.PlannedReturnDate,
+                        gi.Status,
+                        t.ReaderID AS TeacherId,
+                        t.LastName + ' ' + t.FirstName + ' ' + ISNULL(t.MiddleName, '') AS TeacherName,
+                        s.ReaderID AS StudentId,
+                        s.LastName + ' ' + s.FirstName + ' ' + ISNULL(s.MiddleName, '') AS StudentName
+                    FROM GroupBookIssuance gi
+                    INNER JOIN Groups g ON gi.GroupId = g.GroupID
+                    INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+                    LEFT JOIN ReaderForm s ON gi.StudentId = s.ReaderID
+                    WHERE gi.Status = 'Выдана' 
+                      AND gi.TeacherId = @TeacherId
+                    ORDER BY gi.PlannedReturnDate";
+
+                var groupIssuances = new List<GroupIssuanceDisplayItem>();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     {
-                        cmd.Parameters.AddWithValue("@TeacherId", _selectedReader.ReaderID);
+                        cmd.Parameters.AddWithValue("@TeacherId", teacherId);
 
-                        using (var reader = cmd.ExecuteReader())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync())
                             {
                                 var groupIssuance = new GroupIssuanceDisplayItem
                                 {
@@ -196,19 +213,47 @@ namespace Diplom_Bibl.Pages
                                     BookGroups = new ObservableCollection<GroupBookGroup>()
                                 };
 
-                                _groupIssuances.Add(groupIssuance);
-                                System.Diagnostics.Debug.WriteLine($"  - Найдена групповая выдача для преподавателя {groupIssuance.TeacherName}: {groupIssuance.GroupCode}");
+                                groupIssuances.Add(groupIssuance);
                             }
                         }
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Найдено групповых выдач для преподавателя ID={_selectedReader.ReaderID}: {_groupIssuances.Count}");
-
                 // Загружаем книги для каждой групповой выдачи
-                foreach (var group in _groupIssuances)
+                foreach (var group in groupIssuances)
                 {
-                    LoadGroupBooks(group);
+                    await LoadGroupBooks(group);
+                }
+
+                // Добавляем в общую коллекцию
+                foreach (var group in groupIssuances)
+                {
+                    _allIssuances.Add(new
+                    {
+                        Type = "group",
+                        Id = group.GroupIssuanceId,
+                        GroupCode = group.GroupCode,
+                        TeacherName = group.TeacherName,
+                        TeacherId = group.TeacherId,
+                        StudentName = group.StudentName,
+                        StudentId = group.StudentId,
+                        SubjectName = group.SubjectName,
+                        IssuanceDate = group.IssuanceDate,
+                        PlannedReturnDate = group.PlannedReturnDate,
+                        Status = group.Status,
+                        TotalBooks = group.TotalBooks,
+                        ReturnedBooks = group.ReturnedBooks,
+                        RemainingBooks = group.RemainingBooks,
+                        IsOverdue = group.IsOverdue,
+                        OverdueColor = group.OverdueColor,
+                        BookGroups = group.BookGroups,
+                        DisplayName = group.DisplayName,
+                        TeacherInfo = group.TeacherInfo,
+                        StudentInfo = group.StudentInfo,
+                        SubInfo = group.SubInfo,
+                        ReturnButtonVisible = group.ReturnButtonVisible,
+                        ReturnAllButtonVisible = group.ReturnAllButtonVisible
+                    });
                 }
             }
             catch (Exception ex)
@@ -217,7 +262,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadGroupBooks(GroupIssuanceDisplayItem group)
+        private async System.Threading.Tasks.Task LoadGroupBooks(GroupIssuanceDisplayItem group)
         {
             try
             {
@@ -228,21 +273,21 @@ namespace Diplom_Bibl.Pages
                         SUM(git.Quantity) AS TotalQuantity,
                         SUM(git.ReturnedQuantity) AS TotalReturned
                     FROM GroupIssuanceItems git
-                    INNER JOIN Books b ON git.IDBook = b.IDBook
+                    INNER JOIN Books b ON git.BookId = b.IDBook
                     LEFT JOIN Authors a ON b.Author = a.ID_Autor
                     WHERE git.GroupIssuanceId = @GroupIssuanceId
                     GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@GroupIssuanceId", group.GroupIssuanceId);
 
-                        using (var reader = cmd.ExecuteReader())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync())
                             {
                                 var bookGroup = new GroupBookGroup
                                 {
@@ -262,7 +307,7 @@ namespace Diplom_Bibl.Pages
                 }
 
                 // Загружаем отдельные экземпляры для возврата
-                LoadGroupBookItems(group);
+                await LoadGroupBookItems(group);
             }
             catch (Exception ex)
             {
@@ -270,7 +315,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadGroupBookItems(GroupIssuanceDisplayItem group)
+        private async System.Threading.Tasks.Task LoadGroupBookItems(GroupIssuanceDisplayItem group)
         {
             try
             {
@@ -283,19 +328,19 @@ namespace Diplom_Bibl.Pages
                         git.ReturnedQuantity,
                         b.TitleBook
                     FROM GroupIssuanceItems git
-                    INNER JOIN Books b ON git.IDBook = b.IDBook
+                    INNER JOIN Books b ON git.BookId = b.IDBook
                     WHERE git.GroupIssuanceId = @GroupIssuanceId";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@GroupIssuanceId", group.GroupIssuanceId);
 
-                        using (var reader = cmd.ExecuteReader())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            while (reader.Read())
+                            while (await reader.ReadAsync())
                             {
                                 string bookTitle = reader["TitleBook"]?.ToString() ?? "";
                                 var bookGroup = group.BookGroups.FirstOrDefault(g => g.BookTitle == bookTitle);
@@ -321,73 +366,6 @@ namespace Diplom_Bibl.Pages
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки экземпляров: {ex.Message}");
             }
-        }
-
-        private void DisplayAllIssuances()
-        {
-            var allItems = new ObservableCollection<object>();
-
-            System.Diagnostics.Debug.WriteLine($"=== ОТОБРАЖЕНИЕ ВЫДАЧ ===");
-            System.Diagnostics.Debug.WriteLine($"Индивидуальных выдач: {_activeIssuances.Count}");
-            System.Diagnostics.Debug.WriteLine($"Групповых выдач: {_groupIssuances.Count}");
-
-            // Добавляем индивидуальные выдачи
-            foreach (var item in _activeIssuances)
-            {
-                allItems.Add(new
-                {
-                    Type = "individual",
-                    item.Id,
-                    item.BookTitle,
-                    item.InventaryNumber,
-                    item.IssuanceDate,
-                    item.PlannedReturnDate,
-                    item.Status,
-                    item.IsOverdue,
-                    item.OverdueColor,
-                    DisplayName = $"📚 {item.BookTitle}",
-                    SubInfo = $"Инв. №: {item.InventaryNumber}",
-                    ReturnButtonVisible = true,
-                    ReturnAllButtonVisible = false
-                });
-            }
-
-            // Добавляем групповые выдачи
-            foreach (var group in _groupIssuances.Where(g => g.BookGroups.Any()))
-            {
-                allItems.Add(new
-                {
-                    Type = "group",
-                    Id = group.GroupIssuanceId,
-                    group.GroupCode,
-                    group.TeacherName,
-                    group.TeacherId,
-                    group.StudentName,
-                    group.StudentId,
-                    group.SubjectName,
-                    group.IssuanceDate,
-                    group.PlannedReturnDate,
-                    group.Status,
-                    group.TotalBooks,
-                    group.ReturnedBooks,
-                    group.RemainingBooks,
-                    group.IsOverdue,
-                    group.OverdueColor,
-                    BookGroups = group.BookGroups,
-                    DisplayName = group.DisplayName,
-                    TeacherInfo = group.TeacherInfo,
-                    StudentInfo = group.StudentInfo,
-                    SubInfo = group.SubInfo,
-                    ReturnButtonVisible = group.ReturnButtonVisible,
-                    ReturnAllButtonVisible = group.ReturnAllButtonVisible
-                });
-
-                System.Diagnostics.Debug.WriteLine($"  - Добавлена группа {group.GroupCode} с {group.BookGroups.Count} книгами");
-            }
-
-            IssuancesList.ItemsSource = allItems;
-            BooksSection.Visibility = allItems.Any() ? Visibility.Visible : Visibility.Collapsed;
-            NoBooksText.Visibility = allItems.Any() ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private void ReaderSearchBox_GotFocus(object sender, RoutedEventArgs e)
@@ -458,8 +436,6 @@ namespace Diplom_Bibl.Pages
             ReaderTypeText.Text = reader.TypeName;
             ReaderInfoSection.Visibility = Visibility.Visible;
 
-            // Загружаем выдачи - групповые выдачи загружаются для всех, 
-            // но отображаются они у преподавателя (через TeacherId)
             LoadActiveIssuances(reader.ReaderID, reader.TypeName);
         }
 
@@ -472,15 +448,14 @@ namespace Diplom_Bibl.Pages
             ReadersListBox.Visibility = Visibility.Collapsed;
             ReaderInfoSection.Visibility = Visibility.Collapsed;
             BooksSection.Visibility = Visibility.Collapsed;
-            _activeIssuances.Clear();
-            _groupIssuances.Clear();
+            _allIssuances.Clear();
         }
 
         private void ReturnIndividualBook(int issuanceId)
         {
             try
             {
-                var result =  CustomMessageBox.Show(
+                var result = CustomMessageBox.Show(
                     "Вернуть книгу?",
                     "Подтверждение возврата",
                     CustomMessageBoxButton.YesNo,
@@ -490,7 +465,7 @@ namespace Diplom_Bibl.Pages
                 {
                     _issuanceService.ReturnBook("individual", issuanceId);
 
-                     CustomMessageBox.Show("Книга успешно возвращена!", "Успех",
+                    CustomMessageBox.Show("Книга успешно возвращена!", "Успех",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                     if (_selectedReader != null)
@@ -501,21 +476,20 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
+                CustomMessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-        private void ReturnGroupBooks(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups, bool returnAll = false)
+        private async void ReturnGroupBooks(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups, bool returnAll = false)
         {
             try
             {
                 if (returnAll)
                 {
-                    var allItems = bookGroups.SelectMany(g => g.Items).Where(i => i.RemainingQuantity > 0).ToList();
-
-                    var result =  CustomMessageBox.Show(
-                        $"Вернуть все оставшиеся книги ({allItems.Count} шт.)?",
+                    int totalRemaining = bookGroups.Sum(g => g.RemainingQuantity);
+                    var result = CustomMessageBox.Show(
+                        $"Вернуть все оставшиеся книги ({totalRemaining} шт.)?",
                         "Подтверждение возврата всех книг",
                         CustomMessageBoxButton.YesNo,
                         CustomMessageBoxImage.Question);
@@ -524,60 +498,57 @@ namespace Diplom_Bibl.Pages
 
                     using (var conn = new SqlConnection(_connectionString))
                     {
-                        conn.Open();
+                        await conn.OpenAsync();
                         using (var transaction = conn.BeginTransaction())
                         {
                             try
                             {
-                                // Обновляем все невозвращенные книги
                                 foreach (var bookGroup in bookGroups.Where(g => g.RemainingQuantity > 0))
                                 {
                                     foreach (var book in bookGroup.Items.Where(i => i.RemainingQuantity > 0))
                                     {
-                                        // Обновляем количество книг и статус
                                         string updateBooksSql = @"
-                                    UPDATE Books 
-                                    SET 
-                                        CopiesInUse = CopiesInUse - 1,
-                                        AvailableCopies = AvailableCopies + 1,
-                                        StatusBook = 1
-                                    WHERE IDBook = @IDBook";
+                                            UPDATE Books 
+                                            SET 
+                                                CopiesInUse = CopiesInUse - @Quantity,
+                                                AvailableCopies = AvailableCopies + @Quantity,
+                                                StatusBook = CASE WHEN AvailableCopies + @Quantity > 0 THEN 1 ELSE StatusBook END
+                                            WHERE IDBook = @IDBook";
 
                                         using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                         {
                                             cmd.Parameters.AddWithValue("@IDBook", book.IDBook);
-                                            cmd.ExecuteNonQuery();
+                                            cmd.Parameters.AddWithValue("@Quantity", book.RemainingQuantity);
+                                            await cmd.ExecuteNonQueryAsync();
                                         }
 
-                                        // Обновляем GroupIssuanceItems
                                         string updateItemsSql = @"
-                                    UPDATE GroupIssuanceItems 
-                                    SET ReturnedQuantity = Quantity
-                                    WHERE ItemId = @ItemId";
+                                            UPDATE GroupIssuanceItems 
+                                            SET ReturnedQuantity = Quantity
+                                            WHERE ItemId = @ItemId";
 
                                         using (var cmd = new SqlCommand(updateItemsSql, conn, transaction))
                                         {
                                             cmd.Parameters.AddWithValue("@ItemId", book.ItemId);
-                                            cmd.ExecuteNonQuery();
+                                            await cmd.ExecuteNonQueryAsync();
                                         }
                                     }
                                 }
 
-                                // Обновляем статус групповой выдачи
                                 string updateStatusSql = @"
-                            UPDATE GroupBookIssuance 
-                            SET ReturnDate = GETDATE(), Status = 'Возвращена'
-                            WHERE GroupIssuanceId = @GroupIssuanceId";
+                                    UPDATE GroupBookIssuance 
+                                    SET ReturnDate = GETDATE(), Status = 'Возвращена'
+                                    WHERE GroupIssuanceId = @GroupIssuanceId";
 
                                 using (var cmd = new SqlCommand(updateStatusSql, conn, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
-                                    cmd.ExecuteNonQuery();
+                                    await cmd.ExecuteNonQueryAsync();
                                 }
 
                                 transaction.Commit();
 
-                                 CustomMessageBox.Show($"Все книги успешно возвращены!", "Успех",
+                                CustomMessageBox.Show($"Все книги успешно возвращены!", "Успех",
                                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             }
                             catch
@@ -590,11 +561,9 @@ namespace Diplom_Bibl.Pages
                 }
                 else
                 {
-                    // Частичный возврат - показываем диалог выбора
-                    ShowPartialReturnDialog(groupIssuanceId, bookGroups);
+                    await ShowPartialReturnDialog(groupIssuanceId, bookGroups);
                 }
 
-                // Обновляем список выдач
                 if (_selectedReader != null)
                 {
                     LoadActiveIssuances(_selectedReader.ReaderID, _selectedReader.TypeName);
@@ -602,11 +571,12 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при возврате групповых книг: {ex.Message}", "Ошибка",
+                CustomMessageBox.Show($"Ошибка при возврате групповых книг: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-        private void ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
+
+        private async System.Threading.Tasks.Task ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
         {
             try
             {
@@ -677,14 +647,14 @@ namespace Diplom_Bibl.Pages
                     Foreground = (SolidColorBrush)Application.Current.Resources["TextColor"]
                 };
 
-                returnButton.Click += (s, args) =>
+                returnButton.Click += async (s, args) =>
                 {
                     try
                     {
                         int returnedCount = 0;
                         using (var conn = new SqlConnection(_connectionString))
                         {
-                            conn.Open();
+                            await conn.OpenAsync();
                             using (var transaction = conn.BeginTransaction())
                             {
                                 try
@@ -693,60 +663,57 @@ namespace Diplom_Bibl.Pages
                                     {
                                         if (checkBox.IsChecked == true && checkBox.Tag is GroupBookItem book)
                                         {
-                                            // Обновляем количество книг и статус
                                             string updateBooksSql = @"
-                                        UPDATE Books 
-                                        SET 
-                                            CopiesInUse = CopiesInUse - 1,
-                                            AvailableCopies = AvailableCopies + 1,
-                                            StatusBook = 1
-                                        WHERE IDBook = @IDBook";
+                                                UPDATE Books 
+                                                SET 
+                                                    CopiesInUse = CopiesInUse - 1,
+                                                    AvailableCopies = AvailableCopies + 1,
+                                                    StatusBook = 1
+                                                WHERE IDBook = @IDBook";
 
                                             using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                             {
                                                 cmd.Parameters.AddWithValue("@IDBook", book.IDBook);
-                                                cmd.ExecuteNonQuery();
+                                                await cmd.ExecuteNonQueryAsync();
                                             }
 
-                                            // Обновляем возвращенное количество
                                             string updateItemsSql = @"
-                                        UPDATE GroupIssuanceItems 
-                                        SET ReturnedQuantity = ReturnedQuantity + 1
-                                        WHERE ItemId = @ItemId";
+                                                UPDATE GroupIssuanceItems 
+                                                SET ReturnedQuantity = ReturnedQuantity + 1
+                                                WHERE ItemId = @ItemId";
 
                                             using (var cmd = new SqlCommand(updateItemsSql, conn, transaction))
                                             {
                                                 cmd.Parameters.AddWithValue("@ItemId", book.ItemId);
-                                                cmd.ExecuteNonQuery();
+                                                await cmd.ExecuteNonQueryAsync();
                                             }
 
                                             returnedCount++;
                                         }
                                     }
 
-                                    // Проверяем, все ли книги возвращены
                                     string checkSql = @"
-                                SELECT COUNT(*) 
-                                FROM GroupIssuanceItems 
-                                WHERE GroupIssuanceId = @GroupIssuanceId 
-                                  AND Quantity > ReturnedQuantity";
+                                        SELECT COUNT(*) 
+                                        FROM GroupIssuanceItems 
+                                        WHERE GroupIssuanceId = @GroupIssuanceId 
+                                          AND Quantity > ReturnedQuantity";
 
                                     using (var cmd = new SqlCommand(checkSql, conn, transaction))
                                     {
                                         cmd.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
-                                        int remaining = (int)cmd.ExecuteScalar();
+                                        int remaining = (int)await cmd.ExecuteScalarAsync();
 
                                         if (remaining == 0)
                                         {
                                             string updateStatusSql = @"
-                                        UPDATE GroupBookIssuance 
-                                        SET ReturnDate = GETDATE(), Status = 'Возвращена'
-                                        WHERE GroupIssuanceId = @GroupIssuanceId";
+                                                UPDATE GroupBookIssuance 
+                                                SET ReturnDate = GETDATE(), Status = 'Возвращена'
+                                                WHERE GroupIssuanceId = @GroupIssuanceId";
 
                                             using (var cmd2 = new SqlCommand(updateStatusSql, conn, transaction))
                                             {
                                                 cmd2.Parameters.AddWithValue("@GroupIssuanceId", groupIssuanceId);
-                                                cmd2.ExecuteNonQuery();
+                                                await cmd2.ExecuteNonQueryAsync();
                                             }
                                         }
                                     }
@@ -761,7 +728,7 @@ namespace Diplom_Bibl.Pages
                             }
                         }
 
-                         CustomMessageBox.Show($"Возвращено книг: {returnedCount}", "Успех",
+                        CustomMessageBox.Show($"Возвращено книг: {returnedCount}", "Успех",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                         dialog.Close();
@@ -773,7 +740,7 @@ namespace Diplom_Bibl.Pages
                     }
                     catch (Exception ex)
                     {
-                         CustomMessageBox.Show($"Ошибка при возврате: {ex.Message}", "Ошибка",
+                        CustomMessageBox.Show($"Ошибка при возврате: {ex.Message}", "Ошибка",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                 };
@@ -789,7 +756,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при открытии диалога возврата: {ex.Message}", "Ошибка",
+                CustomMessageBox.Show($"Ошибка при открытии диалога возврата: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }

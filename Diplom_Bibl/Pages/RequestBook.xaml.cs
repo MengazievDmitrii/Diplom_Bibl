@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Xceed.Wpf.Toolkit;
 
 namespace Diplom_Bibl.Pages
 {
@@ -19,7 +21,7 @@ namespace Diplom_Bibl.Pages
         private ObservableCollection<BookItem> _availableBooks;
         private ObservableCollection<SelectedBookItem> _selectedBooks;
 
-        // Исправленный класс RequestItem с правильными статусами
+        // Класс для отображения заявки
         public class RequestItem
         {
             public int ID_Request { get; set; }
@@ -56,6 +58,7 @@ namespace Diplom_Bibl.Pages
             public Visibility ConfirmVisible => (StatusName == "Новая" || StatusName == "В обработке") ? Visibility.Visible : Visibility.Collapsed;
             public Visibility CancelVisible => (StatusName != "Выдана" && StatusName != "Отменена" && StatusName != "Просрочена") ? Visibility.Visible : Visibility.Collapsed;
         }
+
         public class BookItem
         {
             public int IDBook { get; set; }
@@ -84,6 +87,7 @@ namespace Diplom_Bibl.Pages
             InitializeComponent();
             _currentUserId = userId;
             _currentUserTypeId = userTypeId;
+            DpLessonDateSimple.SelectedDate = DateTime.Today;
             LoadUserData();
             LoadAvailableBooks();
         }
@@ -159,14 +163,14 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-            SELECT 
-                MIN(b.IDBook) AS IDBook,
-                b.TitleBook, 
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                SUM(b.AvailableCopies) AS AvailableCopies
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.AvailableCopies > 0";
+                    SELECT 
+                        MIN(b.IDBook) AS IDBook,
+                        b.TitleBook, 
+                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                        SUM(b.AvailableCopies) AS AvailableCopies
+                    FROM Books b
+                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                    WHERE b.AvailableCopies > 0";
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -212,6 +216,57 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        private string GenerateUniqueRequestNumber()
+        {
+            try
+            {
+                string datePart = DateTime.Now.ToString("yyyyMMdd");
+                int sequence = 1;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Получаем максимальный номер за сегодня
+                    string sql = @"
+                SELECT TOP 1 RequestNumber 
+                FROM BookRequests 
+                WHERE RequestNumber LIKE @Pattern 
+                ORDER BY ID_Request DESC";
+
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Pattern", $"ЗАЯВ-{datePart}-%");
+                        var result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            string lastNumber = result.ToString();
+                            // Извлекаем номер из строки (например, "ЗАЯВ-20260424-0001" -> "0001")
+                            int lastDashIndex = lastNumber.LastIndexOf('-');
+                            if (lastDashIndex >= 0 && lastDashIndex + 1 < lastNumber.Length)
+                            {
+                                string seqStr = lastNumber.Substring(lastDashIndex + 1);
+                                if (int.TryParse(seqStr, out int lastSeq))
+                                {
+                                    sequence = lastSeq + 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Формат: ЗАЯВ-20260424-0001 (всего 18 символов)
+                // Подходит для nvarchar(20)
+                return $"ЗАЯВ-{datePart}-{sequence:D4}";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка генерации номера: {ex.Message}");
+                // Резервный вариант - используем случайное число (всегда 4 цифры)
+                return $"ЗАЯВ-{DateTime.Now:yyyyMMdd}-{new Random().Next(1, 9999):D4}";
+            }
+        }
         private void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             LoadAvailableBooks(TbBookSearch.Text.Trim());
@@ -230,8 +285,7 @@ namespace Diplom_Bibl.Pages
 
         private void DgAvailableBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            BookItem selectedBook = DgAvailableBooks.SelectedItem as BookItem;
-            if (selectedBook != null)
+            if (DgAvailableBooks.SelectedItem is BookItem selectedBook)
             {
                 AddBookToRequest(selectedBook);
             }
@@ -275,69 +329,51 @@ namespace Diplom_Bibl.Pages
 
         private void BtnRemoveBook_Click(object sender, RoutedEventArgs e)
         {
-            Button button = sender as Button;
-            if (button != null)
+            if (sender is Button button && button.DataContext is SelectedBookItem selectedBook && _selectedBooks != null)
             {
-                SelectedBookItem selectedBook = button.DataContext as SelectedBookItem;
-                if (selectedBook != null && _selectedBooks != null)
-                {
-                    _selectedBooks.Remove(selectedBook);
-                    DgSelectedBooks.ItemsSource = _selectedBooks;
-                    UpdateTotalCount();
-                }
+                _selectedBooks.Remove(selectedBook);
+                DgSelectedBooks.ItemsSource = _selectedBooks;
+                UpdateTotalCount();
             }
         }
 
-        private void Quantity_LostFocus(object sender, RoutedEventArgs e)
+        private void Quantity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            TextBox textBox = sender as TextBox;
-            if (textBox != null)
+            if (sender is IntegerUpDown spinner && spinner.DataContext is SelectedBookItem book)
             {
-                SelectedBookItem book = textBox.DataContext as SelectedBookItem;
-                if (book != null)
+                int newValue = spinner.Value ?? 1;
+                if (newValue < 1)
+                    spinner.Value = 1;
+                if (newValue > book.MaxQuantity)
                 {
-                    if (book.Quantity < 1)
-                        book.Quantity = 1;
-                    if (book.Quantity > book.MaxQuantity)
-                    {
-                        CustomMessageBox.Show($"Доступно только {book.MaxQuantity} экземпляров этой книги.", "Предупреждение",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                        book.Quantity = book.MaxQuantity;
-                    }
-                    UpdateTotalCount();
-                    DgSelectedBooks.Items.Refresh();
+                    CustomMessageBox.Show($"Доступно только {book.MaxQuantity} экземпляров этой книги.", "Предупреждение",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    spinner.Value = book.MaxQuantity;
                 }
+                book.Quantity = spinner.Value ?? 1;
+                UpdateTotalCount();
             }
         }
 
-        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
+        private void UpdateTotalCount()
         {
-            e.Handled = !Regex.IsMatch(e.Text, @"^\d+$");
+            int total = _selectedBooks?.Sum(b => b.Quantity) ?? 0;
+            TbTotalBooks.Text = total.ToString();
+        }
+
+        private void DpLessonDateSimple_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DpLessonDateSimple.SelectedDate.HasValue && DpLessonDateSimple.SelectedDate.Value.Date < DateTime.Today)
+            {
+                CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                DpLessonDateSimple.SelectedDate = DateTime.Today;
+            }
         }
 
         private void TbLessonTime_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !Regex.IsMatch(e.Text, @"^[0-9:]$");
-        }
-
-        private void UpdateTotalCount()
-        {
-            int total = 0;
-            if (_selectedBooks != null)
-            {
-                total = _selectedBooks.Sum(b => b.Quantity);
-            }
-            TbTotalBooks.Text = total.ToString();
-        }
-
-        private void DpLessonDate_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (DpLessonDate.SelectedDate.HasValue && DpLessonDate.SelectedDate.Value.Date < DateTime.Today)
-            {
-                CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                DpLessonDate.SelectedDate = DateTime.Today;
-            }
         }
 
         private bool ValidateForm()
@@ -350,19 +386,19 @@ namespace Diplom_Bibl.Pages
                 return false;
             }
 
-            if (!DpLessonDate.SelectedDate.HasValue)
+            if (!DpLessonDateSimple.SelectedDate.HasValue)
             {
                 CustomMessageBox.Show("Выберите дату занятия.", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                DpLessonDate.Focus();
+                DpLessonDateSimple.Focus();
                 return false;
             }
 
-            if (DpLessonDate.SelectedDate.Value.Date < DateTime.Today)
+            if (DpLessonDateSimple.SelectedDate.Value.Date < DateTime.Today)
             {
                 CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                DpLessonDate.Focus();
+                DpLessonDateSimple.Focus();
                 return false;
             }
 
@@ -388,63 +424,119 @@ namespace Diplom_Bibl.Pages
         {
             if (!ValidateForm()) return;
 
+            BtnSubmitRequest.IsEnabled = false;
+
             try
             {
                 string bookItems = string.Join(",", _selectedBooks.Select(b => $"{b.IDBook}:{b.Quantity}"));
 
-                int? groupId = null;
-                if (CbGroup.SelectedValue != null)
-                {
-                    groupId = (int)CbGroup.SelectedValue;
-                }
-                DateTime lessonDate = DpLessonDate.SelectedDate.Value;
+                int? groupId = CbGroup.SelectedValue as int?;
+                DateTime lessonDate = DpLessonDateSimple.SelectedDate.Value;
                 string lessonTime = TbLessonTime.Text?.Trim();
+                if (string.IsNullOrWhiteSpace(lessonTime))
+                    lessonTime = null;
+
+                string generatedNumber =  GenerateUniqueRequestNumber();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
-                    using (var cmd = new SqlCommand("sp_CreateBookRequest", conn))
+
+                    using (var transaction = conn.BeginTransaction())
                     {
-                        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                        try
+                        {
+                            string insertRequestSql = @"
+                                INSERT INTO BookRequests (
+                                    RequestNumber, UserID, UserTypeID, GroupID, LessonName, 
+                                    LessonDate, LessonTime, StatusID, RequestDate, ExpirationDate, CreatedDate
+                                ) VALUES (
+                                    @RequestNumber, @UserID, @UserTypeID, @GroupID, @LessonName,
+                                    @LessonDate, @LessonTime, 
+                                    (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Новая'),
+                                    GETDATE(), DATEADD(DAY, 1, @LessonDate), GETDATE()
+                                );
+                                SELECT SCOPE_IDENTITY();";
 
-                        cmd.Parameters.AddWithValue("@UserID", _currentUserId);
-                        cmd.Parameters.AddWithValue("@UserTypeID", _currentUserTypeId);
-                        cmd.Parameters.AddWithValue("@GroupID", groupId ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@LessonName", TbLessonName.Text.Trim());
-                        cmd.Parameters.AddWithValue("@LessonDate", lessonDate);
-                        cmd.Parameters.AddWithValue("@LessonTime", string.IsNullOrWhiteSpace(lessonTime) ? (object)DBNull.Value : lessonTime);
-                        cmd.Parameters.AddWithValue("@BookItems", bookItems);
+                            int requestId;
+                            using (var cmd = new SqlCommand(insertRequestSql, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@RequestNumber", generatedNumber);
+                                cmd.Parameters.AddWithValue("@UserID", _currentUserId);
+                                cmd.Parameters.AddWithValue("@UserTypeID", _currentUserTypeId);
+                                cmd.Parameters.AddWithValue("@GroupID", groupId ?? (object)DBNull.Value);
+                                cmd.Parameters.AddWithValue("@LessonName", TbLessonName.Text.Trim());
+                                cmd.Parameters.AddWithValue("@LessonDate", lessonDate);
+                                cmd.Parameters.AddWithValue("@LessonTime", string.IsNullOrWhiteSpace(lessonTime) ? (object)DBNull.Value : lessonTime);
 
-                        var outputNumber = cmd.Parameters.Add("@RequestNumber", System.Data.SqlDbType.NVarChar, 20);
-                        outputNumber.Direction = System.Data.ParameterDirection.Output;
+                                requestId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                            }
 
-                        var outputId = cmd.Parameters.Add("@RequestID", System.Data.SqlDbType.Int);
-                        outputId.Direction = System.Data.ParameterDirection.Output;
+                            string insertItemsSql = @"
+                                INSERT INTO RequestItems (RequestID, BookID, Quantity, StatusID)
+                                VALUES (@RequestID, @BookID, @Quantity, 
+                                    (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Ожидает'))";
 
-                        await cmd.ExecuteNonQueryAsync();
+                            foreach (var book in _selectedBooks)
+                            {
+                                using (var cmd = new SqlCommand(insertItemsSql, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@RequestID", requestId);
+                                    cmd.Parameters.AddWithValue("@BookID", book.IDBook);
+                                    cmd.Parameters.AddWithValue("@Quantity", book.Quantity);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
 
-                        string requestNumber = outputNumber.Value?.ToString() ?? "";
-                        int requestId = (outputId.Value != DBNull.Value) ? Convert.ToInt32(outputId.Value) : 0;
+                            string insertNotificationSql = @"
+                                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
+                                VALUES (@RequestID, 
+                                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Новая заявка'),
+                                    @Message, 0, GETDATE())";
 
-                        CustomMessageBox.Show($"Заявка №{requestNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
-                            "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                            using (var cmd = new SqlCommand(insertNotificationSql, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@RequestID", requestId);
+                                cmd.Parameters.AddWithValue("@Message", $"Новая заявка №{generatedNumber} от пользователя ID {_currentUserId}");
+                                await cmd.ExecuteNonQueryAsync();
+                            }
 
-                        ClearForm();
+                            transaction.Commit();
+
+                            CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
+                                "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
+                            ClearForm();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
                 }
+            }
+            catch (SqlException ex) when (ex.Number == 2627)
+            {
+                CustomMessageBox.Show("Произошла ошибка при генерации номера заявки. Попробуйте еще раз.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
                 CustomMessageBox.Show($"Ошибка при создании заявки: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
+            finally
+            {
+                BtnSubmitRequest.IsEnabled = true;
+            }
         }
 
         private void ClearForm()
         {
             TbLessonName.Clear();
-            DpLessonDate.SelectedDate = DateTime.Today;
-            TbLessonTime.Clear();
+            DpLessonDateSimple.SelectedDate = DateTime.Today;
+            TbLessonTime.Text = "";
             CbGroup.SelectedIndex = -1;
             if (_selectedBooks != null)
             {
@@ -463,6 +555,7 @@ namespace Diplom_Bibl.Pages
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             LoadAvailableBooks();
+            DpLessonDateSimple.SelectedDate = DateTime.Today;
         }
     }
 }

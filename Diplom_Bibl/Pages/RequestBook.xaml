@@ -1,6 +1,8 @@
 ﻿<Page x:Class="Diplom_Bibl.Pages.RequestBook"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
       Title="Подача заявки на книги" Loaded="Page_Loaded"
       Background="#F5F5F5">
 
@@ -15,16 +17,16 @@
 
             <!-- Заголовок -->
             <TextBlock Grid.Row="0" Text="📝 Подача заявки на книги" 
-                       Style="{StaticResource SectionTitleStyle}"/>
+                       FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
 
             <!-- Основная форма -->
             <Border Grid.Row="1" Background="White" CornerRadius="8"
-                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
-                    Padding="20" Margin="0,0,0,20" Effect="{StaticResource DropShadowEffect}">
+                    BorderBrush="#D0D0D0" BorderThickness="1"
+                    Padding="20" Margin="0,0,0,20">
 
                 <StackPanel>
                     <TextBlock Text="Данные заявки" FontSize="16" FontWeight="SemiBold"
-                               Foreground="{StaticResource PrimaryColor}" Margin="0,0,0,15"/>
+                               Foreground="#2980B9" Margin="0,0,0,15"/>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -32,54 +34,46 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Левая колонка -->
                         <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                            <!-- Тип заявки (автоматически определяется по пользователю) -->
                             <StackPanel Margin="0,0,0,15" Visibility="Collapsed">
-                                <TextBlock Text="Тип заявки" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="TbUserType" IsEnabled="False" Style="{StaticResource InputFieldStyle}"/>
+                                <TextBlock Text="Тип заявки" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBox x:Name="TbUserType" IsEnabled="False" Height="35" Padding="8,0"/>
                             </StackPanel>
 
-                            <!-- Группа (для преподавателей, которые выбирают группу) -->
                             <StackPanel x:Name="GroupPanel" Margin="0,0,0,15" Visibility="Collapsed">
-                                <TextBlock Text="Группа *" Style="{StaticResource LabelStyle}"/>
-                                <ComboBox x:Name="CbGroup" Style="{StaticResource InputFieldStyleCb}"
-                                          DisplayMemberPath="GroupCode" SelectedValuePath="GroupID"/>
+                                <TextBlock Text="Группа *" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="CbGroup" Height="35" Padding="8,0"/>
                             </StackPanel>
 
-                            <!-- Название занятия/предмета -->
                             <StackPanel Margin="0,0,0,15">
-                                <TextBlock Text="Название занятия / предмета *" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="TbLessonName" Style="{StaticResource InputFieldStyle}" MaxLength="200"/>
+                                <TextBlock Text="Название занятия / предмета *" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBox x:Name="TbLessonName" Height="35" Padding="8,0" MaxLength="200"/>
                             </StackPanel>
 
-                            <!-- Дата занятия -->
                             <StackPanel Margin="0,0,0,15">
-                                <TextBlock Text="Дата занятия *" Style="{StaticResource LabelStyle}"/>
-                                <DatePicker x:Name="DpLessonDate" Style="{StaticResource DatePickerStyle}"
-                                            SelectedDateChanged="DpLessonDate_SelectedDateChanged"/>
+                                <TextBlock Text="Дата занятия *" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <DatePicker x:Name="DpLessonDateSimple" Height="35" 
+                                            SelectedDateChanged= "DpLessonDateSimple_SelectedDateChanged"/>
                             </StackPanel>
 
-                            <!-- Время занятия -->
                             <StackPanel Margin="0,0,0,15">
-                                <TextBlock Text="Время занятия" Style="{StaticResource LabelStyle}"/>
-                                <TextBox x:Name="TbLessonTime" Style="{StaticResource InputFieldStyle}" 
-             MaxLength="5" ToolTip="Формат: ЧЧ:ММ"
-             PreviewTextInput="TbLessonTime_PreviewTextInput"/>
+                                <TextBlock Text="Время занятия" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBox x:Name="TbLessonTime" Height="35" Padding="8,0" 
+                                         MaxLength="5" ToolTip="Формат: ЧЧ:ММ"
+                                         PreviewTextInput="TbLessonTime_PreviewTextInput"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Правая колонка: информация -->
-                        <Border Grid.Column="1" Background="{StaticResource PrimaryLightColor}"
+                        <Border Grid.Column="1" Background="#E3F2FD"
                                 CornerRadius="8" Padding="15" Margin="15,0,0,0">
                             <StackPanel>
                                 <TextBlock Text="ℹ️ Информация" FontWeight="Bold" 
-                                           Foreground="{StaticResource PrimaryColor}" Margin="0,0,0,10"/>
-                                <TextBlock Text="• Заявка создаётся на выбранную дату занятия" FontSize="12" Margin="0,0,0,5"/>
-                                <TextBlock Text="• Книги бронируются на 3 дня вперёд от даты занятия" FontSize="12" Margin="0,0,0,5"/>
-                                <TextBlock Text="• После подтверждения библиотекарем книги будут ждать вас" FontSize="12" Margin="0,0,0,5"/>
-                                <TextBlock Text="• Если не забрать книги в день занятия — бронь снимается" FontSize="12" Margin="0,0,0,5"/>
-                                <TextBlock Text="• Статус заявки можно отслеживать в разделе 'Мои заявки'" FontSize="12"/>
+                                           Foreground="#1565C0" Margin="0,0,0,10"/>
+                                <TextBlock Text="• Заявка создаётся на выбранную дату занятия" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                                <TextBlock Text="• Книги бронируются на 3 дня вперёд от даты занятия" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                                <TextBlock Text="• После подтверждения библиотекарем книги будут ждать вас" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                                <TextBlock Text="• Если не забрать книги в день занятия — бронь снимается" FontSize="12" Margin="0,0,0,5" TextWrapping="Wrap"/>
+                                <TextBlock Text="• Статус заявки можно отслеживать в разделе 'Мои заявки'" FontSize="12" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -88,12 +82,12 @@
 
             <!-- Секция добавления книг -->
             <Border Grid.Row="2" Background="White" CornerRadius="8"
-                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
-                    Padding="20" Margin="0,0,0,20" Effect="{StaticResource DropShadowEffect}">
+                    BorderBrush="#D0D0D0" BorderThickness="1"
+                    Padding="20" Margin="0,0,0,20">
 
                 <StackPanel>
                     <TextBlock Text="📚 Выбор книг" FontSize="16" FontWeight="SemiBold"
-                               Foreground="{StaticResource PrimaryColor}" Margin="0,0,0,15"/>
+                               Foreground="#2980B9" Margin="0,0,0,15"/>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -102,33 +96,31 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Поиск книг -->
                         <TextBox x:Name="TbBookSearch" Grid.Column="0" 
-                                 Style="{StaticResource InputFieldStyle}"
+                                 Height="35" Padding="8,0"
                                  TextChanged="TbBookSearch_TextChanged"
                                  ToolTip="Поиск по названию или автору"/>
 
                         <Button x:Name="BtnSearchBook" Grid.Column="1" Content="🔍 Поиск"
-                                Style="{StaticResource PrimaryButtonStyle}" Width="80"
-                                Margin="10,0,10,0" Click="BtnSearchBook_Click"/>
+                                Width="80" Height="35" Margin="10,0,10,0" Click="BtnSearchBook_Click"
+                                Background="#3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"/>
 
                         <Button x:Name="BtnClearSearch" Grid.Column="2" Content="✖ Очистить"
-                                Style="{StaticResource PrimaryButtonStyle}" Width="80"
-                                Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
-                                Click="BtnClearSearch_Click"/>
+                                Width="80" Height="35" Click="BtnClearSearch_Click"
+                                Background="#95A5A6" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                     </Grid>
 
                     <!-- Список доступных книг -->
                     <DataGrid x:Name="DgAvailableBooks" AutoGenerateColumns="False"
                               IsReadOnly="True" SelectionMode="Single"
-                              RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
-                              Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                              RowHeight="35" AlternatingRowBackground="#F9F9F9"
+                              Background="White" BorderBrush="#D0D0D0" BorderThickness="1"
                               Margin="0,15,0,15" MouseDoubleClick="DgAvailableBooks_MouseDoubleClick"
                               MaxHeight="200">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                                <Setter Property="Background" Value="#34495E"/>
+                                <Setter Property="Foreground" Value="White"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="Height" Value="35"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -150,12 +142,12 @@
 
                     <DataGrid x:Name="DgSelectedBooks" AutoGenerateColumns="False"
                               CanUserAddRows="False" CanUserDeleteRows="True"
-                              RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
-                              Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+                              RowHeight="35" AlternatingRowBackground="#F9F9F9"
+                              Background="White" BorderBrush="#D0D0D0" BorderThickness="1">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                                <Setter Property="Background" Value="#34495E"/>
+                                <Setter Property="Foreground" Value="White"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="Height" Value="35"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -172,10 +164,13 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBox Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
-                                                     Width="60" Height="30" TextAlignment="Center"
-                                                     PreviewTextInput="NumberValidationTextBox"
-                                                     LostFocus="Quantity_LostFocus"/>
+                                            <xctk:IntegerUpDown Value="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Minimum="1" Maximum="{Binding MaxQuantity}"
+                                                                 Width="60" Height="30"
+                                                                 Increment="1" 
+                                                                 AllowSpin="True"
+                                                                 ShowButtonSpinner="True"
+                                                                 ValueChanged="Quantity_ValueChanged"/>
                                             <TextBlock Text=" шт." VerticalAlignment="Center" Margin="5,0,0,0"/>
                                         </StackPanel>
                                     </DataTemplate>
@@ -185,7 +180,8 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Content="🗑️" Width="30" Height="30"
-                                                Background="{StaticResource DangerColor}" Foreground="White"
+                                                Background="#E74C3C" Foreground="White"
+                                                BorderThickness="0" Cursor="Hand"
                                                 Click="BtnRemoveBook_Click"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -194,7 +190,7 @@
                     </DataGrid>
 
                     <!-- Итоговая информация -->
-                    <Border Background="{StaticResource LightGray}" CornerRadius="6" Padding="10" Margin="0,15,0,0">
+                    <Border Background="#ECF0F1" CornerRadius="6" Padding="10" Margin="0,15,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -204,7 +200,7 @@
 
                             <TextBlock Grid.Column="0" Text="Итого:" FontWeight="Bold" VerticalAlignment="Center"/>
                             <TextBlock x:Name="TbTotalBooks" Grid.Column="1" Text="0" FontWeight="Bold" 
-                                       FontSize="16" Foreground="{StaticResource PrimaryColor}"/>
+                                       FontSize="16" Foreground="#2980B9"/>
                             <TextBlock Grid.Column="2" Text=" книг" VerticalAlignment="Center" Margin="5,0,0,0"/>
                         </Grid>
                     </Border>
@@ -212,13 +208,14 @@
             </Border>
 
             <!-- Кнопки действий -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                 <Button x:Name="BtnSubmitRequest" Content="📤 Отправить заявку"
-                        Style="{StaticResource SaveButtonStyle}" Width="180" Height="40"
-                        Click="BtnSubmitRequest_Click" Margin="0,0,10,0"/>
+                        Width="180" Height="40" Margin="0,0,10,0"
+                        Background="#27AE60" Foreground="White" BorderThickness="0" Cursor="Hand"
+                        Click="BtnSubmitRequest_Click"/>
                 <Button x:Name="BtnCancel" Content="❌ Отмена"
-                        Style="{StaticResource PrimaryButtonStyle}" Width="120" Height="40"
-                        Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
+                        Width="120" Height="40"
+                        Background="#95A5A6" Foreground="White" BorderThickness="0" Cursor="Hand"
                         Click="BtnCancel_Click"/>
             </StackPanel>
         </Grid>

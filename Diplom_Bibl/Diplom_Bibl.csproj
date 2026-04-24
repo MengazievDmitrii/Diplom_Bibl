@@ -316,6 +316,7 @@
     <Compile Include="Services\ReceiptNumberGenerator.cs" />
     <Compile Include="Services\ReceiptService.cs" />
     <Compile Include="Services\UserService.cs" />
+    <Compile Include="User.cs" />
     <Compile Include="Windows\AutorisationWindow.xaml.cs">
       <DependentUpon>AutorisationWindow.xaml</DependentUpon>
     </Compile>
