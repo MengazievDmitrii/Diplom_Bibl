@@ -1,11 +1,16 @@
+# ================================
 # Visual Studio
+# ================================
 .vs/
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
+*.aps
 
+# ================================
 # Build results (результаты сборки)
+# ================================
 [Dd]ebug/
 [Rr]elease/
 x64/
@@ -16,11 +21,35 @@ x86/
 *.exe.manifest
 *.application
 *.publish
+*.cache
+*.g.cs
+*.g.i.cs
+*.baml
+*_MarkupCompile.i*
 
-# Rider / Resharper
-.idea/
+# ================================
+# NuGet packages
+# ================================
+[Pp]ackages/
+!packages/build/
+*.nupkg
+
+# ================================
+# Entity Framework
+# ================================
+*.efprojects
+*.eflastupdate
+
+# ================================
+# ReSharper / Rider
+# ================================
 *.resharper
 *.sln.ide
+.idea/
 
-# Windows
+# ================================
+# Windows / System
+# ================================
 Thumbs.db
+desktop.ini
+*.log
