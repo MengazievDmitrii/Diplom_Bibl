@@ -16,7 +16,7 @@ namespace Diplom_Bibl.Pages
     public partial class RequestBook : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
-        private readonly int _currentUserId;
+        private readonly int _currentReaderId;       
         private readonly int _currentUserTypeId;
         private ObservableCollection<BookItem> _availableBooks;
         private ObservableCollection<SelectedBookItem> _selectedBooks;
@@ -82,10 +82,10 @@ namespace Diplom_Bibl.Pages
             public string GroupCode { get; set; } = "";
         }
 
-        public RequestBook(int userId, int userTypeId)
+        public RequestBook(int readerId, int userTypeId)
         {
             InitializeComponent();
-            _currentUserId = userId;
+            _currentReaderId = readerId;
             _currentUserTypeId = userTypeId;
             DpLessonDateSimple.SelectedDate = DateTime.Today;
             LoadUserData();
@@ -462,7 +462,7 @@ namespace Diplom_Bibl.Pages
                             using (var cmd = new SqlCommand(insertRequestSql, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@RequestNumber", generatedNumber);
-                                cmd.Parameters.AddWithValue("@UserID", _currentUserId);
+                                cmd.Parameters.AddWithValue("@UserID", _currentReaderId);
                                 cmd.Parameters.AddWithValue("@UserTypeID", _currentUserTypeId);
                                 cmd.Parameters.AddWithValue("@GroupID", groupId ?? (object)DBNull.Value);
                                 cmd.Parameters.AddWithValue("@LessonName", TbLessonName.Text.Trim());
@@ -497,7 +497,7 @@ namespace Diplom_Bibl.Pages
                             using (var cmd = new SqlCommand(insertNotificationSql, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@RequestID", requestId);
-                                cmd.Parameters.AddWithValue("@Message", $"Новая заявка №{generatedNumber} от пользователя ID {_currentUserId}");
+                                cmd.Parameters.AddWithValue("@Message", $"Новая заявка №{generatedNumber} от пользователя ID {_currentReaderId}");
                                 await cmd.ExecuteNonQueryAsync();
                             }
 

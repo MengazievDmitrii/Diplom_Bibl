@@ -294,6 +294,9 @@
     <Compile Include="Pages\InventoryActReport.xaml.cs">
       <DependentUpon>InventoryActReport.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\MyRequestsPage.xaml.cs">
+      <DependentUpon>MyRequestsPage.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\Readers.xaml.cs">
       <DependentUpon>Readers.xaml</DependentUpon>
     </Compile>
@@ -470,6 +473,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\InventoryActReport.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Pages\MyRequestsPage.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

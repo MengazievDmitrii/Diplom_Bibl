@@ -135,8 +135,8 @@ namespace Diplom_Bibl.Pages
                     {
                         int count = (int)await cmd.ExecuteScalarAsync();
                         // Обновляем счетчик уведомлений (если есть такой элемент в XAML)
-                        // NotificationBadge.Text = count.ToString();
-                        // NotificationBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                        //NotificationBadge.Text = count.ToString();
+                        //NotificationBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
                     }
                 }
             }
