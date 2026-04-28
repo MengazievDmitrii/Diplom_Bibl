@@ -525,11 +525,17 @@ namespace Diplom_Bibl.Pages
             {
                 int requestId = (int)btn.Tag;
 
-                var result = CustomMessageBox.Show(
-                    "Подтвердить заявку? Книги будут зарезервированы.",
-                    "Подтверждение",
-                    CustomMessageBoxButton.YesNo,
-                    CustomMessageBoxImage.Question);
+                // Находим заявку, чтобы получить UserID (ReaderID)
+                var request = _allRequests.FirstOrDefault(r => r.ID_Request == requestId);
+                if (request == null)
+                {
+                    CustomMessageBox.Show("Заявка не найдена.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    return;
+                }
+
+                var result = CustomMessageBox.Show("Подтвердить заявку? Книги будут зарезервированы.", "Подтверждение",
+                    CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
                 if (result == CustomMessageBoxResult.Yes)
                 {
@@ -538,24 +544,31 @@ namespace Diplom_Bibl.Pages
                         using (var conn = new SqlConnection(_connectionString))
                         {
                             await conn.OpenAsync();
-
-                            // Резервируем книги (статус становится "В обработке")
-                            using (var cmd = new SqlCommand("sp_ReserveBooks", conn))
+                            using (var cmd = new SqlCommand("sp_ReserveBooksAtomic", conn))
                             {
                                 cmd.CommandType = System.Data.CommandType.StoredProcedure;
                                 cmd.Parameters.AddWithValue("@RequestID", requestId);
+                                cmd.Parameters.AddWithValue("@UserID", request.UserID);  // ← ДОБАВЛЯЕМ ЭТОТ ПАРАМЕТР!
                                 cmd.Parameters.AddWithValue("@ReserveDays", 3);
                                 await cmd.ExecuteNonQueryAsync();
                             }
                         }
-
-                        CustomMessageBox.Show("Заявка подтверждена! Книги зарезервированы.\n\nПосле подготовки книг нажмите 'Выдать'.", "Успешно",
+                        CustomMessageBox.Show("Заявка подтверждена! Книги зарезервированы.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                        // Перезагружаем данные, чтобы обновить статус и кнопки
                         await LoadRequests();
                         await LoadUnreadNotificationsCount();
                         DetailsPanel.Visibility = Visibility.Collapsed;
+                    }
+                    catch (SqlException ex) when (ex.Number == 1205)
+                    {
+                        CustomMessageBox.Show("Система временно перегружена. Пожалуйста, повторите попытку.", "Ошибка",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    }
+                    catch (SqlException ex) when (ex.Message.Contains("недостаточно") || ex.Message.Contains("Недостаточно"))
+                    {
+                        CustomMessageBox.Show("Недостаточно экземпляров книг для резервирования.\n\n" +
+                            "Возможно, другие заявки уже забрали эти книги.", "Ошибка",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     }
                     catch (Exception ex)
                     {
@@ -565,7 +578,6 @@ namespace Diplom_Bibl.Pages
                 }
             }
         }
-
         private void IssueBooks_Click(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;

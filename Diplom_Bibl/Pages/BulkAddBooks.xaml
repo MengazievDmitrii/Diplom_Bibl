@@ -5,8 +5,8 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplom_Bibl.Pages"
       mc:Ignorable="d" 
-      d:DesignHeight="750" d:DesignWidth="900"
-      Title="BulkAddBooks" Loaded="Page_Loaded"
+      d:DesignHeight="850" d:DesignWidth="1000"
+      Title="Массовое добавление книг" Loaded="Page_Loaded"
       Background="#F5F5F5">
 
     <Page.Resources>
@@ -69,6 +69,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -111,19 +112,19 @@
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Вид книги -->
+                            <!-- Категория книги -->
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="Вид книги *" 
+                                <TextBlock Text="Категория книги" 
                                            Style="{StaticResource LabelStyle}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="ViewBookCombo"
+                                    <ComboBox x:Name="CategoryCombo"
                                               Grid.Column="0"
                                               Style="{StaticResource InputFieldStyleCb}"
-                                              DisplayMemberPath="DisplayViewBook"
+                                              DisplayMemberPath="CategoryName"
                                               SelectedValuePath="ID"/>
                                     <Button Grid.Column="1"
                                             Content="+"
@@ -131,11 +132,59 @@
                                             Height="36"
                                             Margin="5,0,0,0"
                                             Style="{StaticResource PrimaryButtonStyle}"
-                                            Click="AddViewBook_Click"/>
+                                            Click="AddCategory_Click"/>
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Акт поступления (перенесен в левую колонку) -->
+                            <!-- Вид издания (EditionTypes) - заменяет ViewBook -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="Вид издания *" 
+                                           Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="EditionTypeCombo"
+                                              Grid.Column="0"
+                                              Style="{StaticResource InputFieldStyleCb}"
+                                              DisplayMemberPath="EditionTypeName"
+                                              SelectedValuePath="ID"/>
+                                    <Button Grid.Column="1"
+                                            Content="+"
+                                            Width="36"
+                                            Height="36"
+                                            Margin="5,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddEditionType_Click"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Формат издания -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="Формат издания" 
+                                           Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="FormatCombo"
+                                              Grid.Column="0"
+                                              Style="{StaticResource InputFieldStyleCb}"
+                                              DisplayMemberPath="FormatName"
+                                              SelectedValuePath="ID"/>
+                                    <Button Grid.Column="1"
+                                            Content="+"
+                                            Width="36"
+                                            Height="36"
+                                            Margin="5,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddFormat_Click"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Акт поступления -->
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="Акт поступления" 
                                            Style="{StaticResource LabelStyle}"/>
@@ -211,6 +260,30 @@
                                 </Grid>
                             </StackPanel>
 
+                            <!-- Статус -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="Статус" 
+                                           Style="{StaticResource LabelStyle}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="StatusCombo"
+                                              Grid.Column="0"
+                                              Style="{StaticResource InputFieldStyleCb}"
+                                              DisplayMemberPath="DisplayStatus"
+                                              SelectedValuePath="ID"/>
+                                    <Button Grid.Column="1"
+                                            Content="+"
+                                            Width="36"
+                                            Height="36"
+                                            Margin="5,0,0,0"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Click="AddStatus_Click"/>
+                                </Grid>
+                            </StackPanel>
+
                             <!-- Год издания -->
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="Год издания *" 
@@ -232,12 +305,22 @@
                             </StackPanel>
                         </StackPanel>
 
+                        <!-- Аннотация (на всю ширину) -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,10">
+                            <TextBlock Text="Аннотация" Style="{StaticResource LabelStyle}"/>
+                            <TextBox x:Name="AnnotationBox" 
+                                     AcceptsReturn="True" 
+                                     Height="80" 
+                                     Style="{StaticResource InputFieldStyle}" 
+                                     TextWrapping="Wrap"/>
+                        </StackPanel>
+
                         <!-- Количество экземпляров (на всю ширину) -->
                         <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                 Background="{StaticResource PrimaryLightColor}"
                                 CornerRadius="8"
                                 Padding="15"
-                                Margin="0,15,0,20">
+                                Margin="0,10,0,15">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -268,7 +351,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Предпросмотр инвентарных номеров (возвращен на место) -->
+                        <!-- Предпросмотр инвентарных номеров -->
                         <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                                 Background="{StaticResource LightGray}"
                                 CornerRadius="6"
@@ -288,7 +371,7 @@
                     </Grid>
 
                     <!-- Кнопки -->
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="SaveButton"
                                 Content="💾 Сохранить книги"
                                 Style="{StaticResource SaveButtonStyle}"

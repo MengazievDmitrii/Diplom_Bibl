@@ -153,8 +153,8 @@ namespace Diplom_Bibl.Pages
                     END AS IsIssued
                 FROM Books b
                 LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
-                LEFT JOIN BookIssuance bi ON b.IDBook = bi.IDBook AND bi.ReturnDate IS NULL
-                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.IDBook
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
                 LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
                 WHERE b.InventaryNumber = @Inv";
 
@@ -231,9 +231,9 @@ namespace Diplom_Bibl.Pages
                         ELSE NULL
                     END AS PlannedReturnDate
                 FROM Books b
-                LEFT JOIN BookIssuance bi ON b.IDBook = bi.IDBook AND bi.ReturnDate IS NULL
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
                 LEFT JOIN ReaderForm r ON bi.ReaderId = r.ReaderID
-                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.IDBook
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
                 LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
                 LEFT JOIN Groups g ON gi.GroupId = g.GroupID
                 LEFT JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
@@ -292,8 +292,8 @@ namespace Diplom_Bibl.Pages
                 FROM Books b
                 LEFT JOIN Authors a ON b.Author = a.ID_Autor
                 LEFT JOIN PublishingHouse p ON b.PublishingHouse = p.IDPublishingHouse
-                LEFT JOIN BookIssuance bi ON b.IDBook = bi.IDBook AND bi.ReturnDate IS NULL
-                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.IDBook
+                LEFT JOIN BookIssuance bi ON b.IDBook = bi.BookId AND bi.ReturnDate IS NULL
+                LEFT JOIN GroupIssuanceItems git ON b.IDBook = git.BookId
                 LEFT JOIN GroupBookIssuance gi ON git.GroupIssuanceId = gi.GroupIssuanceId AND gi.ReturnDate IS NULL
                 WHERE b.InventaryNumber = @Inv";
 
@@ -451,13 +451,13 @@ namespace Diplom_Bibl.Pages
         {
             if (_items.Count == 0)
             {
-                 CustomMessageBox.Show("Добавьте книги в акт.");
+                CustomMessageBox.Show("Добавьте книги в акт.");
                 return;
             }
 
             if (CbReason.SelectedItem == null)
             {
-                 CustomMessageBox.Show("Выберите причину списания.");
+                CustomMessageBox.Show("Выберите причину списания.");
                 return;
             }
 
@@ -467,7 +467,7 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(actNumber) || string.IsNullOrEmpty(participants))
             {
-                 CustomMessageBox.Show("Заполните все поля.");
+                CustomMessageBox.Show("Заполните все поля.");
                 return;
             }
 
@@ -483,9 +483,9 @@ namespace Diplom_Bibl.Pages
                             // 1. Создаем акт списания
                             int writeOffId;
                             using (var cmd = new SqlCommand(@"
-                                INSERT INTO DisposalBooks (DisposalNumber, DisposalDate, Participants, Reason)
-                                VALUES (@Number, @Date, @Participants, @Reason);
-                                SELECT SCOPE_IDENTITY();", conn, transaction))
+                        INSERT INTO DisposalBooks (DisposalNumber, DisposalDate, Participants, Reason)
+                        VALUES (@Number, @Date, @Participants, @Reason);
+                        SELECT SCOPE_IDENTITY();", conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@Number", actNumber);
                                 cmd.Parameters.AddWithValue("@Date", DpDate.SelectedDate ?? DateTime.Today);
@@ -503,12 +503,12 @@ namespace Diplom_Bibl.Pages
                             foreach (var item in _items)
                             {
                                 using (var cmd = new SqlCommand(@"
-                                    INSERT INTO DisposalItems (IDDisposal, InventoryNumber, TitleBook, PriceRub, PriceKop, Quantity, TotalPrice)
-                                    VALUES (@ID, @Inv, @Title, @Rub, @Kop, @Qty, @Total);
-                                    
-                                    UPDATE Books 
-                                    SET ID_Disposal = @ID, StatusBook = @StatusId
-                                    WHERE InventaryNumber = @Inv;", conn, transaction))
+                            INSERT INTO DisposalItems (IDDisposal, InventoryNumber, TitleBook, PriceRub, PriceKop, Quantity, TotalPrice)
+                            VALUES (@ID, @Inv, @Title, @Rub, @Kop, @Qty, @Total);
+                            
+                            UPDATE Books 
+                            SET ID_Disposal = @ID, StatusBook = @StatusId
+                            WHERE InventaryNumber = @Inv;", conn, transaction))
                                 {
                                     cmd.Parameters.AddWithValue("@ID", writeOffId);
                                     cmd.Parameters.AddWithValue("@Inv", item.InventoryNumber);
@@ -524,7 +524,19 @@ namespace Diplom_Bibl.Pages
                             }
 
                             transaction.Commit();
-                             CustomMessageBox.Show("Акт списания создан!");
+
+                            // Генерируем PDF-документ
+                            byte[] pdfBytes = Services.DisposalActPdfService.GenerateDisposalActPdf(writeOffId);
+
+                            // Сохраняем PDF на рабочий стол
+                            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                            string fileName = $"Акт_списания_{actNumber}_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
+                            string fullPath = System.IO.Path.Combine(desktop, fileName);
+                            System.IO.File.WriteAllBytes(fullPath, pdfBytes);
+
+                            CustomMessageBox.Show($"Акт списания успешно создан!\n\nPDF сохранён:\n{fullPath}", "Успешно",
+                                CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
                             ClearForm();
                         }
                         catch
@@ -537,7 +549,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка: {ex.Message}");
+                CustomMessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 

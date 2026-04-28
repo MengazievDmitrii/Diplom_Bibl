@@ -16,48 +16,10 @@ namespace Diplom_Bibl.Pages
     public partial class RequestBook : Page
     {
         private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
-        private readonly int _currentReaderId;       
+        private readonly int _currentReaderId;
         private readonly int _currentUserTypeId;
         private ObservableCollection<BookItem> _availableBooks;
         private ObservableCollection<SelectedBookItem> _selectedBooks;
-
-        // Класс для отображения заявки
-        public class RequestItem
-        {
-            public int ID_Request { get; set; }
-            public string RequestNumber { get; set; } = "";
-            public DateTime RequestDate { get; set; }
-            public int UserID { get; set; }
-            public string UserName { get; set; } = "";
-            public int? GroupID { get; set; }
-            public string GroupCode { get; set; } = "";
-            public string LessonName { get; set; } = "";
-            public DateTime LessonDate { get; set; }
-            public int StatusID { get; set; }
-            public string StatusName { get; set; } = "";
-            public int TotalBooks { get; set; }
-            public DateTime? ExpirationDate { get; set; }
-
-            public SolidColorBrush StatusColor
-            {
-                get
-                {
-                    switch (StatusName)
-                    {
-                        case "Новая": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#007BFF"));
-                        case "В обработке": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107"));
-                        case "Готова": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
-                        case "Выдана": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#17A2B8"));
-                        case "Отменена": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"));
-                        case "Просрочена": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D"));
-                        default: return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D"));
-                    }
-                }
-            }
-
-            public Visibility ConfirmVisible => (StatusName == "Новая" || StatusName == "В обработке") ? Visibility.Visible : Visibility.Collapsed;
-            public Visibility CancelVisible => (StatusName != "Выдана" && StatusName != "Отменена" && StatusName != "Просрочена") ? Visibility.Visible : Visibility.Collapsed;
-        }
 
         public class BookItem
         {
@@ -163,14 +125,14 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-                    SELECT 
-                        MIN(b.IDBook) AS IDBook,
-                        b.TitleBook, 
-                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                        SUM(b.AvailableCopies) AS AvailableCopies
-                    FROM Books b
-                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
-                    WHERE b.AvailableCopies > 0";
+            SELECT 
+                MIN(b.IDBook) AS IDBook,
+                b.TitleBook, 
+                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                COUNT(*) AS AvailableCopies
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE b.StatusBook = 1";
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -195,13 +157,17 @@ namespace Diplom_Bibl.Pages
                             _availableBooks = new ObservableCollection<BookItem>();
                             while (reader.Read())
                             {
-                                _availableBooks.Add(new BookItem
+                                int available = Convert.ToInt32(reader["AvailableCopies"]);
+                                if (available > 0)
                                 {
-                                    IDBook = Convert.ToInt32(reader["IDBook"]),
-                                    TitleBook = reader["TitleBook"].ToString(),
-                                    AuthorName = reader["AuthorName"].ToString(),
-                                    AvailableCopies = Convert.ToInt32(reader["AvailableCopies"])
-                                });
+                                    _availableBooks.Add(new BookItem
+                                    {
+                                        IDBook = Convert.ToInt32(reader["IDBook"]),
+                                        TitleBook = reader["TitleBook"].ToString(),
+                                        AuthorName = reader["AuthorName"].ToString(),
+                                        AvailableCopies = available
+                                    });
+                                }
                             }
                         }
                     }
@@ -215,7 +181,6 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
         private string GenerateUniqueRequestNumber()
         {
             try
@@ -226,13 +191,11 @@ namespace Diplom_Bibl.Pages
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-
-                    // Получаем максимальный номер за сегодня
                     string sql = @"
-                SELECT TOP 1 RequestNumber 
-                FROM BookRequests 
-                WHERE RequestNumber LIKE @Pattern 
-                ORDER BY ID_Request DESC";
+                        SELECT TOP 1 RequestNumber 
+                        FROM BookRequests 
+                        WHERE RequestNumber LIKE @Pattern 
+                        ORDER BY ID_Request DESC";
 
                     using (var cmd = new SqlCommand(sql, conn))
                     {
@@ -242,7 +205,6 @@ namespace Diplom_Bibl.Pages
                         if (result != null && result != DBNull.Value)
                         {
                             string lastNumber = result.ToString();
-                            // Извлекаем номер из строки (например, "ЗАЯВ-20260424-0001" -> "0001")
                             int lastDashIndex = lastNumber.LastIndexOf('-');
                             if (lastDashIndex >= 0 && lastDashIndex + 1 < lastNumber.Length)
                             {
@@ -256,17 +218,15 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Формат: ЗАЯВ-20260424-0001 (всего 18 символов)
-                // Подходит для nvarchar(20)
                 return $"ЗАЯВ-{datePart}-{sequence:D4}";
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка генерации номера: {ex.Message}");
-                // Резервный вариант - используем случайное число (всегда 4 цифры)
                 return $"ЗАЯВ-{DateTime.Now:yyyyMMdd}-{new Random().Next(1, 9999):D4}";
             }
         }
+
         private void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             LoadAvailableBooks(TbBookSearch.Text.Trim());
@@ -298,16 +258,26 @@ namespace Diplom_Bibl.Pages
                 _selectedBooks = new ObservableCollection<SelectedBookItem>();
             }
 
+            // Используем количество из AvailableCopies (уже учтены резервы)
+            int actualAvailable = book.AvailableCopies;
+
+            if (actualAvailable <= 0)
+            {
+                CustomMessageBox.Show($"Книга '{book.TitleBook}' временно недоступна.",
+                    "Книга недоступна", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
+            }
+
             SelectedBookItem existing = _selectedBooks.FirstOrDefault(b => b.BookTitle == book.TitleBook && b.AuthorName == book.AuthorName);
             if (existing != null)
             {
-                if (existing.Quantity + 1 <= existing.MaxQuantity)
+                if (existing.Quantity + 1 <= actualAvailable)
                 {
                     existing.Quantity++;
                 }
                 else
                 {
-                    CustomMessageBox.Show($"Доступно только {existing.MaxQuantity} экземпляров этой книги.", "Предупреждение",
+                    CustomMessageBox.Show($"Доступно только {actualAvailable} экземпляров этой книги.", "Предупреждение",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 }
             }
@@ -319,7 +289,7 @@ namespace Diplom_Bibl.Pages
                     BookTitle = book.TitleBook,
                     AuthorName = book.AuthorName,
                     Quantity = 1,
-                    MaxQuantity = book.AvailableCopies
+                    MaxQuantity = actualAvailable
                 });
             }
 
@@ -436,7 +406,7 @@ namespace Diplom_Bibl.Pages
                 if (string.IsNullOrWhiteSpace(lessonTime))
                     lessonTime = null;
 
-                string generatedNumber =  GenerateUniqueRequestNumber();
+                string generatedNumber = GenerateUniqueRequestNumber();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -497,7 +467,7 @@ namespace Diplom_Bibl.Pages
                             using (var cmd = new SqlCommand(insertNotificationSql, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@RequestID", requestId);
-                                cmd.Parameters.AddWithValue("@Message", $"Новая заявка №{generatedNumber} от пользователя ID {_currentReaderId}");
+                                cmd.Parameters.AddWithValue("@Message", $"Новая заявка №{generatedNumber}");
                                 await cmd.ExecuteNonQueryAsync();
                             }
 

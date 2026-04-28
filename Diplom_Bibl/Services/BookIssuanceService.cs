@@ -534,7 +534,10 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Получает список выдач за указанную дату (синхронная версия)
+        /// Получает список выдач за указанную дату
+        /// </summary>
+        /// <summary>
+        /// Получает список выдач за указанную дату
         /// </summary>
         public ObservableCollection<IssuanceItem> GetIssuancesByDate(DateTime date)
         {
@@ -544,25 +547,25 @@ namespace Diplom_Bibl.Services
             {
                 // Индивидуальные выдачи
                 string individualQuery = @"
-                    SELECT 
-                        'individual' AS IssuanceType,
-                        i.IssuanceId AS Id,
-                        i.IssuanceDate,
-                        i.PlannedReturnDate,
-                        i.ReturnDate,
-                        i.Status,
-                        r.ReaderID AS RecipientId,
-                        CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
-                        'Читатель' AS RecipientType,
-                        b.IDBook AS IDBook,
-                        b.TitleBook AS BookTitle,
-                        b.InventaryNumber,
-                        1 AS Quantity,
-                        i.Notes
-                    FROM BookIssuance i
-                    INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
-                    INNER JOIN Books b ON i.BookId = b.IDBook
-                    WHERE CAST(i.IssuanceDate AS DATE) = @Date";
+            SELECT 
+                'individual' AS IssuanceType,
+                i.IssuanceId AS Id,
+                i.IssuanceDate,
+                i.PlannedReturnDate,
+                i.ReturnDate,
+                i.Status,
+                r.ReaderID AS RecipientId,
+                CONCAT(r.LastName, ' ', r.FirstName, ' ', r.MiddleName) AS RecipientName,
+                'Читатель' AS RecipientType,
+                b.IDBook AS IDBook,
+                b.TitleBook AS BookTitle,
+                b.InventaryNumber,
+                1 AS Quantity,
+                i.Notes
+            FROM BookIssuance i
+            INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
+            INNER JOIN Books b ON i.BookId = b.IDBook
+            WHERE CAST(i.IssuanceDate AS DATE) = @Date";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -602,46 +605,76 @@ namespace Diplom_Bibl.Services
                         }
                     }
 
-                    // Групповые выдачи
+                    // Групповые выдачи (сгруппированные по группам и книгам)
                     string groupQuery = @"
-                        SELECT 
-                            gi.GroupIssuanceId AS Id,
-                            gi.IssuanceDate,
-                            gi.PlannedReturnDate,
-                            gi.ReturnDate,
-                            gi.Status,
-                            g.GroupCode + ' - ' + t.LastName + ' ' + t.FirstName AS RecipientName,
-                            'Группа' AS RecipientType,
-                            gi.Notes
-                        FROM GroupBookIssuance gi
-                        INNER JOIN Groups g ON gi.GroupId = g.GroupID
-                        INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
-                        WHERE CAST(gi.IssuanceDate AS DATE) = @Date";
+                SELECT 
+                    gi.GroupIssuanceId AS Id,
+                    gi.IssuanceDate,
+                    gi.PlannedReturnDate,
+                    gi.ReturnDate,
+                    gi.Status,
+                    g.GroupCode AS GroupCode,
+                    t.LastName + ' ' + t.FirstName AS TeacherName,
+                    s.LastName + ' ' + s.FirstName AS StudentName,
+                    b.TitleBook,
+                    ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                    SUM(git.Quantity) AS TotalQuantity
+                FROM GroupBookIssuance gi
+                INNER JOIN Groups g ON gi.GroupId = g.GroupID
+                INNER JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+                LEFT JOIN ReaderForm s ON gi.StudentId = s.ReaderID
+                INNER JOIN GroupIssuanceItems git ON gi.GroupIssuanceId = git.GroupIssuanceId
+                INNER JOIN Books b ON git.BookId = b.IDBook
+                LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                WHERE CAST(gi.IssuanceDate AS DATE) = @Date
+                GROUP BY gi.GroupIssuanceId, gi.IssuanceDate, gi.PlannedReturnDate, gi.ReturnDate, 
+                         gi.Status, g.GroupCode, t.LastName, t.FirstName, s.LastName, s.FirstName,
+                         b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
+                ORDER BY gi.IssuanceDate DESC, b.TitleBook";
 
                     using (var cmd = new SqlCommand(groupQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@Date", date.Date);
                         using (var reader = cmd.ExecuteReader())
                         {
+                            var groupIssuancesDict = new Dictionary<int, IssuanceItem>();
+
                             while (reader.Read())
                             {
-                                int groupIssuanceId = Convert.ToInt32(reader["Id"]);
-                                string booksList = GetGroupIssuanceBooksList(groupIssuanceId);
+                                int id = Convert.ToInt32(reader["Id"]);
+                                string bookTitle = reader["TitleBook"]?.ToString() ?? "";
+                                string authorName = reader["AuthorName"]?.ToString() ?? "";
+                                int quantity = Convert.ToInt32(reader["TotalQuantity"]);
+                                string bookDisplay = $"{bookTitle} - {authorName} ({quantity} шт.)";
 
-                                var item = new IssuanceItem
+                                if (!groupIssuancesDict.ContainsKey(id))
                                 {
-                                    IssuanceType = "group",
-                                    Id = groupIssuanceId,
-                                    IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
-                                    PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
-                                    ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
-                                    Status = reader["Status"].ToString(),
-                                    RecipientName = reader["RecipientName"].ToString(),
-                                    RecipientType = reader["RecipientType"].ToString(),
-                                    Quantity = 0,
-                                    DisplayBook = booksList,
-                                    Notes = reader["Notes"]?.ToString() ?? ""
-                                };
+                                    groupIssuancesDict.Add(id, new IssuanceItem
+                                    {
+                                        IssuanceType = "group",
+                                        Id = id,
+                                        IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                        PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                        ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null,
+                                        Status = reader["Status"].ToString(),
+                                        RecipientName = $"{reader["GroupCode"]} - {reader["TeacherName"]}",
+                                        RecipientType = "Группа",
+                                        Notes = "",
+                                        BookList = new List<string>(),
+                                        Quantity = 0
+                                    });
+                                }
+
+                                // Добавляем сгруппированную книгу
+                                groupIssuancesDict[id].BookList.Add(bookDisplay);
+                                groupIssuancesDict[id].Quantity += quantity;
+                            }
+
+                            // Добавляем сгруппированные выдачи в коллекцию
+                            foreach (var item in groupIssuancesDict.Values)
+                            {
+                                // Формируем DisplayBook как многострочный текст
+                                item.DisplayBook = string.Join("\n", item.BookList);
                                 item.OverdueColor = item.IsOverdue ?
                                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545")) :
                                     new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
@@ -661,7 +694,6 @@ namespace Diplom_Bibl.Services
 
             return issuances;
         }
-
         /// <summary>
         /// Получает список книг для групповой выдачи
         /// </summary>

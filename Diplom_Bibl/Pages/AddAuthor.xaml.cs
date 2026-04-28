@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,7 +12,6 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -29,6 +30,15 @@ namespace Diplom_Bibl.Pages
         {
             InitializeComponent();
             LoadAuthors();
+            // Маска ввода ФИО
+            SurnameAuthorTb.PreviewTextInput += NameField_PreviewTextInput;
+            NameAuthorTb.PreviewTextInput += NameField_PreviewTextInput;
+            PatronymicAuthorTb.PreviewTextInput += NameField_PreviewTextInput;
+            SurnameAuthorTb.PreviewKeyDown += NameField_PreviewKeyDown;
+            NameAuthorTb.PreviewKeyDown += NameField_PreviewKeyDown;
+            PatronymicAuthorTb.PreviewKeyDown += NameField_PreviewKeyDown;
+
+
         }
         private void LoadAuthors()
         {
@@ -375,6 +385,27 @@ namespace Diplom_Bibl.Pages
             {
                 SearchBox.Text = "";
                 SearchBox.Foreground = Brushes.Gray;
+            }
+        }
+        private void NameField_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = !Regex.IsMatch(e.Text, @"^[a-zA-Zа-яА-ЯёЁ\s\-']$");
+        }
+
+        private void NameField_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.V && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (Clipboard.ContainsText())
+                {
+                    string text = Clipboard.GetText();
+                    if (!Regex.IsMatch(text, @"^[a-zA-Zа-яА-ЯёЁ\s\-']+$"))
+                    {
+                        e.Handled = true;
+                        CustomMessageBox.Show("Поле ФИО может содержать только буквы, пробелы и дефисы.", "Недопустимые символы",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    }
+                }
             }
         }
     }

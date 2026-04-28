@@ -45,8 +45,11 @@ namespace Diplom_Bibl.Pages
             try
             {
                 const string sql = @"
-                    SELECT ID_User, Surname + ' ' + Name + ISNULL(' ' + Patronymic, '') AS FullName
-                    FROM Users ORDER BY Surname, Name";
+                    select u.ID_User, Surname + ' ' + Name + ISNULL(' ' + Patronymic, '') AS FullName from Users u
+inner join UserRolesAssignments ura on ura.ID_User=u.ID_User
+inner join UserRoles ur on ur.ID_Role=ura.ID_Role
+where ur.RoleCode= 'LIBRARIAN'
+ORDER BY Surname, Name;";
 
                 var users = new ObservableCollection<UserItem>();
                 using (var conn = new SqlConnection(_connectionString))

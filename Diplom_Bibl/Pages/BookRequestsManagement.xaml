@@ -13,7 +13,7 @@
 
         <!-- Заголовок -->
         <TextBlock Grid.Row="0" Text="📋 Управление заявками на книги" 
-                   FontSize="28" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+                   FontSize="28" FontWeight="Bold" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
 
         <!-- Фильтры -->
         <Border Grid.Row="1" Background="White" CornerRadius="8"
@@ -29,7 +29,7 @@
 
                 <StackPanel Grid.Column="0" Margin="0,0,15,0">
                     <TextBlock Text="🔍 Поиск" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="#2C3E50" Margin="0,0,0,8"/>
+                              Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,8"/>
                     <TextBox x:Name="TbSearch" Height="38" FontSize="13"
                              TextChanged="TbSearch_TextChanged"
                              ToolTip="Поиск по номеру заявки, преподавателю или группе"
@@ -39,7 +39,7 @@
 
                 <StackPanel Grid.Column="1" Margin="0,0,15,0">
                     <TextBlock Text="📊 Статус заявки" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="#2C3E50" Margin="0,0,0,8"/>
+                               Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,8"/>
                     <ComboBox x:Name="CbStatusFilter" Height="38" FontSize="13"
                               SelectionChanged="CbStatusFilter_SelectionChanged"
                               BorderBrush="#BDC3C7" BorderThickness="1"
@@ -69,22 +69,8 @@
                       RowHeight="45" AlternatingRowBackground="#F9F9F9"
                       Background="White" BorderBrush="#D0D0D0" BorderThickness="1"
                       SelectionChanged="DgRequests_SelectionChanged"
-                      FontSize="13">
-                <DataGrid.Resources>
-                    <Style TargetType="DataGridColumnHeader">
-                        <Setter Property="Background" Value="#34495E"/>
-                        <Setter Property="Foreground" Value="White"/>
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="Height" Value="42"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                        <Setter Property="FontSize" Value="13"/>
-                    </Style>
-                    <Style TargetType="DataGridCell">
-                        <Setter Property="VerticalAlignment" Value="Center"/>
-                        <Setter Property="Padding" Value="10,0"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                    </Style>
-                </DataGrid.Resources>
+                      FontSize="13" >
+                
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="№ заявки" Binding="{Binding RequestNumber}" Width="130"/>
                     <DataGridTextColumn Header="Дата" Binding="{Binding RequestDate, StringFormat='dd.MM.yyyy'}" Width="100"/>

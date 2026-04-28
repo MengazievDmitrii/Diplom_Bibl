@@ -17,7 +17,7 @@
 
             <!-- Заголовок -->
             <TextBlock Grid.Row="0" Text="📝 Подача заявки на книги" 
-                       FontSize="24" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+                       FontSize="24" FontWeight="Bold" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
 
             <!-- Основная форма -->
             <Border Grid.Row="1" Background="White" CornerRadius="8"
@@ -26,7 +26,7 @@
 
                 <StackPanel>
                     <TextBlock Text="Данные заявки" FontSize="16" FontWeight="SemiBold"
-                               Foreground="#2980B9" Margin="0,0,0,15"/>
+                              Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,15"/>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -36,18 +36,18 @@
 
                         <StackPanel Grid.Column="0" Margin="0,0,15,0">
                             <StackPanel Margin="0,0,0,15" Visibility="Collapsed">
-                                <TextBlock Text="Тип заявки" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBlock Text="Тип заявки" FontWeight="SemiBold" Margin="0,0,0,5" />
                                 <TextBox x:Name="TbUserType" IsEnabled="False" Height="35" Padding="8,0"/>
                             </StackPanel>
 
                             <StackPanel x:Name="GroupPanel" Margin="0,0,0,15" Visibility="Collapsed">
                                 <TextBlock Text="Группа *" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CbGroup" Height="35" Padding="8,0"/>
+                                <ComboBox x:Name="CbGroup" Height="35" Padding="8,0" Style="{StaticResource InputFieldStyleCb}"/>
                             </StackPanel>
 
                             <StackPanel Margin="0,0,0,15">
                                 <TextBlock Text="Название занятия / предмета *" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <TextBox x:Name="TbLessonName" Height="35" Padding="8,0" MaxLength="200"/>
+                                <TextBox x:Name="TbLessonName" Height="35" Padding="8,0" MaxLength="200" Style="{StaticResource InputFieldStyle}"/>
                             </StackPanel>
 
                             <StackPanel Margin="0,0,0,15">
@@ -57,10 +57,10 @@
                             </StackPanel>
 
                             <StackPanel Margin="0,0,0,15">
-                                <TextBlock Text="Время занятия" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <TextBox x:Name="TbLessonTime" Height="35" Padding="8,0" 
+                                <TextBlock Text="Время занятия" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                <xctk:MaskedTextBox Mask="00:00" x:Name="TbLessonTime" Height="35" Padding="8,0" 
                                          MaxLength="5" ToolTip="Формат: ЧЧ:ММ"
-                                         PreviewTextInput="TbLessonTime_PreviewTextInput"/>
+                                         PreviewTextInput="TbLessonTime_PreviewTextInput" Style="{StaticResource InputFieldStyle}"/>
                             </StackPanel>
                         </StackPanel>
 
@@ -87,7 +87,7 @@
 
                 <StackPanel>
                     <TextBlock Text="📚 Выбор книг" FontSize="16" FontWeight="SemiBold"
-                               Foreground="#2980B9" Margin="0,0,0,15"/>
+                               Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,15"/>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -99,7 +99,7 @@
                         <TextBox x:Name="TbBookSearch" Grid.Column="0" 
                                  Height="35" Padding="8,0"
                                  TextChanged="TbBookSearch_TextChanged"
-                                 ToolTip="Поиск по названию или автору"/>
+                                 ToolTip="Поиск по названию или автору" Style="{StaticResource InputFieldStyle}"/>
 
                         <Button x:Name="BtnSearchBook" Grid.Column="1" Content="🔍 Поиск"
                                 Width="80" Height="35" Margin="10,0,10,0" Click="BtnSearchBook_Click"
@@ -117,19 +117,6 @@
                               Background="White" BorderBrush="#D0D0D0" BorderThickness="1"
                               Margin="0,15,0,15" MouseDoubleClick="DgAvailableBooks_MouseDoubleClick"
                               MaxHeight="200">
-                        <DataGrid.Resources>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#34495E"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="Height" Value="35"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                            </Style>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGrid.Resources>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Название" Binding="{Binding TitleBook}" Width="300"/>
                             <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="180"/>
@@ -144,20 +131,7 @@
                               CanUserAddRows="False" CanUserDeleteRows="True"
                               RowHeight="35" AlternatingRowBackground="#F9F9F9"
                               Background="White" BorderBrush="#D0D0D0" BorderThickness="1">
-                        <DataGrid.Resources>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#34495E"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="Height" Value="35"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                            </Style>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGrid.Resources>
-                        <DataGrid.Columns>
+                          <DataGrid.Columns>
                             <DataGridTextColumn Header="Название книги" Binding="{Binding BookTitle}" Width="300"/>
                             <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="180"/>
                             <DataGridTemplateColumn Header="Количество" Width="100">

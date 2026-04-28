@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -1219,36 +1220,30 @@ namespace Diplom_Bibl.Pages
             {
                 System.Diagnostics.Debug.WriteLine($"AutoFillFromRequest: RequestId={_pendingRequestId}, GroupId={_pendingGroupId}, UserTypeId={_pendingUserTypeId}");
 
-                // Групповая выдача (есть группа)
                 if (_pendingGroupId.HasValue && _pendingGroupId > 0)
                 {
                     GroupTypeRadio.IsChecked = true;
                     await LoadAndSelectGroup(_pendingGroupCode);
-                    // Преподаватель - тот кто подал заявку (сотрудник)
                     await LoadAndSelectTeacher(_pendingUserId.Value, _pendingUserName);
-                    // Студент не заполняется автоматически
                 }
-                // Индивидуальная выдача
                 else
                 {
                     ReaderTypeRadio.IsChecked = true;
-
-                    // UserTypeID: 1 - Студент, 3 - Сотрудник
-                    if (_pendingUserTypeId == 3) // Сотрудник -> преподаватель
+                    if (_pendingUserTypeId == 3)
                     {
                         await LoadAndSelectTeacher(_pendingUserId.Value, _pendingUserName);
                     }
-                    else // Студент -> читатель
+                    else
                     {
                         await LoadAndSelectReader(_pendingUserId.Value, _pendingUserName);
                     }
                 }
 
-                // Загружаем книги из заявки
+                // ВАЖНО: Загружаем книги ПОСЛЕ того, как определили тип выдачи
                 await LoadRequestBooks(_pendingRequestId.Value);
 
-                CustomMessageBox.Show($"Данные из заявки №{_pendingRequestId} загружены. Проверьте информацию и нажмите 'Создать выдачу'.",
-                    "Информация", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                CustomMessageBox.Show($"Данные из заявки №{_pendingRequestId} загружены.", "Информация",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -1257,7 +1252,6 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
         private async System.Threading.Tasks.Task LoadAndSelectTeacher(int userId, string userName)
         {
             try
@@ -1446,22 +1440,25 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        // FIX 3: Получение реального доступного количества через GetActualAvailableCopies
         private async System.Threading.Tasks.Task LoadRequestBooks(int requestId)
         {
             try
             {
-                // Убираем условие StatusID = 1, чтобы загружать все книги из заявки
+                System.Diagnostics.Debug.WriteLine($"=== LoadRequestBooks START ===");
+                System.Diagnostics.Debug.WriteLine($"RequestId: {requestId}");
+
                 string query = @"
             SELECT 
-                ri.BookID,
+                MIN(ri.BookID) AS BookID,
                 b.TitleBook,
                 ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                ri.Quantity,
-                ri.StatusID
+                SUM(ri.Quantity) AS Quantity
             FROM RequestItems ri
             JOIN Books b ON ri.BookID = b.IDBook
             LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE ri.RequestID = @RequestId";
+            WHERE ri.RequestID = @RequestId
+            GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
 
                 var booksFromRequest = new List<RequestBookItem>();
 
@@ -1481,27 +1478,36 @@ namespace Diplom_Bibl.Pages
                                     TitleBook = reader["TitleBook"].ToString(),
                                     AuthorName = reader["AuthorName"].ToString(),
                                     Quantity = Convert.ToInt32(reader["Quantity"]),
-                                    AvailableCopies = 1
+                                    AvailableCopies = 0
                                 });
-
-                                // Отладка
                                 System.Diagnostics.Debug.WriteLine($"Книга из заявки: {reader["TitleBook"]}, Кол-во: {reader["Quantity"]}");
                             }
                         }
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Найдено книг в заявке: {booksFromRequest.Count}");
+                // Для каждой книги получаем ОБЩЕЕ реальное доступное количество
+                foreach (var book in booksFromRequest)
+                {
+                    book.AvailableCopies = await GetTotalActualAvailableCopies(book.TitleBook, book.AuthorName, requestId);
+                    System.Diagnostics.Debug.WriteLine($"Книга: {book.TitleBook}, Доступно: {book.AvailableCopies}, Запрошено: {book.Quantity}");
+                }
 
                 if (booksFromRequest.Any())
                 {
                     var firstBook = booksFromRequest.First();
 
-                    // Обновляем доступное количество книги
-                    await LoadBookAvailability(firstBook);
+                    // Создаём объект книги для отображения
+                    var newBook = new BookIssuanceService.BookInfo
+                    {
+                        IDBook = firstBook.IDBook,
+                        TitleBook = firstBook.TitleBook,
+                        AuthorName = firstBook.AuthorName,
+                        AvailableCopies = firstBook.AvailableCopies
+                    };
 
-                    // Создаем или обновляем книгу в коллекции _books
-                    var existingBook = _books.FirstOrDefault(b => b.IDBook == firstBook.IDBook);
+                    // Проверяем, есть ли уже такая книга в коллекции _books
+                    var existingBook = _books.FirstOrDefault(b => b.TitleBook == firstBook.TitleBook && b.AuthorName == firstBook.AuthorName);
                     if (existingBook != null)
                     {
                         existingBook.AvailableCopies = firstBook.AvailableCopies;
@@ -1509,13 +1515,6 @@ namespace Diplom_Bibl.Pages
                     }
                     else
                     {
-                        var newBook = new BookIssuanceService.BookInfo
-                        {
-                            IDBook = firstBook.IDBook,
-                            TitleBook = firstBook.TitleBook,
-                            AuthorName = firstBook.AuthorName,
-                            AvailableCopies = firstBook.AvailableCopies
-                        };
                         _books.Add(newBook);
                         _selectedBook = newBook;
                     }
@@ -1525,10 +1524,10 @@ namespace Diplom_Bibl.Pages
                     SelectedBookAuthor.Text = _selectedBook.AuthorName;
                     SelectedBookPanel.Visibility = Visibility.Visible;
                     BookSearchBox.Text = _selectedBook.TitleBook;
-                    BookSearchBox.Foreground = Brushes.Black;
+                    BookSearchBox.Foreground = System.Windows.Media.Brushes.Black;
                     AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
-                    // Устанавливаем количество из заявки
+                    // Устанавливаем количество
                     if (GroupTypeRadio.IsChecked == true)
                     {
                         QuantityBox.Text = firstBook.Quantity.ToString();
@@ -1540,7 +1539,7 @@ namespace Diplom_Bibl.Pages
                         QuantityBox.IsEnabled = false;
                     }
 
-                    System.Diagnostics.Debug.WriteLine($"Выбрана книга: {_selectedBook.TitleBook}, Количество: {firstBook.Quantity}");
+                    System.Diagnostics.Debug.WriteLine($"Выбрана книга: {_selectedBook.TitleBook}, Доступно: {_selectedBook.AvailableCopies}");
                 }
                 else
                 {
@@ -1557,7 +1556,93 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        // Добавьте этот метод для получения реального количества доступных книг
+        // FIX 2 & 3: Атомарный расчёт реально доступного количества
+        private async Task<int> GetActualAvailableCopies(int bookId, int? excludeRequestId = null)
+        {
+            try
+            {
+                string query = @"
+            SELECT 
+                b.AvailableCopies - ISNULL((
+                    SELECT SUM(ri.Quantity)
+                    FROM RequestItems ri
+                    INNER JOIN BookRequests br ON ri.RequestID = br.ID_Request
+                    WHERE ri.BookID = @BookID
+                      AND ri.StatusID IN (1, 2)
+                      AND br.StatusID NOT IN (4, 5, 6)
+                ), 0) AS ActuallyAvailable
+            FROM Books b
+            WHERE b.IDBook = @BookID";
 
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@BookID", bookId);
+                        var result = await cmd.ExecuteScalarAsync();
+                        int available = result != DBNull.Value ? Convert.ToInt32(result) : 0;
+
+                        // Если есть ID заявки, прибавляем обратно количество книг из ЭТОЙ заявки
+                        if (excludeRequestId.HasValue && excludeRequestId.Value > 0)
+                        {
+                            string getCurrentRequestQuantity = @"
+                        SELECT ISNULL(SUM(Quantity), 0)
+                        FROM RequestItems
+                        WHERE RequestID = @RequestID AND BookID = @BookID";
+
+                            using (var cmd2 = new SqlCommand(getCurrentRequestQuantity, conn))
+                            {
+                                cmd2.Parameters.AddWithValue("@RequestID", excludeRequestId.Value);
+                                cmd2.Parameters.AddWithValue("@BookID", bookId);
+                                int currentRequestQuantity = Convert.ToInt32(await cmd2.ExecuteScalarAsync());
+                                available += currentRequestQuantity;
+                            }
+                        }
+
+                        return available;
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        // Получение ОБЩЕГО реального количества доступных книг по названию и автору
+        private async Task<int> GetTotalActualAvailableCopies(string title, string author, int excludeRequestId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"=== GetTotalActualAvailableCopies ===");
+                System.Diagnostics.Debug.WriteLine($"Title: {title}, Author: {author}, ExcludeRequestId: {excludeRequestId}");
+
+                // Просто возвращаем общее количество, игнорируя резервирования
+                string totalQuery = @"
+            SELECT ISNULL(SUM(b.AvailableCopies), 0)
+            FROM Books b
+            WHERE b.TitleBook = @Title";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(totalQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Title", title);
+                        var result = await cmd.ExecuteScalarAsync();
+                        int totalAvailable = result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                        System.Diagnostics.Debug.WriteLine($"Total Available (без вычета резервов): {totalAvailable}");
+                        return totalAvailable;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка: {ex.Message}");
+                return 0;
+            }
+        }
         // Добавьте этот метод для загрузки доступности книги
         private async System.Threading.Tasks.Task LoadBookAvailability(RequestBookItem book)
         {
