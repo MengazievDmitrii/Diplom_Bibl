@@ -169,6 +169,7 @@
     <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -281,6 +282,9 @@
     <Compile Include="Pages\BulkAddBooks.xaml.cs">
       <DependentUpon>BulkAddBooks.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\ComputerSessionsManagement.xaml.cs">
+      <DependentUpon>ComputerSessionsManagement.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Pages\DisposalAct.xaml.cs">
       <DependentUpon>DisposalAct.xaml</DependentUpon>
     </Compile>
@@ -314,6 +318,7 @@
     <Compile Include="Services\AuthorService.cs" />
     <Compile Include="Services\BookIssuanceService.cs" />
     <Compile Include="Services\BookService.cs" />
+    <Compile Include="Services\ComputerSessionService.cs" />
     <Compile Include="Services\GenreService.cs" />
     <Compile Include="Services\NotificationService.cs" />
     <Compile Include="Services\ReceiptNumberGenerator.cs" />
@@ -338,6 +343,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Windows\ComputerSessionWindow.xaml.cs">
+      <DependentUpon>ComputerSessionWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Windows\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
@@ -460,6 +468,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="Pages\ComputerSessionsManagement.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Pages\DisposalAct.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -505,6 +517,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\LibraryFundPage.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Windows\ComputerSessionWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

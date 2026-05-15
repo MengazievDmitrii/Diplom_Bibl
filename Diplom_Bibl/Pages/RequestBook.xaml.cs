@@ -519,7 +519,15 @@ namespace Diplom_Bibl.Pages
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
-            NavigationService?.GoBack();
+            try
+            {
+                NavigationService?.GoBack();
+            } 
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Произошла ошибка {ex.Message}", "Ошибка",
+                   CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)

@@ -217,6 +217,7 @@
                             <Button Content="📊" Tag="Отчёты" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
                             <Button Content="📝" Tag="Подать заявку" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
                             <Button Content="⚙️" Tag="Управление заявками" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="💻" Tag="Управление ПК" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
                         </StackPanel>
 
                         <!-- Читатель -->
