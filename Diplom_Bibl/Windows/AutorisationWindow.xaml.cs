@@ -138,7 +138,7 @@ namespace Diplom_Bibl.Windows
                     r.LastName,
                     r.FirstName,
                     r.MiddleName,
-                    r.TypeID,           -- Это поле важно!
+                    r.TypeID,
                     r.Post,
                     p.Post_Name,
                     rt.TypeName,
@@ -149,11 +149,13 @@ namespace Diplom_Bibl.Windows
                 LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
                 LEFT JOIN Post p ON r.Post = p.ID_Post
                 LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                WHERE u.Login = @Login";
+                WHERE u.Login = @Login OR r.CardNumber = @CardNumber";
 
                     using (var cmd = new SqlCommand(query, conn))
                     {
+                        // Добавляем оба параметра
                         cmd.Parameters.AddWithValue("@Login", login);
+                        cmd.Parameters.AddWithValue("@CardNumber", login);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -166,13 +168,23 @@ namespace Diplom_Bibl.Windows
                                     int userId = Convert.ToInt32(reader["ID_User"]);
                                     int readerId = reader["ReaderID"] != DBNull.Value ? Convert.ToInt32(reader["ReaderID"]) : 0;
                                     int userTypeId = reader["TypeID"] != DBNull.Value ? Convert.ToInt32(reader["TypeID"]) : 1;
-                                    string fullName = $"{reader["LastName"]} {reader["FirstName"]} {reader["MiddleName"]}".Trim();
+
+                                    // Формируем ФИО (если нет данных из ReaderForm, используем данные из Users)
+                                    string lastName = reader["LastName"]?.ToString() ?? reader["Surname"]?.ToString() ?? "";
+                                    string firstName = reader["FirstName"]?.ToString() ?? reader["Name"]?.ToString() ?? "";
+                                    string middleName = reader["MiddleName"]?.ToString() ?? reader["Patronymic"]?.ToString() ?? "";
+                                    string fullName = $"{lastName} {firstName} {middleName}".Trim();
+
+                                    // Если ФИО пустое, используем логин
+                                    if (string.IsNullOrWhiteSpace(fullName))
+                                    {
+                                        fullName = reader["Login"]?.ToString() ?? "Пользователь";
+                                    }
 
                                     reader.Close();
 
                                     var roles = await GetUserRoles(login);
 
-                                    // Передаем userTypeId (TypeID из ReaderForm)
                                     var mainWindow = new MainWindow(userId, readerId, fullName, roles, userTypeId);
                                     mainWindow.Show();
                                     this.Close();
@@ -185,7 +197,7 @@ namespace Diplom_Bibl.Windows
                             }
                             else
                             {
-                                CustomMessageBox.Show("Пользователь не найден!", "Ошибка",
+                                CustomMessageBox.Show("Пользователь не найден!\n\nПроверьте логин или номер читательского билета.", "Ошибка",
                                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                             }
                         }
@@ -198,7 +210,7 @@ namespace Diplom_Bibl.Windows
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-        // Используем ОТДЕЛЬНОЕ подключение для получения ролей
+        //  метод получения ролей
         private async Task<List<string>> GetUserRoles(string login)
         {
             var roles = new List<string>();
@@ -209,13 +221,18 @@ namespace Diplom_Bibl.Windows
                 {
                     await conn.OpenAsync();
 
-                    // Сначала получаем ID пользователя по логину
-                    string getUserIdQuery = "SELECT ID_User FROM Users WHERE Login = @Login";
+                    string getUserIdQuery = @"
+                SELECT u.ID_User 
+                FROM Users u
+                LEFT JOIN ReaderForm r ON u.ReaderID = r.ReaderID
+                WHERE u.Login = @Login OR r.CardNumber = @CardNumber";
+
                     int userId = 0;
 
                     using (var cmd = new SqlCommand(getUserIdQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@Login", login);
+                        cmd.Parameters.AddWithValue("@CardNumber", login);
                         var result = await cmd.ExecuteScalarAsync();
                         if (result != null)
                             userId = Convert.ToInt32(result);
@@ -248,9 +265,6 @@ namespace Diplom_Bibl.Windows
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки ролей: {ex.Message}");
             }
 
-            // Отладка: выводим загруженные роли
-            System.Diagnostics.Debug.WriteLine($"Роли для пользователя {login}: {string.Join(", ", roles)}");
-
             if (roles.Count == 0)
             {
                 roles.Add("READER");
@@ -258,7 +272,6 @@ namespace Diplom_Bibl.Windows
 
             return roles;
         }
-
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             await PerformLoginAsync();

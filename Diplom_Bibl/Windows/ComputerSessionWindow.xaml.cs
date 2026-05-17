@@ -17,6 +17,7 @@ namespace Diplom_Bibl.Windows
         private readonly ComputerSessionService _sessionService;
         private int _currentSessionId;
         private bool _isRegistered = false;
+
         // Для блокировки сворачивания
         private const int WS_MINIMIZEBOX = 0x00020000;
         private const int GWL_STYLE = -16;

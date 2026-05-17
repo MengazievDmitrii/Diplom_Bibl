@@ -1,5 +1,7 @@
 ﻿
+using Dadata.Model;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Pages;
 using Diplom_Bibl.Services;
 using System;
 using System.Collections.Generic;
@@ -265,37 +267,61 @@ namespace Diplom_Bibl.Windows
             await ShowComputerSessionIfNeeded();
         }
 
+        private bool _isLoggingOut = false;
         private async void BtnLogout_Click(object sender, RoutedEventArgs e)
         {
-            // Завершаем сессию ПК перед выходом
-            await EndComputerSessionAsync();
-
-            _notificationService?.Dispose();
-
-            AutorisationWindow autorisationWindow = new AutorisationWindow();
-            autorisationWindow.Show();
-            this.Close();
-        }
-
-        // Обработчик закрытия окна через крестик
-        protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
-        {
-            // Запрашиваем подтверждение
-            var result = CustomMessageBox.Show("Вы точно хотите выйти и закрыть приложение?",
+            _isLoggingOut = true;
+            // Сначала показываем сообщение с подтверждением
+            var result = CustomMessageBox.Show("Вы точно хотите выйти?",
                 "Подтверждение выхода",
                 CustomMessageBoxButton.YesNo,
                 CustomMessageBoxImage.Question);
 
-            if (result != CustomMessageBoxResult.Yes)
+            if (result == CustomMessageBoxResult.Yes)
             {
-                e.Cancel = true; // Отменяем закрытие
-                return;
+                // Только после подтверждения завершаем сессию ПК
+                await EndComputerSessionAsync();
+
+                // Завершаем сервис уведомлений
+                _notificationService?.Dispose();
+
+                // Открываем окно авторизации
+                AutorisationWindow autorisationWindow = new AutorisationWindow();
+                autorisationWindow.Show();
+
+                // Закрываем текущее окно
+                this.Close();
+            }
+            else
+            {
+                // Если пользователь отменил, сбрасываем флаг
+                _isLoggingOut = false;
+            }
+        }
+        protected override async void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            // Если выход инициирован через кнопку, показываем другое сообщение
+            if (!_isLoggingOut)
+            {
+                // Показываем сообщение только при закрытии через крестик
+                var result = CustomMessageBox.Show("Вы точно хотите выйти и закрыть приложение?",
+                    "Подтверждение выхода",
+                    CustomMessageBoxButton.YesNo,
+                    CustomMessageBoxImage.Question);
+
+                if (result != CustomMessageBoxResult.Yes)
+                {
+                    e.Cancel = true; // Отменяем закрытие
+                    return;
+                }
             }
 
             // Завершаем сессию ПК
             await EndComputerSessionAsync();
 
+            // Завершаем сервис уведомлений
             _notificationService?.Dispose();
+
             base.OnClosing(e);
         }
 
