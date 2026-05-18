@@ -1,5 +1,6 @@
 ﻿// STAGE 3 FIX: Убрано завершение сессии при закрытии окна регистрации
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using Diplom_Bibl.Services;
 using System;
 using System.Text.RegularExpressions;
@@ -10,7 +11,10 @@ namespace Diplom_Bibl.Windows
 {
     public partial class ComputerSessionWindow : Window
     {
-        private readonly int _userId;
+        
+
+    private readonly string _connectionString = DatabaseHelper.ConnectionString;
+    private readonly int _userId;
         private readonly int _readerId;
         private readonly string _fullName;
         private readonly string _groupCode;
@@ -29,9 +33,7 @@ namespace Diplom_Bibl.Windows
             _readerId = readerId;
             _fullName = fullName;
             _groupCode = groupCode;
-            _sessionService = new ComputerSessionService(
-                "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;");
-
+            _sessionService = new ComputerSessionService(); 
             Loaded += ComputerSessionWindow_Loaded;
         }
 

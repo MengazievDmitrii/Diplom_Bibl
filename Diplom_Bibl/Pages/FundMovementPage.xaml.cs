@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
+using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
@@ -7,13 +9,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class FundMovementPage : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
+        string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<FundMovementItem> _allItems;
         private bool _isPlaceholderActive = true;
 

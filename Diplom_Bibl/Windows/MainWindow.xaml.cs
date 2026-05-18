@@ -1,6 +1,7 @@
 ﻿
 using Dadata.Model;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using Diplom_Bibl.Pages;
 using Diplom_Bibl.Services;
 using System;
@@ -25,6 +26,7 @@ namespace Diplom_Bibl.Windows
         private NotificationService _notificationService;
         private SoundPlayer _notificationSound;
         private int? _currentSessionId; // Храним ID активной сессии ПК
+        string _connectionString = DatabaseHelper.ConnectionString;
 
         public MainWindow(int userId, int readerId, string fullName, List<string> roles, int userTypeId)
         {
@@ -62,8 +64,7 @@ namespace Diplom_Bibl.Windows
 
             try
             {
-                var sessionService = new ComputerSessionService(
-                    "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;");
+                var sessionService = new ComputerSessionService();
 
                 // Проверяем активную сессию
                 var activeSessions = await sessionService.GetActiveSessionsAsync();
@@ -81,7 +82,7 @@ namespace Diplom_Bibl.Windows
                 string groupCode = "";
                 if (_currentUserTypeId == 1) // Студент
                 {
-                    using (var conn = new SqlConnection("Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;"))
+                    using (var conn = new SqlConnection(_connectionString))
                     {
                         await conn.OpenAsync();
                         using (var cmd = new SqlCommand(
@@ -123,8 +124,7 @@ namespace Diplom_Bibl.Windows
             {
                 try
                 {
-                    var sessionService = new ComputerSessionService(
-                        "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;");
+                    var sessionService = new ComputerSessionService();
                     await sessionService.EndSessionAsync(_currentSessionId.Value);
                     System.Diagnostics.Debug.WriteLine($"Сессия ПК {_currentSessionId} завершена");
                 }
@@ -174,7 +174,7 @@ namespace Diplom_Bibl.Windows
 
         private void InitializeNotificationService()
         {
-            string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+            string connectionString = _connectionString;
             _notificationService = new NotificationService(connectionString, Dispatcher.CurrentDispatcher);
 
             _notificationService.NewNotificationReceived += OnNewNotificationReceived;

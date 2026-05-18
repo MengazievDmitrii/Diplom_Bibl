@@ -1,4 +1,5 @@
 ﻿// STAGE 2: Сервис управления сессиями ПК
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
@@ -8,8 +9,15 @@ namespace Diplom_Bibl.Services
 {
     public class ComputerSessionService
     {
-        private readonly string _connectionString;
 
+        private readonly string _connectionString;
+        public ComputerSessionService(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+        public ComputerSessionService() : this(DatabaseHelper.ConnectionString)
+        {
+        }
         public class SessionItem
         {
             public int ID_Session { get; set; }
@@ -38,11 +46,7 @@ namespace Diplom_Bibl.Services
             public string StatusDisplay => Status == "Active" ? "Активна" : (Status == "Completed" ? "Завершена" : "Прервана");
 
         }
-
-        public ComputerSessionService(string connectionString)
-        {
-            _connectionString = connectionString;
-        }
+       
 
         // Создание новой сессии
         public async Task<int> CreateSessionAsync(string computerNumber, int userId, string fullName,

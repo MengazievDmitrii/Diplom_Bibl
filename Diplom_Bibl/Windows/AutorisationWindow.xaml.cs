@@ -1,4 +1,5 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -12,9 +13,11 @@ namespace Diplom_Bibl.Windows
 {
     public partial class AutorisationWindow : Window
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+       
 
-        public AutorisationWindow()
+    private readonly string _connectionString = DatabaseHelper.ConnectionString;
+
+    public AutorisationWindow()
         {
             InitializeComponent();
             LoginPlaceholder.Visibility = string.IsNullOrEmpty(LoginBox.Text) ? Visibility.Visible : Visibility.Hidden;

@@ -10,13 +10,13 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class InformationServicePage : Page
-
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
+        string _connectionString = DatabaseHelper.ConnectionString;
         private int? _pendingUserTypeId = null;
         private BookIssuanceService _issuanceService;
 
@@ -94,7 +94,7 @@ namespace Diplom_Bibl.Pages
         /// </summary>
         public void SetDataFromRequest(int requestId, int userId, int? groupId, string userName, string groupCode, string lessonName, DateTime lessonDate)
         {
-            _pendingRequestId = requestId;  // Это важно!
+            _pendingRequestId = requestId;
             _pendingUserId = userId;
             _pendingGroupId = groupId;
             _pendingUserName = userName;
@@ -275,18 +275,19 @@ namespace Diplom_Bibl.Pages
                 if (QuantityBox == null || AvailableQuantityText == null || _selectedBook == null)
                     return;
 
+                // Показываем реальное доступное количество
                 AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
-                if (GroupTypeRadio.IsChecked == true)
-                {
-                    QuantityBox.IsEnabled = true;
-                    if (string.IsNullOrWhiteSpace(QuantityBox.Text) || QuantityBox.Text == "0")
-                        QuantityBox.Text = "1";
-                }
-                else
-                {
+                // Разрешаем ввод количества для любого типа выдачи
+                QuantityBox.IsEnabled = true;
+
+                if (string.IsNullOrWhiteSpace(QuantityBox.Text) || QuantityBox.Text == "0")
                     QuantityBox.Text = "1";
-                    QuantityBox.IsEnabled = false;
+
+                // Ограничиваем максимальное количество доступными экземплярами
+                if (int.TryParse(QuantityBox.Text, out int currentQty) && currentQty > _selectedBook.AvailableCopies)
+                {
+                    QuantityBox.Text = _selectedBook.AvailableCopies.ToString();
                 }
             }
             catch (Exception ex)
@@ -305,10 +306,15 @@ namespace Diplom_Bibl.Pages
                         ReaderSearchSection.Visibility = Visibility.Visible;
                     if (GroupSearchSection != null)
                         GroupSearchSection.Visibility = Visibility.Collapsed;
-                    if (QuantityBox != null)
+                    if (QuantityBox != null && _selectedBook != null)
                     {
+                        QuantityBox.IsEnabled = true;
                         QuantityBox.Text = "1";
-                        QuantityBox.IsEnabled = false;
+                        // Ограничиваем максимальное количество
+                        if (int.TryParse(QuantityBox.Text, out int currentQty) && currentQty > _selectedBook.AvailableCopies)
+                        {
+                            QuantityBox.Text = _selectedBook.AvailableCopies.ToString();
+                        }
                     }
                 }
                 else
@@ -668,14 +674,10 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            int requestedQuantity = 1;
-            if (GroupTypeRadio.IsChecked == true)
+            if (!int.TryParse(QuantityBox?.Text, out int requestedQuantity) || requestedQuantity <= 0)
             {
-                if (!int.TryParse(QuantityBox?.Text, out requestedQuantity) || requestedQuantity <= 0)
-                {
-                    CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                    return;
-                }
+                CustomMessageBox.Show("Укажите корректное количество.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
             }
 
             if (requestedQuantity > _selectedBook.AvailableCopies)
@@ -715,14 +717,18 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        // Индивидульная выдача нескольких экземпляров
         private async void CreateIndividualIssuance(int quantity)
         {
             try
             {
-                int bookId = GetAvailableIDBookWithQuantity(_selectedBook.TitleBook, _selectedBook.AuthorName, 1);
-                if (bookId == 0)
+                // Получаем список доступных ID книг (несколько экземпляров)
+                List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
+
+                if (bookIds.Count < quantity)
                 {
-                    CustomMessageBox.Show("Не найдено доступных экземпляров книги.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show($"Недостаточно экземпляров книги.\nТребуется: {quantity}, доступно: {bookIds.Count}",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
 
@@ -732,49 +738,53 @@ namespace Diplom_Bibl.Pages
                 {
                     await conn.OpenAsync();
 
-                    // Начинаем транзакцию
                     using (var transaction = conn.BeginTransaction())
                     {
                         try
                         {
-                            // 1. Создаем выдачу
-                            using (var cmd = new SqlCommand("sp_CreateIndividualIssuance", conn, transaction))
+                            // Создаем выдачу для КАЖДОГО экземпляра книги
+                            foreach (int bookId in bookIds)
                             {
-                                cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                                cmd.Parameters.AddWithValue("@BookId", bookId);
-                                cmd.Parameters.AddWithValue("@ReaderId", _selectedReader.ReaderID);
-                                cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
-                                cmd.Parameters.AddWithValue("@Notes", "Выдача через информационное обслуживание");
+                                // 1. Создаем выдачу
+                                using (var cmd = new SqlCommand("sp_CreateIndividualIssuance", conn, transaction))
+                                {
+                                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                                    cmd.Parameters.AddWithValue("@BookId", bookId);
+                                    cmd.Parameters.AddWithValue("@ReaderId", _selectedReader.ReaderID);
+                                    cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
+                                    cmd.Parameters.AddWithValue("@Notes", "Выдача через информационное обслуживание");
 
-                                var issuanceIdParam = cmd.Parameters.Add("@IssuanceId", System.Data.SqlDbType.Int);
-                                issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
+                                    var issuanceIdParam = cmd.Parameters.Add("@IssuanceId", System.Data.SqlDbType.Int);
+                                    issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
 
-                                await cmd.ExecuteNonQueryAsync();
+                                    await cmd.ExecuteNonQueryAsync();
+                                    System.Diagnostics.Debug.WriteLine($"Создана выдача для книги ID={bookId}");
+                                }
+
+                                // 2. Обновляем статус книги на "Выдана"
+                                string updateBookStatus = @"
+                                    UPDATE Books 
+                                    SET StatusBook = 3,
+                                        CopiesInUse = CopiesInUse + 1,
+                                        AvailableCopies = AvailableCopies - 1
+                                    WHERE IDBook = @BookId";
+
+                                using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@BookId", bookId);
+                                    await cmd.ExecuteNonQueryAsync();
+                                    System.Diagnostics.Debug.WriteLine($"Статус книги ID={bookId} обновлен на 'Выдан'");
+                                }
                             }
 
-                            // 2. ОБНОВЛЯЕМ СТАТУС КНИГИ НА "ВЫДАНА" (StatusBook = 3)
-                            string updateBookStatus = @"
-                        UPDATE Books 
-                        SET StatusBook = 3,
-                            CopiesInUse = CopiesInUse + 1,
-                            AvailableCopies = AvailableCopies - 1
-                        WHERE IDBook = @BookId";
-
-                            using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("@BookId", bookId);
-                                await cmd.ExecuteNonQueryAsync();
-                                System.Diagnostics.Debug.WriteLine($"Статус книги ID={bookId} обновлен на 'Выдан'");
-                            }
-
-                            // 3. Обновляем статус заявки на "Выдана"
+                            // 3. Обновляем статус заявки на "Выдана" (если есть pending заявка)
                             if (_pendingRequestId.HasValue)
                             {
                                 string updateRequestStatus = @"
-                            UPDATE BookRequests 
-                            SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
-                                IssuedDate = GETDATE() 
-                            WHERE ID_Request = @RequestId";
+                                    UPDATE BookRequests 
+                                    SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
+                                        IssuedDate = GETDATE() 
+                                    WHERE ID_Request = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateRequestStatus, conn, transaction))
                                 {
@@ -782,12 +792,12 @@ namespace Diplom_Bibl.Pages
                                     await cmd.ExecuteNonQueryAsync();
                                 }
 
-                                // 4. Обновляем статус элементов заявки на "Выдана"
+                                // Обновляем статус элементов заявки на "Выдана"
                                 string updateItemsStatus = @"
-                            UPDATE RequestItems 
-                            SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
-                                IssuedQuantity = Quantity
-                            WHERE RequestID = @RequestId";
+                                    UPDATE RequestItems 
+                                    SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
+                                        IssuedQuantity = Quantity
+                                    WHERE RequestID = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateItemsStatus, conn, transaction))
                                 {
@@ -813,7 +823,6 @@ namespace Diplom_Bibl.Pages
 
                 CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nВыдано книг: {quantity}", "Успех",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
             }
             catch (Exception ex)
             {
@@ -821,224 +830,8 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-        private void UpdateDailyStats(int additionalBooks)
-        {
-            try
-            {
-                DateTime selectedDate = DatePicker.SelectedDate ?? DateTime.Today;
 
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-
-                    string checkQuery = "SELECT id_record, delivery_book FROM InformationServiseTb WHERE date_record = @Date";
-
-                    using (var cmd = new SqlCommand(checkQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Date", selectedDate.Date);
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                int currentId = Convert.ToInt32(reader["id_record"]);
-                                int currentBooks = Convert.ToInt32(reader["delivery_book"]);
-                                reader.Close();
-
-                                string updateQuery = @"
-                            UPDATE InformationServiseTb 
-                            SET delivery_book = @Books 
-                            WHERE id_record = @ID";
-
-                                using (var updateCmd = new SqlCommand(updateQuery, conn))
-                                {
-                                    updateCmd.Parameters.AddWithValue("@Books", currentBooks + additionalBooks);
-                                    updateCmd.Parameters.AddWithValue("@ID", currentId);
-                                    updateCmd.ExecuteNonQuery();
-                                }
-                            }
-                            else
-                            {
-                                reader.Close();
-                                string insertQuery = @"
-                            INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count) 
-                            VALUES (@Date, @Books, 0, 0)";
-
-                                using (var insertCmd = new SqlCommand(insertQuery, conn))
-                                {
-                                    insertCmd.Parameters.AddWithValue("@Date", selectedDate.Date);
-                                    insertCmd.Parameters.AddWithValue("@Books", additionalBooks);
-                                    insertCmd.ExecuteNonQuery();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка обновления статистики: {ex.Message}");
-            }
-        }
-
-        private int GetAvailableIDBookWithQuantity(string title, string author, int requiredQuantity)
-        {
-            try
-            {
-                string sql = @"
-            SELECT TOP 1 b.IDBook, b.AvailableCopies
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.TitleBook = @Title 
-              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
-              AND b.AvailableCopies >= @RequiredQuantity
-            ORDER BY b.AvailableCopies DESC";
-
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@Title", title);
-                        cmd.Parameters.AddWithValue("@Author", author);
-                        cmd.Parameters.AddWithValue("@RequiredQuantity", requiredQuantity);
-
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                int IDBook = Convert.ToInt32(reader["IDBook"]);
-                                System.Diagnostics.Debug.WriteLine($"Найдена книга ID={IDBook}");
-                                return IDBook;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книги: {ex.Message}");
-            }
-            return 0;
-        }
-
-        private async void CreateGroupIssuance(int quantity)
-        {
-            try
-            {
-                List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
-
-                if (bookIds.Count < quantity)
-                {
-                    CustomMessageBox.Show($"Недостаточно экземпляров книги.\nТребуется: {quantity}, доступно: {bookIds.Count}",
-                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                    return;
-                }
-
-                DateTime plannedReturnDate = DateTime.Now.AddDays(30);
-                string bookIdsString = string.Join(",", bookIds);
-
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-
-                    // Начинаем транзакцию
-                    using (var transaction = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            // 1. Создаем групповую выдачу
-                            using (var cmd = new SqlCommand("sp_CreateGroupIssuance", conn, transaction))
-                            {
-                                cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                                cmd.Parameters.AddWithValue("@GroupId", _selectedGroup.GroupID);
-                                cmd.Parameters.AddWithValue("@TeacherId", _selectedTeacher.TeacherID);
-                                cmd.Parameters.AddWithValue("@StudentId", _selectedStudent.ReaderID);
-                                cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
-                                cmd.Parameters.AddWithValue("@SubjectName", "Урок");
-                                cmd.Parameters.AddWithValue("@Notes", "Групповая выдача");
-                                cmd.Parameters.AddWithValue("@BookIds", bookIdsString);
-
-                                var issuanceIdParam = cmd.Parameters.Add("@GroupIssuanceId", System.Data.SqlDbType.Int);
-                                issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
-
-                                await cmd.ExecuteNonQueryAsync();
-                            }
-
-                            // 2. ОБНОВЛЯЕМ СТАТУС КАЖДОЙ ВЫДАННОЙ КНИГИ НА "ВЫДАНА" (StatusBook = 3)
-                            foreach (int bookId in bookIds)
-                            {
-                                string updateBookStatus = @"
-                            UPDATE Books 
-                            SET StatusBook = 3,
-                                CopiesInUse = CopiesInUse + 1,
-                                AvailableCopies = AvailableCopies - 1
-                            WHERE IDBook = @BookId";
-
-                                using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@BookId", bookId);
-                                    await cmd.ExecuteNonQueryAsync();
-                                    System.Diagnostics.Debug.WriteLine($"Статус книги ID={bookId} обновлен на 'Выдан'");
-                                }
-                            }
-
-                            // 3. Обновляем статус заявки на "Выдана"
-                            if (_pendingRequestId.HasValue)
-                            {
-                                string updateRequestStatus = @"
-                            UPDATE BookRequests 
-                            SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
-                                IssuedDate = GETDATE() 
-                            WHERE ID_Request = @RequestId";
-
-                                using (var cmd = new SqlCommand(updateRequestStatus, conn, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
-
-                                // 4. Обновляем статус элементов заявки на "Выдана"
-                                string updateItemsStatus = @"
-                            UPDATE RequestItems 
-                            SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
-                                IssuedQuantity = Quantity
-                            WHERE RequestID = @RequestId";
-
-                                using (var cmd = new SqlCommand(updateItemsStatus, conn, transaction))
-                                {
-                                    cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
-                                    await cmd.ExecuteNonQueryAsync();
-                                }
-                            }
-
-                            transaction.Commit();
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
-                }
-
-                UpdateDailyStats(quantity);
-
-                // Обновляем локальное состояние книги
-                _selectedBook.AvailableCopies -= quantity;
-
-                CustomMessageBox.Show($"Групповая выдача успешно создана!\nВыдано книг: {quantity}", "Успех",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                // Возвращаемся на страницу управления заявками
-                NavigationService?.GoBack();
-            }
-            catch (Exception ex)
-            {
-                CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-            }
-        }
-
+        // Универсальный метод получения ID доступных книг
         private List<int> GetAvailableBookIds(string title, string author, int requiredQuantity)
         {
             var bookIds = new List<int>();
@@ -1046,14 +839,14 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string sql = @"
-            SELECT TOP (@RequiredQuantity) b.IDBook
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.TitleBook = @Title 
-              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
-              AND b.AvailableCopies > 0
-              AND b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%')
-            ORDER BY b.IDBook";
+                    SELECT TOP (@RequiredQuantity) b.IDBook
+                    FROM Books b
+                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                    WHERE b.TitleBook = @Title 
+                      AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+                      AND b.AvailableCopies > 0
+                      AND b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%')
+                    ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -1081,6 +874,178 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книг: {ex.Message}");
             }
             return bookIds;
+        }
+
+        private void UpdateDailyStats(int additionalBooks)
+        {
+            try
+            {
+                DateTime selectedDate = DatePicker.SelectedDate ?? DateTime.Today;
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    string checkQuery = "SELECT id_record, delivery_book FROM InformationServiseTb WHERE date_record = @Date";
+
+                    using (var cmd = new SqlCommand(checkQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                int currentId = Convert.ToInt32(reader["id_record"]);
+                                int currentBooks = Convert.ToInt32(reader["delivery_book"]);
+                                reader.Close();
+
+                                string updateQuery = @"
+                                    UPDATE InformationServiseTb 
+                                    SET delivery_book = @Books 
+                                    WHERE id_record = @ID";
+
+                                using (var updateCmd = new SqlCommand(updateQuery, conn))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@Books", currentBooks + additionalBooks);
+                                    updateCmd.Parameters.AddWithValue("@ID", currentId);
+                                    updateCmd.ExecuteNonQuery();
+                                }
+                            }
+                            else
+                            {
+                                reader.Close();
+                                string insertQuery = @"
+                                    INSERT INTO InformationServiseTb (date_record, delivery_book, delivery_certificate, events_count) 
+                                    VALUES (@Date, @Books, 0, 0)";
+
+                                using (var insertCmd = new SqlCommand(insertQuery, conn))
+                                {
+                                    insertCmd.Parameters.AddWithValue("@Date", selectedDate.Date);
+                                    insertCmd.Parameters.AddWithValue("@Books", additionalBooks);
+                                    insertCmd.ExecuteNonQuery();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления статистики: {ex.Message}");
+            }
+        }
+
+        private async void CreateGroupIssuance(int quantity)
+        {
+            try
+            {
+                List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
+
+                if (bookIds.Count < quantity)
+                {
+                    CustomMessageBox.Show($"Недостаточно экземпляров книги.\nТребуется: {quantity}, доступно: {bookIds.Count}",
+                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return;
+                }
+
+                DateTime plannedReturnDate = DateTime.Now.AddDays(30);
+                string bookIdsString = string.Join(",", bookIds);
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Создаем групповую выдачу
+                            using (var cmd = new SqlCommand("sp_CreateGroupIssuance", conn, transaction))
+                            {
+                                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                                cmd.Parameters.AddWithValue("@GroupId", _selectedGroup.GroupID);
+                                cmd.Parameters.AddWithValue("@TeacherId", _selectedTeacher.TeacherID);
+                                cmd.Parameters.AddWithValue("@StudentId", _selectedStudent.ReaderID);
+                                cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
+                                cmd.Parameters.AddWithValue("@SubjectName", "Урок");
+                                cmd.Parameters.AddWithValue("@Notes", "Групповая выдача");
+                                cmd.Parameters.AddWithValue("@BookIds", bookIdsString);
+
+                                var issuanceIdParam = cmd.Parameters.Add("@GroupIssuanceId", System.Data.SqlDbType.Int);
+                                issuanceIdParam.Direction = System.Data.ParameterDirection.Output;
+
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // 2. Обновляем статус каждой выданной книги на "Выдана"
+                            foreach (int bookId in bookIds)
+                            {
+                                string updateBookStatus = @"
+                                    UPDATE Books 
+                                    SET StatusBook = 3,
+                                        CopiesInUse = CopiesInUse + 1,
+                                        AvailableCopies = AvailableCopies - 1
+                                    WHERE IDBook = @BookId";
+
+                                using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@BookId", bookId);
+                                    await cmd.ExecuteNonQueryAsync();
+                                    System.Diagnostics.Debug.WriteLine($"Статус книги ID={bookId} обновлен на 'Выдан'");
+                                }
+                            }
+
+                            // 3. Обновляем статус заявки на "Выдана"
+                            if (_pendingRequestId.HasValue)
+                            {
+                                string updateRequestStatus = @"
+                                    UPDATE BookRequests 
+                                    SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
+                                        IssuedDate = GETDATE() 
+                                    WHERE ID_Request = @RequestId";
+
+                                using (var cmd = new SqlCommand(updateRequestStatus, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+
+                                string updateItemsStatus = @"
+                                    UPDATE RequestItems 
+                                    SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
+                                        IssuedQuantity = Quantity
+                                    WHERE RequestID = @RequestId";
+
+                                using (var cmd = new SqlCommand(updateItemsStatus, conn, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
+                                    await cmd.ExecuteNonQueryAsync();
+                                }
+                            }
+
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+
+                UpdateDailyStats(quantity);
+                _selectedBook.AvailableCopies -= quantity;
+
+                CustomMessageBox.Show($"Групповая выдача успешно создана!\nВыдано книг: {quantity}", "Успех",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
+                NavigationService?.GoBack();
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка при создании групповой выдачи: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
         }
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -1205,14 +1170,15 @@ namespace Diplom_Bibl.Pages
         private void Page_Loaded(object sender, RoutedEventArgs e)
         {
             LoadTodayStats();
-            LoadTeachers();
-
+            LoadTeachers(); 
+            LoadTodayIssues();
+            
             if (_pendingRequestId.HasValue)
             {
                 AutoFillFromRequest();
             }
+           
         }
-
 
         private async void AutoFillFromRequest()
         {
@@ -1239,7 +1205,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // ВАЖНО: Загружаем книги ПОСЛЕ того, как определили тип выдачи
                 await LoadRequestBooks(_pendingRequestId.Value);
 
                 CustomMessageBox.Show($"Данные из заявки №{_pendingRequestId} загружены.", "Информация",
@@ -1252,6 +1217,7 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
         private async System.Threading.Tasks.Task LoadAndSelectTeacher(int userId, string userName)
         {
             try
@@ -1260,9 +1226,9 @@ namespace Diplom_Bibl.Pages
                 {
                     await conn.OpenAsync();
                     string query = @"
-                SELECT ReaderID, LastName, FirstName, MiddleName, CardNumber 
-                FROM ReaderForm 
-                WHERE ReaderID = @UserId";
+                        SELECT ReaderID, LastName, FirstName, MiddleName, CardNumber 
+                        FROM ReaderForm 
+                        WHERE ReaderID = @UserId";
 
                     using (var cmd = new SqlCommand(query, conn))
                     {
@@ -1440,7 +1406,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // FIX 3: Получение реального доступного количества через GetActualAvailableCopies
         private async System.Threading.Tasks.Task LoadRequestBooks(int requestId)
         {
             try
@@ -1449,16 +1414,16 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"RequestId: {requestId}");
 
                 string query = @"
-            SELECT 
-                MIN(ri.BookID) AS BookID,
-                b.TitleBook,
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                SUM(ri.Quantity) AS Quantity
-            FROM RequestItems ri
-            JOIN Books b ON ri.BookID = b.IDBook
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE ri.RequestID = @RequestId
-            GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
+                    SELECT 
+                        MIN(ri.BookID) AS BookID,
+                        b.TitleBook,
+                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                        SUM(ri.Quantity) AS Quantity
+                    FROM RequestItems ri
+                    JOIN Books b ON ri.BookID = b.IDBook
+                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                    WHERE ri.RequestID = @RequestId
+                    GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
 
                 var booksFromRequest = new List<RequestBookItem>();
 
@@ -1486,7 +1451,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Для каждой книги получаем ОБЩЕЕ реальное доступное количество
                 foreach (var book in booksFromRequest)
                 {
                     book.AvailableCopies = await GetTotalActualAvailableCopies(book.TitleBook, book.AuthorName, requestId);
@@ -1497,7 +1461,6 @@ namespace Diplom_Bibl.Pages
                 {
                     var firstBook = booksFromRequest.First();
 
-                    // Создаём объект книги для отображения
                     var newBook = new BookIssuanceService.BookInfo
                     {
                         IDBook = firstBook.IDBook,
@@ -1506,7 +1469,6 @@ namespace Diplom_Bibl.Pages
                         AvailableCopies = firstBook.AvailableCopies
                     };
 
-                    // Проверяем, есть ли уже такая книга в коллекции _books
                     var existingBook = _books.FirstOrDefault(b => b.TitleBook == firstBook.TitleBook && b.AuthorName == firstBook.AuthorName);
                     if (existingBook != null)
                     {
@@ -1519,7 +1481,6 @@ namespace Diplom_Bibl.Pages
                         _selectedBook = newBook;
                     }
 
-                    // Отображаем выбранную книгу
                     SelectedBookTitle.Text = _selectedBook.TitleBook;
                     SelectedBookAuthor.Text = _selectedBook.AuthorName;
                     SelectedBookPanel.Visibility = Visibility.Visible;
@@ -1527,7 +1488,6 @@ namespace Diplom_Bibl.Pages
                     BookSearchBox.Foreground = System.Windows.Media.Brushes.Black;
                     AvailableQuantityText.Text = _selectedBook.AvailableCopies.ToString();
 
-                    // Устанавливаем количество
                     if (GroupTypeRadio.IsChecked == true)
                     {
                         QuantityBox.Text = firstBook.Quantity.ToString();
@@ -1536,7 +1496,7 @@ namespace Diplom_Bibl.Pages
                     else
                     {
                         QuantityBox.Text = firstBook.Quantity.ToString();
-                        QuantityBox.IsEnabled = false;
+                        QuantityBox.IsEnabled = true; // Разрешаем изменение количества
                     }
 
                     System.Diagnostics.Debug.WriteLine($"Выбрана книга: {_selectedBook.TitleBook}, Доступно: {_selectedBook.AvailableCopies}");
@@ -1556,24 +1516,22 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // Добавьте этот метод для получения реального количества доступных книг
-        // FIX 2 & 3: Атомарный расчёт реально доступного количества
         private async Task<int> GetActualAvailableCopies(int bookId, int? excludeRequestId = null)
         {
             try
             {
                 string query = @"
-            SELECT 
-                b.AvailableCopies - ISNULL((
-                    SELECT SUM(ri.Quantity)
-                    FROM RequestItems ri
-                    INNER JOIN BookRequests br ON ri.RequestID = br.ID_Request
-                    WHERE ri.BookID = @BookID
-                      AND ri.StatusID IN (1, 2)
-                      AND br.StatusID NOT IN (4, 5, 6)
-                ), 0) AS ActuallyAvailable
-            FROM Books b
-            WHERE b.IDBook = @BookID";
+                    SELECT 
+                        b.AvailableCopies - ISNULL((
+                            SELECT SUM(ri.Quantity)
+                            FROM RequestItems ri
+                            INNER JOIN BookRequests br ON ri.RequestID = br.ID_Request
+                            WHERE ri.BookID = @BookID
+                              AND ri.StatusID IN (1, 2)
+                              AND br.StatusID NOT IN (4, 5, 6)
+                        ), 0) AS ActuallyAvailable
+                    FROM Books b
+                    WHERE b.IDBook = @BookID";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -1584,13 +1542,12 @@ namespace Diplom_Bibl.Pages
                         var result = await cmd.ExecuteScalarAsync();
                         int available = result != DBNull.Value ? Convert.ToInt32(result) : 0;
 
-                        // Если есть ID заявки, прибавляем обратно количество книг из ЭТОЙ заявки
                         if (excludeRequestId.HasValue && excludeRequestId.Value > 0)
                         {
                             string getCurrentRequestQuantity = @"
-                        SELECT ISNULL(SUM(Quantity), 0)
-                        FROM RequestItems
-                        WHERE RequestID = @RequestID AND BookID = @BookID";
+                                SELECT ISNULL(SUM(Quantity), 0)
+                                FROM RequestItems
+                                WHERE RequestID = @RequestID AND BookID = @BookID";
 
                             using (var cmd2 = new SqlCommand(getCurrentRequestQuantity, conn))
                             {
@@ -1610,7 +1567,7 @@ namespace Diplom_Bibl.Pages
                 return 0;
             }
         }
-        // Получение ОБЩЕГО реального количества доступных книг по названию и автору
+
         private async Task<int> GetTotalActualAvailableCopies(string title, string author, int excludeRequestId)
         {
             try
@@ -1618,11 +1575,10 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"=== GetTotalActualAvailableCopies ===");
                 System.Diagnostics.Debug.WriteLine($"Title: {title}, Author: {author}, ExcludeRequestId: {excludeRequestId}");
 
-                // Просто возвращаем общее количество, игнорируя резервирования
                 string totalQuery = @"
-            SELECT ISNULL(SUM(b.AvailableCopies), 0)
-            FROM Books b
-            WHERE b.TitleBook = @Title";
+                    SELECT ISNULL(SUM(b.AvailableCopies), 0)
+                    FROM Books b
+                    WHERE b.TitleBook = @Title";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -1632,7 +1588,7 @@ namespace Diplom_Bibl.Pages
                         cmd.Parameters.AddWithValue("@Title", title);
                         var result = await cmd.ExecuteScalarAsync();
                         int totalAvailable = result != DBNull.Value ? Convert.ToInt32(result) : 0;
-                        System.Diagnostics.Debug.WriteLine($"Total Available (без вычета резервов): {totalAvailable}");
+                        System.Diagnostics.Debug.WriteLine($"Total Available: {totalAvailable}");
                         return totalAvailable;
                     }
                 }
@@ -1643,7 +1599,7 @@ namespace Diplom_Bibl.Pages
                 return 0;
             }
         }
-        // Добавьте этот метод для загрузки доступности книги
+
         private async System.Threading.Tasks.Task LoadBookAvailability(RequestBookItem book)
         {
             try
@@ -1669,12 +1625,10 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки доступности книги: {ex.Message}");
             }
         }
-        /// <summary>
-        /// Устанавливает данные из заявки для автоматического заполнения (индивидуальная выдача)
-        /// </summary>
+
         public void SetDataFromRequestIndividual(int requestId, int userId, string userName, string lessonName, DateTime lessonDate, int userTypeId)
         {
-            _pendingRequestId = requestId;  // Это важно!
+            _pendingRequestId = requestId;
             _pendingUserId = userId;
             _pendingUserName = userName;
             _pendingLessonName = lessonName;
@@ -1700,9 +1654,9 @@ namespace Diplom_Bibl.Pages
                     conn.Open();
 
                     string query = @"
-                SELECT id_record, delivery_book, delivery_certificate, events_count 
-                FROM InformationServiseTb 
-                WHERE date_record = @Date";
+                        SELECT id_record, delivery_book, delivery_certificate, events_count 
+                        FROM InformationServiseTb 
+                        WHERE date_record = @Date";
 
                     using (var cmd = new SqlCommand(query, conn))
                     {
@@ -1742,6 +1696,5 @@ namespace Diplom_Bibl.Pages
                 CustomMessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-       
     }
 }

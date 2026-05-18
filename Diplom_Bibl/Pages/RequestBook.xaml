@@ -16,7 +16,7 @@
             </Grid.RowDefinitions>
 
             <!-- Заголовок -->
-            <TextBlock Grid.Row="0" Text="📝 Подача заявки на книги" 
+            <TextBlock Grid.Row="0" Text="📝 Подача заявки на выдачу книг" 
                        FontSize="24" FontWeight="Bold" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
 
             <!-- Основная форма -->
