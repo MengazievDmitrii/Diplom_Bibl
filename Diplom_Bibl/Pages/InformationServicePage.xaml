@@ -485,6 +485,17 @@
                                         </Border>
                                     </StackPanel>
                                 </Grid>
+                                <StackPanel Margin="0,15,0,0">
+                                    <TextBlock Text="📅 Дата возврата" Style="{StaticResource LabelStyle}"/>
+                                    <DatePicker x:Name="ReturnDatePicker" 
+                        Style="{StaticResource DatePickerStyle}"
+                        SelectedDate="{x:Static System:DateTime.Now}"/>
+                                    <TextBlock Text="По умолчанию: +14 дней для индивидуальной, +30 дней для групповой"
+                       FontSize="10"
+                       Foreground="Gray"
+                       Margin="0,5,0,0"/>
+                                </StackPanel>
+
                                 <Button x:Name="CreateIssueButton"
                                         Content="📤 Создать выдачу"
                                         Style="{StaticResource SaveButtonStyle}"
@@ -505,15 +516,15 @@
                                 <DataGrid x:Name="IssuesDataGrid"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  RowHeight="30"
-                  MaxHeight="300"
+                  RowHeight="35"
+                  MaxHeight="350"
                   Background="White"
                   BorderBrush="{StaticResource BorderColor}"
                   BorderThickness="1">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Время" 
-                                    Binding="{Binding IssuanceDate, StringFormat=HH:mm}" 
-                                    Width="70"/>
+                                        <DataGridTextColumn Header="Дата выдачи" 
+                                    Binding="{Binding IssuanceDate, StringFormat=dd.MM.yyyy HH:mm}" 
+                                    Width="120"/>
 
                                         <DataGridTextColumn Header="Читатель/Группа" 
                                     Binding="{Binding RecipientName}" 
@@ -521,16 +532,21 @@
 
                                         <DataGridTextColumn Header="Тип" 
                                     Binding="{Binding RecipientType}" 
-                                    Width="70"/>
+                                    Width="80"/>
 
                                         <DataGridTextColumn Header="Книга" 
                                     Binding="{Binding DisplayBook}" 
-                                    Width="300"/>
+                                    Width="280"/>
 
                                         <DataGridTextColumn Header="Кол-во" 
                                     Binding="{Binding Quantity}" 
                                     Width="60"/>
-                                        <DataGridTemplateColumn Header="Статус" Width="80">
+
+                                        <DataGridTextColumn Header="План. возврат" 
+                                    Binding="{Binding PlannedReturnDate, StringFormat=dd.MM.yyyy}" 
+                                    Width="100"/>
+
+                                        <DataGridTemplateColumn Header="Статус" Width="90">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Border CornerRadius="10"
@@ -549,7 +565,7 @@
                                 </DataGrid>
                             </StackPanel>
                         </Border>
-                       </StackPanel>
+                    </StackPanel>
                 </ScrollViewer>
             </Grid>
         </Grid>

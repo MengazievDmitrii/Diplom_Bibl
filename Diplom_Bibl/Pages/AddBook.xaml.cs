@@ -124,7 +124,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== АВТОГЕНЕРАЦИЯ ИНВЕНТАРНОГО НОМЕРА ====================
+        //  АВТОГЕНЕРАЦИЯ ИНВЕНТАРНОГО НОМЕРА 
         private async Task<string> GetNextInventoryNumberAsync()
         {
             return await Task.Run(() =>
@@ -151,7 +151,7 @@ namespace Diplom_Bibl.Pages
             });
         }
 
-        // ==================== МАСКА ВВОДА ====================
+        //  МАСКА ВВОДА 
         private void TbInventoryNumber_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !Regex.IsMatch(e.Text, @"^\d+$");
@@ -191,7 +191,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== МАСКА ВВОДА ДЛЯ ГОДА ====================
+        //  МАСКА ВВОДА ДЛЯ ГОДА 
         private void TbYear_PreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !IsTextNumeric(e.Text);
 
         private void TbYear_Pasting(object sender, DataObjectPastingEventArgs e)
@@ -235,7 +235,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== МАСКА ВВОДА ДЛЯ ЦЕНЫ ====================
+        //  МАСКА ВВОДА ДЛЯ ЦЕНЫ 
         private void TbPrice_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             string text = e.Text;
@@ -324,7 +324,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== ЗАГРУЗКА ДАННЫХ ====================
+        //  ЗАГРУЗКА ДАННЫХ 
 
         private void LoadStatusesFiltered()
         {

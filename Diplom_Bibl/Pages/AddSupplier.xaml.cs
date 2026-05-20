@@ -57,7 +57,7 @@ namespace Diplom_Bibl.Pages
             TbAddress.LostFocus += TbAddress_LostFocus;
         }
 
-        // ==================== МАСКА ДЛЯ НАЗВАНИЯ ПОСТАВЩИКА ====================
+        //  МАСКА ДЛЯ НАЗВАНИЯ ПОСТАВЩИКА 
         private void TbSupplierName_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             // Разрешаем вставку из буфера, но будем проверять при потере фокуса
@@ -85,7 +85,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== МАСКА ДЛЯ АДРЕСА ====================
+        //  МАСКА ДЛЯ АДРЕСА 
         private void TbAddress_LostFocus(object sender, RoutedEventArgs e)
         {
             var textBox = sender as TextBox;
@@ -104,7 +104,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== МАСКА ВВОДА ДЛЯ ИНН ====================
+        //  МАСКА ВВОДА ДЛЯ ИНН 
         private void TbINN_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             // Разрешаем только цифры
@@ -153,7 +153,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== МАСКА ВВОДА ДЛЯ EMAIL ====================
+        //  МАСКА ВВОДА ДЛЯ EMAIL 
         private void TbEmail_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             // Разрешаем только английские буквы, цифры и специальные символы для email
@@ -222,7 +222,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ==================== ОСТАЛЬНЫЕ МЕТОДЫ ====================
+        //  ОСТАЛЬНЫЕ МЕТОДЫ 
 
         private void SetSearchPlaceholder()
         {

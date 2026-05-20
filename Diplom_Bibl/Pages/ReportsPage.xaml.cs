@@ -26,7 +26,7 @@ namespace Diplom_Bibl.Pages
             _excelExportPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         }
 
-        // ==================== ОТЧЁТ 1: ВЫДАЧА ЛИТЕРАТУРЫ ====================
+        //  ОТЧЁТ 1: ВЫДАЧА ЛИТЕРАТУРЫ 
         private void ViewReport_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateDates()) return;
@@ -162,7 +162,7 @@ namespace Diplom_Bibl.Pages
             return data;
         }
 
-        // ==================== ОТЧЁТ 2: ЧИТАТЕЛЬСКАЯ АКТИВНОСТЬ ====================
+        //  ОТЧЁТ 2: ЧИТАТЕЛЬСКАЯ АКТИВНОСТЬ 
         private void ViewReaderActivity_Click(object sender, RoutedEventArgs e)
         {
             var data = LoadReaderActivityReport();
@@ -285,7 +285,7 @@ namespace Diplom_Bibl.Pages
             return data;
         }
 
-        // ==================== ОТЧЁТ 3: ФОНД БИБЛИОТЕКИ (С ГРУППИРОВКОЙ) ====================
+        //  ОТЧЁТ 3: ФОНД БИБЛИОТЕКИ (С ГРУППИРОВКОЙ) 
         private void ViewFundReport_Click(object sender, RoutedEventArgs e)
         {
             var data = LoadBookFundReportGrouped();
@@ -382,7 +382,7 @@ namespace Diplom_Bibl.Pages
             return data;
         }
 
-        // ==================== ОТЧЁТ 4: ИНФОРМАЦИОННОЕ ОБСЛУЖИВАНИЕ ====================
+        //  ОТЧЁТ 4: ИНФОРМАЦИОННОЕ ОБСЛУЖИВАНИЕ 
         private void ViewReportButton_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateDates()) return;
@@ -588,7 +588,7 @@ namespace Diplom_Bibl.Pages
             NavigationService?.Navigate(new InventoryActReport());
         }
 
-        // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+        //  ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ 
         private bool ValidateDates()
         {
             if (StartDatePicker.SelectedDate == null || EndDatePicker.SelectedDate == null)
@@ -732,7 +732,7 @@ namespace Diplom_Bibl.Pages
             reportWindow.ShowDialog();
         }
 
-        // ==================== ГЕНЕРАЦИЯ PDF ====================
+        //  ГЕНЕРАЦИЯ PDF 
 
         private void CreateAndShowPDF<T>(ObservableCollection<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
         {
@@ -871,7 +871,7 @@ namespace Diplom_Bibl.Pages
             return text.Substring(0, maxLength - 3) + "...";
         }
 
-        // ==================== ЭКСПОРТ В EXCEL ====================
+        //  ЭКСПОРТ В EXCEL 
         private void ExportBookIssuanceToExcel(ObservableCollection<BookIssuanceReport> data, DateTime startDate, DateTime endDate, bool openAfterExport = false)
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog

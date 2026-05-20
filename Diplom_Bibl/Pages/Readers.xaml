@@ -80,7 +80,7 @@
                                Opacity="0.7"/>
                 </StackPanel>
 
-                <!-- Фильтры по категориям -->
+                <!-- Фильтры -->
                 <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Фильтры:" 
                                VerticalAlignment="Center" 
@@ -107,15 +107,6 @@
                               SelectedValuePath="GroupID"
                               Margin="0,0,10,5"/>
 
-                    <!-- Фильтр по должности (для сотрудников) -->
-                    <ComboBox x:Name="FilterPostCombo" 
-                              Width="150"
-                              Style="{StaticResource InputFieldStyleCb}"
-                              SelectionChanged="FilterCombo_SelectionChanged"
-                              DisplayMemberPath="PostName"
-                              SelectedValuePath="PostID"
-                              Margin="0,0,10,5"/>
-
                     <!-- Кнопка сброса фильтров -->
                     <Button x:Name="ClearFiltersBtn" 
                             Content="✖ Сбросить все фильтры" 
@@ -130,7 +121,7 @@
 
                 <!-- Текст подсказки -->
                 <TextBlock Grid.Row="2" 
-                           Text="💡 Совет: Выберите тип читателя 'Студент', чтобы увидеть фильтр по группам"
+                           Text="💡 Совет: Выберите тип читателя 'Студент', чтобы увидеть фильтр по группам. Поиск работает по фамилии, имени, номеру билета и должности."
                            FontSize="11"
                            Foreground="{StaticResource PrimaryColor}"
                            Opacity="0.6"

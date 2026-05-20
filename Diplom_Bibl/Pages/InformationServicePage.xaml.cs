@@ -49,6 +49,8 @@ namespace Diplom_Bibl.Pages
         private string _pendingGroupCode = "";
         private string _pendingLessonName = "";
         private DateTime? _pendingLessonDate = null;
+        // Добавить с другими полями
+        private DateTime _selectedReturnDate;
 
         // Класс для книг из заявки (с количеством)
         public class RequestBookItem
@@ -76,6 +78,17 @@ namespace Diplom_Bibl.Pages
 
             DatePicker.SelectedDate = DateTime.Today;
 
+            // ИНИЦИАЛИЗАЦИЯ DatePicker для даты возврата
+            if (ReturnDatePicker != null)
+            {
+                ReturnDatePicker.SelectedDate = DateTime.Now.AddDays(14);
+                _selectedReturnDate = ReturnDatePicker.SelectedDate.Value;
+            }
+            else
+            {
+                _selectedReturnDate = DateTime.Now.AddDays(14);
+            }
+
             // Загружаем данные
             LoadTodayIssues();
             LoadReaders();
@@ -87,9 +100,24 @@ namespace Diplom_Bibl.Pages
 
             // Подписываемся на события
             this.Loaded += (s, e) => UpdateInventoryPreview();
+
+            // Подписываемся на изменение даты возврата
+            if (ReturnDatePicker != null)
+            {
+                ReturnDatePicker.SelectedDateChanged += ReturnDatePicker_SelectedDateChanged;
+            }
         }
 
-        /// <summary>
+        // Обработчик изменения даты возврата
+        private void ReturnDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ReturnDatePicker != null && ReturnDatePicker.SelectedDate.HasValue)
+            {
+                _selectedReturnDate = ReturnDatePicker.SelectedDate.Value;
+            }
+        }
+
+         /// <summary>
         /// Устанавливает данные из заявки для автоматического заполнения
         /// </summary>
         public void SetDataFromRequest(int requestId, int userId, int? groupId, string userName, string groupCode, string lessonName, DateTime lessonDate)
@@ -310,11 +338,15 @@ namespace Diplom_Bibl.Pages
                     {
                         QuantityBox.IsEnabled = true;
                         QuantityBox.Text = "1";
-                        // Ограничиваем максимальное количество
                         if (int.TryParse(QuantityBox.Text, out int currentQty) && currentQty > _selectedBook.AvailableCopies)
                         {
                             QuantityBox.Text = _selectedBook.AvailableCopies.ToString();
                         }
+                    }
+                    // Индивидуальная выдача: +14 дней (с проверкой на null)
+                    if (ReturnDatePicker != null)
+                    {
+                        ReturnDatePicker.SelectedDate = DateTime.Now.AddDays(14);
                     }
                 }
                 else
@@ -327,6 +359,11 @@ namespace Diplom_Bibl.Pages
                     {
                         QuantityBox.IsEnabled = true;
                         QuantityBox.Text = "1";
+                    }
+                    // Групповая выдача: +30 дней (с проверкой на null)
+                    if (ReturnDatePicker != null)
+                    {
+                        ReturnDatePicker.SelectedDate = DateTime.Now.AddDays(30);
                     }
                 }
             }
@@ -722,7 +759,6 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                // Получаем список доступных ID книг (несколько экземпляров)
                 List<int> bookIds = GetAvailableBookIds(_selectedBook.TitleBook, _selectedBook.AuthorName, quantity);
 
                 if (bookIds.Count < quantity)
@@ -732,7 +768,8 @@ namespace Diplom_Bibl.Pages
                     return;
                 }
 
-                DateTime plannedReturnDate = DateTime.Now.AddDays(14);
+                // Используем выбранную пользователем дату возврата
+                DateTime plannedReturnDate = _selectedReturnDate;
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -742,10 +779,8 @@ namespace Diplom_Bibl.Pages
                     {
                         try
                         {
-                            // Создаем выдачу для КАЖДОГО экземпляра книги
                             foreach (int bookId in bookIds)
                             {
-                                // 1. Создаем выдачу
                                 using (var cmd = new SqlCommand("sp_CreateIndividualIssuance", conn, transaction))
                                 {
                                     cmd.CommandType = System.Data.CommandType.StoredProcedure;
@@ -761,13 +796,12 @@ namespace Diplom_Bibl.Pages
                                     System.Diagnostics.Debug.WriteLine($"Создана выдача для книги ID={bookId}");
                                 }
 
-                                // 2. Обновляем статус книги на "Выдана"
                                 string updateBookStatus = @"
-                                    UPDATE Books 
-                                    SET StatusBook = 3,
-                                        CopiesInUse = CopiesInUse + 1,
-                                        AvailableCopies = AvailableCopies - 1
-                                    WHERE IDBook = @BookId";
+                            UPDATE Books 
+                            SET StatusBook = 3,
+                                CopiesInUse = CopiesInUse + 1,
+                                AvailableCopies = AvailableCopies - 1
+                            WHERE IDBook = @BookId";
 
                                 using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
                                 {
@@ -777,14 +811,13 @@ namespace Diplom_Bibl.Pages
                                 }
                             }
 
-                            // 3. Обновляем статус заявки на "Выдана" (если есть pending заявка)
                             if (_pendingRequestId.HasValue)
                             {
                                 string updateRequestStatus = @"
-                                    UPDATE BookRequests 
-                                    SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
-                                        IssuedDate = GETDATE() 
-                                    WHERE ID_Request = @RequestId";
+                            UPDATE BookRequests 
+                            SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
+                                IssuedDate = GETDATE() 
+                            WHERE ID_Request = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateRequestStatus, conn, transaction))
                                 {
@@ -792,12 +825,11 @@ namespace Diplom_Bibl.Pages
                                     await cmd.ExecuteNonQueryAsync();
                                 }
 
-                                // Обновляем статус элементов заявки на "Выдана"
                                 string updateItemsStatus = @"
-                                    UPDATE RequestItems 
-                                    SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
-                                        IssuedQuantity = Quantity
-                                    WHERE RequestID = @RequestId";
+                            UPDATE RequestItems 
+                            SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
+                                IssuedQuantity = Quantity
+                            WHERE RequestID = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateItemsStatus, conn, transaction))
                                 {
@@ -817,11 +849,9 @@ namespace Diplom_Bibl.Pages
                 }
 
                 UpdateDailyStats(quantity);
-
-                // Обновляем локальное состояние книги
                 _selectedBook.AvailableCopies -= quantity;
 
-                CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nВыдано книг: {quantity}", "Успех",
+                CustomMessageBox.Show($"Индивидуальная выдача успешно создана!\nВыдано книг: {quantity}\nДата возврата: {plannedReturnDate:dd.MM.yyyy}", "Успех",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -948,7 +978,8 @@ namespace Diplom_Bibl.Pages
                     return;
                 }
 
-                DateTime plannedReturnDate = DateTime.Now.AddDays(30);
+                // Используем выбранную пользователем дату возврата
+                DateTime plannedReturnDate = _selectedReturnDate;
                 string bookIdsString = string.Join(",", bookIds);
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -959,7 +990,6 @@ namespace Diplom_Bibl.Pages
                     {
                         try
                         {
-                            // 1. Создаем групповую выдачу
                             using (var cmd = new SqlCommand("sp_CreateGroupIssuance", conn, transaction))
                             {
                                 cmd.CommandType = System.Data.CommandType.StoredProcedure;
@@ -967,7 +997,7 @@ namespace Diplom_Bibl.Pages
                                 cmd.Parameters.AddWithValue("@TeacherId", _selectedTeacher.TeacherID);
                                 cmd.Parameters.AddWithValue("@StudentId", _selectedStudent.ReaderID);
                                 cmd.Parameters.AddWithValue("@PlannedReturnDate", plannedReturnDate);
-                                cmd.Parameters.AddWithValue("@SubjectName", "Урок");
+                                cmd.Parameters.AddWithValue("@SubjectName", _pendingLessonName ?? "Урок");
                                 cmd.Parameters.AddWithValue("@Notes", "Групповая выдача");
                                 cmd.Parameters.AddWithValue("@BookIds", bookIdsString);
 
@@ -977,15 +1007,14 @@ namespace Diplom_Bibl.Pages
                                 await cmd.ExecuteNonQueryAsync();
                             }
 
-                            // 2. Обновляем статус каждой выданной книги на "Выдана"
                             foreach (int bookId in bookIds)
                             {
                                 string updateBookStatus = @"
-                                    UPDATE Books 
-                                    SET StatusBook = 3,
-                                        CopiesInUse = CopiesInUse + 1,
-                                        AvailableCopies = AvailableCopies - 1
-                                    WHERE IDBook = @BookId";
+                            UPDATE Books 
+                            SET StatusBook = 3,
+                                CopiesInUse = CopiesInUse + 1,
+                                AvailableCopies = AvailableCopies - 1
+                            WHERE IDBook = @BookId";
 
                                 using (var cmd = new SqlCommand(updateBookStatus, conn, transaction))
                                 {
@@ -995,14 +1024,13 @@ namespace Diplom_Bibl.Pages
                                 }
                             }
 
-                            // 3. Обновляем статус заявки на "Выдана"
                             if (_pendingRequestId.HasValue)
                             {
                                 string updateRequestStatus = @"
-                                    UPDATE BookRequests 
-                                    SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
-                                        IssuedDate = GETDATE() 
-                                    WHERE ID_Request = @RequestId";
+                            UPDATE BookRequests 
+                            SET StatusID = (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Выдана'), 
+                                IssuedDate = GETDATE() 
+                            WHERE ID_Request = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateRequestStatus, conn, transaction))
                                 {
@@ -1011,10 +1039,10 @@ namespace Diplom_Bibl.Pages
                                 }
 
                                 string updateItemsStatus = @"
-                                    UPDATE RequestItems 
-                                    SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
-                                        IssuedQuantity = Quantity
-                                    WHERE RequestID = @RequestId";
+                            UPDATE RequestItems 
+                            SET StatusID = (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Выдана'),
+                                IssuedQuantity = Quantity
+                            WHERE RequestID = @RequestId";
 
                                 using (var cmd = new SqlCommand(updateItemsStatus, conn, transaction))
                                 {
@@ -1036,7 +1064,7 @@ namespace Diplom_Bibl.Pages
                 UpdateDailyStats(quantity);
                 _selectedBook.AvailableCopies -= quantity;
 
-                CustomMessageBox.Show($"Групповая выдача успешно создана!\nВыдано книг: {quantity}", "Успех",
+                CustomMessageBox.Show($"Групповая выдача успешно создана!\nВыдано книг: {quantity}\nДата возврата: {plannedReturnDate:dd.MM.yyyy}", "Успех",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                 NavigationService?.GoBack();

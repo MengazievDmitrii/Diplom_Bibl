@@ -10,14 +10,18 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class AddReader : Page
     {
-        private readonly string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;";
+        private readonly string connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<ReaderItem> _allReaders;
         private int? _currentReaderId;
+
+        // Хранилище всех групп для фильтрации
+        private ObservableCollection<GroupItem> _allGroups;
 
         public class ReaderTypeItem
         {
@@ -85,6 +89,7 @@ namespace Diplom_Bibl.Pages
             LoadReaders();
 
             TRCb.SelectionChanged += TRCb_SelectionChanged;
+            SpCb.SelectionChanged += SpCb_SelectionChanged;
             MembershipStartDatePicker.SelectedDate = DateTime.Today;
             FormFillDatePicker.SelectedDate = DateTime.Today;
             UpdateVisibilityByReaderType();
@@ -113,6 +118,34 @@ namespace Diplom_Bibl.Pages
                         CardNumberTb.Text = newNumber;
                     }
                 };
+            }
+        }
+
+        // ==================== ОБРАБОТЧИК ВЫБОРА СПЕЦИАЛЬНОСТИ ====================
+        private void SpCb_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SpCb.SelectedItem is SpecialityItem selectedSpeciality)
+            {
+                FilterGroupsBySpeciality(selectedSpeciality.ID);
+            }
+            else
+            {
+                LoadGroups();
+            }
+        }
+
+        private void FilterGroupsBySpeciality(int specialityId)
+        {
+            if (_allGroups == null) return;
+
+            var filteredGroups = _allGroups.Where(g => g.SpecialityID == specialityId).ToList();
+            GrCb.ItemsSource = filteredGroups;
+            GrCb.DisplayMemberPath = "DisplayGr";
+            GrCb.SelectedValuePath = "ID";
+
+            if (filteredGroups.Count == 0)
+            {
+                GrCb.SelectedIndex = -1;
             }
         }
 
@@ -174,21 +207,18 @@ namespace Diplom_Bibl.Pages
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Индивидуальные выдачи
                     string queryInd = "SELECT COUNT(*) FROM BookIssuance WHERE ReaderId = @ReaderId AND Status = 'Выдана'";
                     using (var cmd = new SqlCommand(queryInd, conn))
                     {
                         cmd.Parameters.AddWithValue("@ReaderId", readerId);
                         if ((int)cmd.ExecuteScalar() > 0) return true;
                     }
-                    // Групповые выдачи как преподаватель
                     string queryTeach = "SELECT COUNT(*) FROM GroupBookIssuance WHERE TeacherId = @ReaderId AND Status = 'Выдана'";
                     using (var cmd = new SqlCommand(queryTeach, conn))
                     {
                         cmd.Parameters.AddWithValue("@ReaderId", readerId);
                         if ((int)cmd.ExecuteScalar() > 0) return true;
                     }
-                    // Групповые выдачи как студент
                     string queryStud = "SELECT COUNT(*) FROM GroupBookIssuance WHERE StudentId = @ReaderId AND Status = 'Выдана'";
                     using (var cmd = new SqlCommand(queryStud, conn))
                     {
@@ -199,9 +229,10 @@ namespace Diplom_Bibl.Pages
                 }
             });
         }
+
         private void TryLoadPendingReader()
         {
-            if (_pendingReaderId.HasValue && !_isLoadingReader && TRCb.Items.Count > 0 && SpCb.Items.Count > 0)
+            if (_pendingReaderId.HasValue && !_isLoadingReader && TRCb.Items.Count > 0)
             {
                 _isLoadingReader = true;
                 LoadReaderById(_pendingReaderId.Value);
@@ -258,8 +289,13 @@ namespace Diplom_Bibl.Pages
 
                                 int typeId = Convert.ToInt32(reader["TypeID"]);
                                 SelectComboBoxItemById(TRCb, typeId);
+
                                 string speciality = reader["Speciality"]?.ToString() ?? "";
-                                SelectSpecialityByDisplay(speciality);
+                                if (!string.IsNullOrEmpty(speciality))
+                                {
+                                    SelectSpecialityByDisplay(speciality);
+                                }
+
                                 UpdateVisibilityByReaderType();
 
                                 if (reader["GroupID"] != DBNull.Value)
@@ -297,8 +333,8 @@ namespace Diplom_Bibl.Pages
                 int itemId = 0;
                 if (item is ReaderTypeItem rt) itemId = rt.ID;
                 else if (item is GroupItem g) itemId = g.ID;
+                else if (item is SpecialityItem s) itemId = s.ID;
                 else if (item is PostItem p) itemId = p.ID;
-                else if (item is ComboBoxItem cbi && cbi.Tag != null) itemId = Convert.ToInt32(cbi.Tag);
 
                 if (itemId == id)
                 {
@@ -376,6 +412,7 @@ namespace Diplom_Bibl.Pages
                                 SpecialityID = specId
                             });
                         }
+                        _allGroups = items;
                         GrCb.ItemsSource = items;
                         GrCb.DisplayMemberPath = "DisplayGr";
                         GrCb.SelectedValuePath = "ID";
@@ -511,7 +548,24 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void TRCb_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateVisibilityByReaderType();
+        private void TRCb_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateVisibilityByReaderType();
+
+            if (TRCb.SelectedItem is ReaderTypeItem selectedType)
+            {
+                bool isStudent = selectedType.TypeName?.ToLower().Contains("студент") ?? false;
+                if (isStudent && SpCb.SelectedItem != null)
+                {
+                    FilterGroupsBySpeciality(((SpecialityItem)SpCb.SelectedItem).ID);
+                }
+                else if (!isStudent)
+                {
+                    GrCb.ItemsSource = null;
+                    GrCb.SelectedIndex = -1;
+                }
+            }
+        }
 
         private void UpdateVisibilityByReaderType()
         {
@@ -519,8 +573,21 @@ namespace Diplom_Bibl.Pages
             {
                 bool isStudent = selectedType.TypeName?.ToLower().Contains("студент") ?? false;
                 bool isEmployee = selectedType.TypeName?.ToLower().Contains("сотрудник") ?? false;
+
+                // Видимость панели группы
                 GrPanel.Visibility = isStudent ? Visibility.Visible : Visibility.Collapsed;
+
+                // Видимость панели должности
                 PostPanel.Visibility = isEmployee ? Visibility.Visible : Visibility.Collapsed;
+
+                // Видимость панели специальности (только для студентов)
+                // Используем FindVisualChildByName для поиска SpecialityPanel по имени
+                var specialityPanel = FindVisualChildByName<StackPanel>(this, "SpecialityPanel");
+                if (specialityPanel != null)
+                {
+                    specialityPanel.Visibility = isStudent ? Visibility.Visible : Visibility.Collapsed;
+                }
+
                 if (!isStudent) GrCb.SelectedIndex = -1;
                 if (!isEmployee) PostCb.SelectedIndex = -1;
             }
@@ -528,9 +595,34 @@ namespace Diplom_Bibl.Pages
             {
                 GrPanel.Visibility = Visibility.Collapsed;
                 PostPanel.Visibility = Visibility.Collapsed;
+
+                var specialityPanel = FindVisualChildByName<StackPanel>(this, "SpecialityPanel");
+                if (specialityPanel != null)
+                {
+                    specialityPanel.Visibility = Visibility.Collapsed;
+                }
+
                 GrCb.SelectedIndex = -1;
                 PostCb.SelectedIndex = -1;
             }
+        }
+
+        /// <summary>
+        /// Вспомогательный метод для поиска элемента по имени в визуальном дереве
+        /// </summary>
+        private T FindVisualChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T element && element.Name == name)
+                    return element;
+
+                var result = FindVisualChildByName<T>(child, name);
+                if (result != null)
+                    return result;
+            }
+            return null;
         }
 
         private void ClearForm()
@@ -554,7 +646,6 @@ namespace Diplom_Bibl.Pages
             DeleteReaderBtn.Visibility = Visibility.Collapsed;
             UpdateVisibilityByReaderType();
 
-            // Асинхронная генерация нового номера
             _ = Task.Run(async () =>
             {
                 string newNumber = await GetNextCardNumberAsync();
@@ -631,7 +722,6 @@ namespace Diplom_Bibl.Pages
                         command.Parameters.AddWithValue("@CardNumber", CardNumberTb.Text.Trim());
                         command.Parameters.AddWithValue("@LastName", LastNameTb.Text.Trim());
                         command.Parameters.AddWithValue("@FirstName", FirstNameTb.Text.Trim());
-                        // Исправлено: явное приведение к object
                         command.Parameters.AddWithValue("@MiddleName", string.IsNullOrWhiteSpace(MiddleNameTb.Text) ? (object)DBNull.Value : MiddleNameTb.Text.Trim());
                         command.Parameters.AddWithValue("@TypeID", selectedType.ID);
                         command.Parameters.AddWithValue("@GroupID", (isStudent && GrCb.SelectedValue != null) ? GrCb.SelectedValue : (object)DBNull.Value);
@@ -731,7 +821,7 @@ namespace Diplom_Bibl.Pages
                 CustomMessageBox.Show($"Ошибка при обновлении читателя: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-      
+
         private async Task NullifyGroupLoansReferencesAsync(int readerId)
         {
             await Task.Run(() =>
@@ -739,13 +829,11 @@ namespace Diplom_Bibl.Pages
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
-                    // Обнуляем TeacherId
                     using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET TeacherId = NULL WHERE TeacherId = @ReaderId", conn))
                     {
                         cmd.Parameters.AddWithValue("@ReaderId", readerId);
                         cmd.ExecuteNonQuery();
                     }
-                    // Обнуляем StudentId
                     using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET StudentId = NULL WHERE StudentId = @ReaderId", conn))
                     {
                         cmd.Parameters.AddWithValue("@ReaderId", readerId);
@@ -757,7 +845,6 @@ namespace Diplom_Bibl.Pages
 
         private async void DeleteReaderBtn_Click(object sender, RoutedEventArgs e)
         {
-            // Обнуляем ссылки в групповых выдачах
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
@@ -772,13 +859,13 @@ namespace Diplom_Bibl.Pages
                     cmd.ExecuteNonQuery();
                 }
             }
+
             if (!_currentReaderId.HasValue)
             {
                 CustomMessageBox.Show("Выберите читателя для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            // Проверяем активные выдачи
             bool hasActive = await HasActiveLoansAsync(_currentReaderId.Value);
             if (hasActive)
             {
@@ -791,11 +878,11 @@ namespace Diplom_Bibl.Pages
             var result = CustomMessageBox.Show("Вы уверены, что хотите удалить этого читателя?\n" +
                 "Все исторические записи о его выдачах сохранятся (без привязки к читателю).",
                 "Подтверждение удаления", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+
             if (result != CustomMessageBoxResult.Yes) return;
 
             try
             {
-                // Удаляем читателя (BookIssuance обнулит ReaderId автоматически)
                 const string query = "DELETE FROM ReaderForm WHERE ReaderID = @ReaderID";
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -814,7 +901,7 @@ namespace Diplom_Bibl.Pages
                     }
                 }
             }
-            catch (SqlException ex) when (ex.Number == 547) // Ошибка внешнего ключа (на случай, если что-то пошло не так)
+            catch (SqlException ex) when (ex.Number == 547)
             {
                 CustomMessageBox.Show("Невозможно удалить читателя из-за связанных записей. Возможно, есть активные выдачи.",
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);

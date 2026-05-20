@@ -9,15 +9,13 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
-    /// <summary>
-    /// Логика взаимодействия для Readers.xaml
-    /// </summary>
     public partial class Readers : Page
     {
-        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;";
+        private string connectionString = DatabaseHelper.ConnectionString ;
         private ObservableCollection<ReaderDisplayItem> _allReaders;
         private ObservableCollection<ReaderDisplayItem> _filteredReaders;
         private int? _currentReaderId = null;
@@ -81,13 +79,6 @@ namespace Diplom_Bibl.Pages
             public string GroupCode { get; set; } = "";
         }
 
-        // Класс для фильтрации по должности
-        public class FilterPostItem
-        {
-            public int PostID { get; set; }
-            public string PostName { get; set; } = "";
-        }
-
         public Readers()
         {
             InitializeComponent();
@@ -103,12 +94,11 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                // Загружаем типы читателей для фильтра
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
 
-                    // Загружаем типы
+                    // Загружаем типы читателей для фильтра
                     var typeQuery = "SELECT TypeID, TypeName FROM ReaderType ORDER BY TypeName";
                     using (var cmd = new SqlCommand(typeQuery, connection))
                     using (var reader = cmd.ExecuteReader())
@@ -134,9 +124,6 @@ namespace Diplom_Bibl.Pages
 
                 // Загружаем группы для фильтра
                 LoadGroupsForFilter();
-
-                // Загружаем должности для фильтра
-                LoadPostsForFilter();
             }
             catch (Exception ex)
             {
@@ -182,60 +169,23 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadPostsForFilter()
-        {
-            try
-            {
-                const string query = "SELECT ID_Post, Post_Name FROM Post ORDER BY Post_Name";
-                using (var connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    using (var cmd = new SqlCommand(query, connection))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        var posts = new ObservableCollection<FilterPostItem>();
-                        posts.Add(new FilterPostItem { PostID = 0, PostName = "Все должности" });
-
-                        while (reader.Read())
-                        {
-                            posts.Add(new FilterPostItem
-                            {
-                                PostID = Convert.ToInt32(reader["ID_Post"]),
-                                PostName = reader["Post_Name"]?.ToString() ?? ""
-                            });
-                        }
-
-                        FilterPostCombo.ItemsSource = posts;
-                        FilterPostCombo.SelectedValuePath = "PostID";
-                        FilterPostCombo.DisplayMemberPath = "PostName";
-                        FilterPostCombo.SelectedIndex = 0;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                CustomMessageBox.Show($"Ошибка загрузки должностей: {ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-            }
-        }
-
         private void LoadReaders()
         {
             try
             {
                 const string query = @"
-            SELECT 
-                r.ReaderID, r.CardNumber, r.LastName, r.FirstName, r.MiddleName,
-                r.TypeID, rt.TypeName,
-                r.GroupID, g.GroupCode,
-                r.Post, p.Post_Name,
-                r.Speciality, r.PhoneNumber, r.HomeAddress,
-                r.MembershipStartDate, r.FormFillDate
-            FROM ReaderForm r
-            LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
-            LEFT JOIN Groups g ON r.GroupID = g.GroupID
-            LEFT JOIN Post p ON r.Post = p.ID_Post
-            ORDER BY r.LastName, r.FirstName";
+                    SELECT 
+                        r.ReaderID, r.CardNumber, r.LastName, r.FirstName, r.MiddleName,
+                        r.TypeID, rt.TypeName,
+                        r.GroupID, g.GroupCode,
+                        r.Post, p.Post_Name,
+                        r.Speciality, r.PhoneNumber, r.HomeAddress,
+                        r.MembershipStartDate, r.FormFillDate
+                    FROM ReaderForm r
+                    LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
+                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
+                    LEFT JOIN Post p ON r.Post = p.ID_Post
+                    ORDER BY r.LastName, r.FirstName";
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -269,7 +219,7 @@ namespace Diplom_Bibl.Pages
                         }
 
                         _allReaders = items;
-                        ApplyFilters(); // Применяем фильтры при загрузке
+                        ApplyFilters();
                         UpdateStatistics();
                     }
                 }
@@ -287,14 +237,15 @@ namespace Diplom_Bibl.Pages
 
             var filtered = _allReaders.AsEnumerable();
 
-            // Фильтр по тексту поиска
+            // Фильтр по тексту поиска (включая поиск по должности)
             string searchTerm = SearchBox.Text?.Trim() ?? "";
             if (!string.IsNullOrEmpty(searchTerm) && searchTerm != "Поиск по фамилии или номеру билета...")
             {
                 filtered = filtered.Where(r =>
                     r.LastName.ToLower().Contains(searchTerm.ToLower()) ||
                     r.FirstName.ToLower().Contains(searchTerm.ToLower()) ||
-                    r.CardNumber.ToLower().Contains(searchTerm.ToLower()));
+                    r.CardNumber.ToLower().Contains(searchTerm.ToLower()) ||
+                    (r.PostName?.ToLower().Contains(searchTerm.ToLower()) ?? false));
             }
 
             // Фильтр по типу читателя
@@ -306,25 +257,7 @@ namespace Diplom_Bibl.Pages
             // Фильтр по группе (только для студентов)
             if (FilterGroupCombo.SelectedItem is FilterGroupItem selectedGroup && selectedGroup.GroupID > 0)
             {
-                // Проверяем, что выбран тип "Студент" или "Все типы"
-                int? selectedTypeId = (FilterTypeCombo.SelectedItem as FilterTypeItem)?.TypeID;
-                bool isStudentSelected = selectedTypeId == null || selectedTypeId == 0;
-
-                // Если не выбран конкретный тип, фильтруем только студентов с этой группой
-                if (isStudentSelected)
-                {
-                    filtered = filtered.Where(r => r.GroupID == selectedGroup.GroupID);
-                }
-                else
-                {
-                    filtered = filtered.Where(r => r.GroupID == selectedGroup.GroupID);
-                }
-            }
-
-            // Фильтр по должности (только для сотрудников)
-            if (FilterPostCombo.SelectedItem is FilterPostItem selectedPost && selectedPost.PostID > 0)
-            {
-                filtered = filtered.Where(r => r.PostID == selectedPost.PostID);
+                filtered = filtered.Where(r => r.GroupID == selectedGroup.GroupID);
             }
 
             _filteredReaders = new ObservableCollection<ReaderDisplayItem>(filtered);
@@ -381,7 +314,6 @@ namespace Diplom_Bibl.Pages
         {
             FilterTypeCombo.SelectedIndex = 0;
             FilterGroupCombo.SelectedIndex = 0;
-            FilterPostCombo.SelectedIndex = 0;
             SearchBox.Text = "";
             ApplyFilters();
         }
@@ -394,9 +326,6 @@ namespace Diplom_Bibl.Pages
         private void ImportReadersBtn_Click(object sender, RoutedEventArgs e)
         {
             NavigationService?.Navigate(new ImportReaders());
-            //// Импорт из Excel
-            //CustomMessageBox.Show("Функция импорта из Excel будет добавлена позже.",
-            //    "Информация", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
         }
 
         private void ReadersListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)

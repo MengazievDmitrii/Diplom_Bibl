@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -14,7 +16,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -23,7 +24,7 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddGroup : Page
     {
-        private string connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;MultipleActiveResultSets=True;"; // ЗАМЕНИТЬ!
+        private string connectionString = DatabaseHelper.ConnectionString; // ЗАМЕНИТЬ!
         private int? _currentGroupId = null; // Переменная для хранения ID текущей загруженной записи
         private System.Collections.ObjectModel.ObservableCollection<object> _allGroups;
         public AddGroup()
