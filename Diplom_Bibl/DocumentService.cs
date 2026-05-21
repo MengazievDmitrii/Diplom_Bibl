@@ -1,4 +1,5 @@
-﻿using iTextSharp.text;
+﻿using Diplom_Bibl.Helpers;
+using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace Diplom_Bibl.Services
 {
     public static class ReceiptActPdfService
     {
-        private const string ConnectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        static string ConnectionString = DatabaseHelper.ConnectionString;
 
         /// <summary>
         /// Генерирует акт о поступлении книг в формате PDF по ID акта.

@@ -1,4 +1,5 @@
-﻿using iTextSharp.text;
+﻿using Diplom_Bibl.Helpers;
+using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System;
 using System.Collections.Generic;
@@ -9,10 +10,21 @@ namespace Diplom_Bibl.Services
 {
     public static class ReaderCardPdfService
     {
-        private const string ConnectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        static string conn_str = DatabaseHelper.ConnectionString;
+
+        // Модель истории выдачи
+        private class IssuanceHistoryItem
+        {
+            public DateTime IssuanceDate { get; set; }
+            public string InventaryNumber { get; set; }
+            public string BookTitle { get; set; }
+            public string AuthorName { get; set; }
+            public DateTime PlannedReturnDate { get; set; }
+            public DateTime? ReturnDate { get; set; }
+        }
 
         /// <summary>
-        /// Генерирует читательский билет в формате PDF по ID читателя (формат А5, одна копия)
+        /// Генерирует читательский билет в формате PDF по ID читателя
         /// </summary>
         public static byte[] GenerateReaderCardPdf(int readerId)
         {
@@ -21,21 +33,41 @@ namespace Diplom_Bibl.Services
                 var reader = LoadReaderData(readerId);
                 if (reader == null) throw new ArgumentException("Читатель не найден.");
 
+                var history = LoadIssuanceHistory(readerId);
+
                 using (var ms = new MemoryStream())
                 {
-                    // Формат А5 (148.5 x 210 мм) в пунктах
-                    Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+                    Document document = new Document(PageSize.A4, 30, 30, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(document, ms);
                     document.Open();
 
-                    // Шрифт Times New Roman
-                    BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                    Font fontNormal = new Font(baseFont, 9);
-                    Font fontBold = new Font(baseFont, 9, Font.BOLD);
-                    Font fontHeader = new Font(baseFont, 12, Font.BOLD);
-                    Font fontSmall = new Font(baseFont, 7);
+                    BaseFont baseFont;
+                    try
+                    {
+                        baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    catch
+                    {
+                        baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
 
-                    GenerateStudentCard(document, reader, fontNormal, fontBold, fontHeader, fontSmall);
+                    Font fontNormal = new Font(baseFont, 10);
+                    Font fontBold = new Font(baseFont, 10, Font.BOLD);
+                    Font fontHeader = new Font(baseFont, 14, Font.BOLD);
+                    Font fontSmall = new Font(baseFont, 8);
+                    Font fontTitle = new Font(baseFont, 16, Font.BOLD);
+
+                    // Определяем тип читателя (студент или сотрудник/преподаватель)
+                    bool isStudent = reader.TypeName?.ToLower().Contains("студент") ?? false;
+
+                    if (isStudent)
+                    {
+                        GenerateStudentCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
+                    }
+                    else
+                    {
+                        GenerateEmployeeCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
+                    }
 
                     document.Close();
                     return ms.ToArray();
@@ -48,7 +80,7 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Генерирует два экземпляра читательского билета (две копии на разных страницах)
+        /// Генерирует два экземпляра читательского билета
         /// </summary>
         public static byte[] GenerateReaderCardPdfTwoCopies(int readerId)
         {
@@ -57,25 +89,45 @@ namespace Diplom_Bibl.Services
                 var reader = LoadReaderData(readerId);
                 if (reader == null) throw new ArgumentException("Читатель не найден.");
 
+                var history = LoadIssuanceHistory(readerId);
+
                 using (var ms = new MemoryStream())
                 {
-                    Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+                    Document document = new Document(PageSize.A4, 30, 30, 30, 30);
                     PdfWriter writer = PdfWriter.GetInstance(document, ms);
                     document.Open();
 
-                    BaseFont baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                    Font fontNormal = new Font(baseFont, 12);
-                    Font fontBold = new Font(baseFont, 16, Font.BOLD);
+                    BaseFont baseFont;
+                    try
+                    {
+                        baseFont = BaseFont.CreateFont(@"C:\Windows\Fonts\times.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    }
+                    catch
+                    {
+                        baseFont = BaseFont.CreateFont(BaseFont.HELVETICA, BaseFont.CP1250, BaseFont.NOT_EMBEDDED);
+                    }
+
+                    Font fontNormal = new Font(baseFont, 10);
+                    Font fontBold = new Font(baseFont, 10, Font.BOLD);
                     Font fontHeader = new Font(baseFont, 14, Font.BOLD);
-                    Font fontSmall = new Font(baseFont, 11);
+                    Font fontSmall = new Font(baseFont, 8);
+                    Font fontTitle = new Font(baseFont, 16, Font.BOLD);
+
+                    bool isStudent = reader.TypeName?.ToLower().Contains("студент") ?? false;
 
                     // Первая копия
-                    GenerateStudentCard(document, reader, fontNormal, fontBold, fontHeader, fontSmall);
+                    if (isStudent)
+                        GenerateStudentCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
+                    else
+                        GenerateEmployeeCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
 
                     document.NewPage();
 
                     // Вторая копия
-                    GenerateStudentCard(document, reader, fontNormal, fontBold, fontHeader, fontSmall);
+                    if (isStudent)
+                        GenerateStudentCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
+                    else
+                        GenerateEmployeeCard(document, reader, history, fontNormal, fontBold, fontHeader, fontSmall, fontTitle);
 
                     document.Close();
                     return ms.ToArray();
@@ -87,12 +139,16 @@ namespace Diplom_Bibl.Services
             }
         }
 
-        private static void GenerateStudentCard(Document document, ReaderData reader, Font fontNormal, Font fontBold, Font fontHeader, Font fontSmall)
+        /// <summary>
+        /// Генерация читательского билета для СТУДЕНТА
+        /// </summary>
+        private static void GenerateStudentCard(Document document, ReaderData reader, List<IssuanceHistoryItem> history,
+            Font fontNormal, Font fontBold, Font fontHeader, Font fontSmall, Font fontTitle)
         {
             // Создаем таблицу для двух колонок
             PdfPTable mainTable = new PdfPTable(2);
             mainTable.WidthPercentage = 100;
-            mainTable.SetWidths(new float[] { 50f, 50f }); // Левая колонка 40%, правая 60%
+            mainTable.SetWidths(new float[] { 35f, 65f });
             mainTable.SpacingBefore = 10;
             mainTable.SpacingAfter = 10;
 
@@ -100,20 +156,129 @@ namespace Diplom_Bibl.Services
             PdfPCell leftCell = new PdfPCell();
             leftCell.Border = Rectangle.NO_BORDER;
             leftCell.VerticalAlignment = Element.ALIGN_TOP;
-            leftCell.PaddingRight =115;
+            leftCell.PaddingRight = 10;
 
-            // Заголовок заметок
             Paragraph leftNotesTitle = new Paragraph("Заметки библиотекаря", fontBold);
             leftNotesTitle.Alignment = Element.ALIGN_CENTER;
             leftCell.AddElement(leftNotesTitle);
+            leftCell.AddElement(new Paragraph(" "));
 
-            // Линии для заметок (8 линий для заполнения)
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 10; i++)
             {
-                Paragraph line = new Paragraph("_____________________________________", fontSmall);
+                Paragraph line = new Paragraph("__________________________________________", fontSmall);
                 line.Alignment = Element.ALIGN_LEFT;
                 leftCell.AddElement(line);
-                leftCell.AddElement(new Paragraph(" ")); // Пустая строка между линиями
+                leftCell.AddElement(new Paragraph(" "));
+            }
+
+            mainTable.AddCell(leftCell);
+
+            // ======= ПРАВАЯ КОЛОНКА (Данные читателя + история) =======
+            PdfPCell rightCell = new PdfPCell();
+            rightCell.Border = Rectangle.NO_BORDER;
+            rightCell.VerticalAlignment = Element.ALIGN_TOP;
+            rightCell.PaddingLeft = 10;
+
+            // Заголовок
+            Paragraph title = new Paragraph("ФОРМУЛЯР ЧИТАТЕЛЯ", fontTitle);
+            title.Alignment = Element.ALIGN_CENTER;
+            rightCell.AddElement(title);
+            rightCell.AddElement(new Paragraph(" "));
+
+            // Номер билета
+            Paragraph numberParagraph = new Paragraph($"№ {reader.CardNumber}", fontBold);
+            numberParagraph.Alignment = Element.ALIGN_CENTER;
+            rightCell.AddElement(numberParagraph);
+            rightCell.AddElement(new Paragraph(" "));
+
+            // Данные читателя
+            AddStudentFieldToCell(rightCell, "Фамилия", reader.LastName, fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Имя", reader.FirstName, fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Отчество", reader.MiddleName ?? "", fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Специальность", reader.Speciality ?? "", fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Группа", reader.GroupCode ?? "", fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Телефон", reader.PhoneNumber ?? "", fontBold, fontNormal);
+            AddStudentAddressToCell(rightCell, "Домашний адрес (по прописке)", reader.HomeAddress ?? "_____________________________", fontBold, fontNormal);
+            AddStudentFieldToCell(rightCell, "Состоит читателем библиотеки с", reader.MembershipStartDate.ToString("dd.MM.yyyy"), fontBold, fontNormal);
+            AddStudentSignatureToCell(rightCell, "Правила обязуюсь выполнять", "_________________________", fontBold, fontNormal);
+
+            rightCell.AddElement(new Paragraph(" "));
+            rightCell.AddElement(new Paragraph(" "));
+
+            // Таблица истории выдач
+            Paragraph historyTitle = new Paragraph("История выдачи книг", fontBold);
+            historyTitle.Alignment = Element.ALIGN_CENTER;
+            rightCell.AddElement(historyTitle);
+            rightCell.AddElement(new Paragraph(" "));
+
+            PdfPTable historyTable = new PdfPTable(5);
+            historyTable.WidthPercentage = 100;
+            historyTable.SetWidths(new float[] { 10f, 15f, 40f, 15f, 20f });
+
+            // Заголовки таблицы
+            AddTableHeader(historyTable, "Дата выдачи", fontBold);
+            AddTableHeader(historyTable, "Инв. №", fontBold);
+            AddTableHeader(historyTable, "Автор и заглавие книги", fontBold);
+            AddTableHeader(historyTable, "Роспись читателя", fontBold);
+            AddTableHeader(historyTable, "Отметка о возвращении", fontBold);
+
+            // Данные истории (последние 10 выдач)
+            int rowCount = 0;
+            foreach (var item in history)
+            {
+                if (rowCount++ >= 15) break;
+                AddTableCell(historyTable, item.IssuanceDate.ToString("dd.MM.yyyy"), fontNormal);
+                AddTableCell(historyTable, item.InventaryNumber, fontNormal);
+                AddTableCell(historyTable, $"{item.AuthorName} — {item.BookTitle}", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, item.ReturnDate?.ToString("dd.MM.yyyy") ?? "", fontNormal);
+            }
+
+            // Заполняем пустые строки до 15
+            for (int i = rowCount; i < 15; i++)
+            {
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+            }
+
+            rightCell.AddElement(historyTable);
+            mainTable.AddCell(rightCell);
+            document.Add(mainTable);
+        }
+
+        /// <summary>
+        /// Генерация читательского билета для СОТРУДНИКА/ПРЕПОДАВАТЕЛЯ
+        /// </summary>
+        private static void GenerateEmployeeCard(Document document, ReaderData reader, List<IssuanceHistoryItem> history,
+            Font fontNormal, Font fontBold, Font fontHeader, Font fontSmall, Font fontTitle)
+        {
+            // Создаем таблицу для двух колонок
+            PdfPTable mainTable = new PdfPTable(2);
+            mainTable.WidthPercentage = 100;
+            mainTable.SetWidths(new float[] { 35f, 65f });
+            mainTable.SpacingBefore = 10;
+            mainTable.SpacingAfter = 10;
+
+            // ======= ЛЕВАЯ КОЛОНКА (Заметки библиотекаря) =======
+            PdfPCell leftCell = new PdfPCell();
+            leftCell.Border = Rectangle.NO_BORDER;
+            leftCell.VerticalAlignment = Element.ALIGN_TOP;
+            leftCell.PaddingRight = 10;
+
+            Paragraph leftNotesTitle = new Paragraph("Заметки библиотекаря", fontBold);
+            leftNotesTitle.Alignment = Element.ALIGN_CENTER;
+            leftCell.AddElement(leftNotesTitle);
+            leftCell.AddElement(new Paragraph(" "));
+
+            for (int i = 0; i < 10; i++)
+            {
+                Paragraph line = new Paragraph("______________________________________", fontSmall);
+                line.Alignment = Element.ALIGN_LEFT;
+                leftCell.AddElement(line);
+                leftCell.AddElement(new Paragraph(" "));
             }
 
             mainTable.AddCell(leftCell);
@@ -124,91 +289,131 @@ namespace Diplom_Bibl.Services
             rightCell.VerticalAlignment = Element.ALIGN_TOP;
             rightCell.PaddingLeft = 10;
 
-            // Заголовок ФОРМУЛЯР ЧИТАТЕЛЯ
-            Paragraph title = new Paragraph("ФОРМУЛЯР ЧИТАТЕЛЯ", fontHeader);
+            // Заголовок
+            Paragraph title = new Paragraph($"ФОРМУЛЯР ЧИТАТЕЛЯ № {reader.CardNumber}", fontTitle);
             title.Alignment = Element.ALIGN_CENTER;
             rightCell.AddElement(title);
-
-            rightCell.AddElement(new Paragraph(" "));
-
-            // Номер читательского билета
-            Paragraph numberParagraph = new Paragraph($"№ {reader.CardNumber}", fontBold);
-            numberParagraph.Alignment = Element.ALIGN_LEFT;
-            rightCell.AddElement(numberParagraph);
-
             rightCell.AddElement(new Paragraph(" "));
 
             // Данные читателя
-            AddReaderFieldToCell(rightCell, "Фамилия", reader.LastName, fontBold, fontNormal);
-            AddReaderFieldToCell(rightCell, "Имя", reader.FirstName, fontBold, fontNormal);
-            AddReaderFieldToCell(rightCell, "Отчество", reader.MiddleName ?? "", fontBold, fontNormal);
-            AddReaderFieldToCell(rightCell, "Специальность", reader.Speciality ?? "", fontBold, fontNormal);
-            AddReaderFieldToCell(rightCell, "Группа", reader.GroupCode ?? "", fontBold, fontNormal);
-            AddReaderFieldToCell(rightCell, "Телефон", reader.PhoneNumber ?? "", fontBold, fontNormal);
-            AddAddressToCell(rightCell, "Домашний адрес (по прописке)", reader.HomeAddress ?? "_____________________________", fontBold, fontNormal);
-            string membershipDate = reader.MembershipStartDate.ToString("dd.MM.yyyy");
-            AddDateToCell(rightCell, "Состоит читателем библиотеки с", membershipDate, fontBold, fontNormal);
-            // Правила обязуюсь выполнять
-            AddSignatureToCell(rightCell, "Правила обязуюсь выполнять", "_________________________", fontBold, fontNormal);
+            AddEmployeeFieldToCell(rightCell, "Фамилия", reader.LastName, fontBold, fontNormal);
+            AddEmployeeFieldToCell(rightCell, "Имя, отчество", $"{reader.FirstName} {reader.MiddleName}".Trim(), fontBold, fontNormal);
+            AddEmployeeFieldToCell(rightCell, "Должность", reader.PostName ?? "", fontBold, fontNormal);
+            AddEmployeeAddressToCell(rightCell, "Домашний адрес, телефон",
+                $"{reader.HomeAddress ?? ""}, {reader.PhoneNumber ?? ""}".Trim(',', ' '), fontBold, fontNormal);
+            AddEmployeeFieldToCell(rightCell, "Состоит читателем библиотеки с", reader.MembershipStartDate.ToString("dd.MM.yyyy"), fontBold, fontNormal);
+
+            Paragraph signaturePara = new Paragraph("Правила библиотеки обязуюсь выполнять", fontNormal);
+            rightCell.AddElement(signaturePara);
+            rightCell.AddElement(new Paragraph("____________________________________ (подпись читателя)", fontNormal));
+
+            rightCell.AddElement(new Paragraph(" "));
+            rightCell.AddElement(new Paragraph(" "));
+
+            // Таблица истории выдач
+            Paragraph historyTitle = new Paragraph("История выдачи книг", fontBold);
+            historyTitle.Alignment = Element.ALIGN_CENTER;
+            rightCell.AddElement(historyTitle);
+            rightCell.AddElement(new Paragraph(" "));
+
+            PdfPTable historyTable = new PdfPTable(5);
+            historyTable.WidthPercentage = 100;
+            historyTable.SetWidths(new float[] { 10f, 15f, 40f, 15f, 20f });
+
+            // Заголовки таблицы
+            AddTableHeader(historyTable, "Дата выдачи", fontBold);
+            AddTableHeader(historyTable, "Инв. №", fontBold);
+            AddTableHeader(historyTable, "Автор и заглавие книги", fontBold);
+            AddTableHeader(historyTable, "Роспись читателя", fontBold);
+            AddTableHeader(historyTable, "Отметка о возвращении", fontBold);
+
+            // Данные истории (последние 15 выдач)
+            int rowCount = 0;
+            foreach (var item in history)
+            {
+                if (rowCount++ >= 15) break;
+                AddTableCell(historyTable, item.IssuanceDate.ToString("dd.MM.yyyy"), fontNormal);
+                AddTableCell(historyTable, item.InventaryNumber, fontNormal);
+                AddTableCell(historyTable, $"{item.AuthorName} — {item.BookTitle}", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, item.ReturnDate?.ToString("dd.MM.yyyy") ?? "", fontNormal);
+            }
+
+            // Заполняем пустые строки до 15
+            for (int i = rowCount; i < 15; i++)
+            {
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+                AddTableCell(historyTable, "", fontNormal);
+            }
+
+            rightCell.AddElement(historyTable);
             mainTable.AddCell(rightCell);
-            // Добавляем основную таблицу в документ
             document.Add(mainTable);
         }
 
-        private static void AddReaderFieldToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
+        // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+        private static void AddStudentFieldToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
         {
             Paragraph p = new Paragraph();
-
-            // Жирная метка
-            Chunk labelChunk = new Chunk($"{label}: ", fontBold);
-            p.Add(labelChunk);
-
-            // Значение
-            Chunk valueChunk = new Chunk(value, fontNormal);
-            p.Add(valueChunk);
-
+            p.Add(new Chunk($"{label}: ", fontBold));
+            p.Add(new Chunk(value, fontNormal));
             cell.AddElement(p);
         }
 
-        private static void AddAddressToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
+        private static void AddStudentAddressToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
         {
             Paragraph labelPara = new Paragraph(label, fontBold);
             cell.AddElement(labelPara);
-
             Paragraph valuePara = new Paragraph(value, fontNormal);
             valuePara.IndentationLeft = 10;
             cell.AddElement(valuePara);
         }
 
-        private static void AddDateToCell(PdfPCell cell, string label, string date, Font fontBold, Font fontNormal)
+        private static void AddStudentSignatureToCell(PdfPCell cell, string label, string signature, Font fontBold, Font fontNormal)
         {
             Paragraph p = new Paragraph();
-
-            // Добавляем метку жирным шрифтом
-            Chunk labelChunk = new Chunk($"{label} ", fontBold);
-            p.Add(labelChunk);
-
-            // Добавляем дату обычным шрифтом
-            Chunk dateChunk = new Chunk(date, fontNormal);
-            p.Add(dateChunk);
-
+            p.Add(new Chunk($"{label} ", fontBold));
+            p.Add(new Chunk(signature, fontNormal));
             cell.AddElement(p);
         }
 
-        private static void AddSignatureToCell(PdfPCell cell, string label, string signature, Font fontBold, Font fontNormal)
+        private static void AddEmployeeFieldToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
         {
             Paragraph p = new Paragraph();
-
-            // Добавляем метку жирным шрифтом
-            Chunk labelChunk = new Chunk($"{label} ", fontBold);
-            p.Add(labelChunk);
-
-            // Добавляем строку для подписи обычным шрифтом
-            Chunk signatureChunk = new Chunk(signature, fontNormal);
-            p.Add(signatureChunk);
-
+            p.Add(new Chunk($"{label} ", fontBold));
+            p.Add(new Chunk(value, fontNormal));
             cell.AddElement(p);
         }
+
+        private static void AddEmployeeAddressToCell(PdfPCell cell, string label, string value, Font fontBold, Font fontNormal)
+        {
+            Paragraph p = new Paragraph();
+            p.Add(new Chunk($"{label}", fontBold));
+            p.Add(new Chunk(value, fontNormal));
+            cell.AddElement(p);
+        }
+
+        private static void AddTableHeader(PdfPTable table, string text, Font font)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font));
+            cell.BackgroundColor = new BaseColor(230, 230, 230);
+            cell.HorizontalAlignment = Element.ALIGN_CENTER;
+            cell.Padding = 5;
+            table.AddCell(cell);
+        }
+
+        private static void AddTableCell(PdfPTable table, string text, Font font)
+        {
+            PdfPCell cell = new PdfPCell(new Phrase(text, font));
+            cell.Padding = 4;
+            table.AddCell(cell);
+        }
+
+        // ==================== ЗАГРУЗКА ДАННЫХ ИЗ БД ====================
 
         private static ReaderData LoadReaderData(int readerId)
         {
@@ -226,7 +431,7 @@ namespace Diplom_Bibl.Services
                 LEFT JOIN Post p ON r.Post = p.ID_Post
                 WHERE r.ReaderID = @ReaderId";
 
-            using (var conn = new SqlConnection(ConnectionString))
+            using (var conn = new SqlConnection(conn_str))
             {
                 conn.Open();
                 using (var cmd = new SqlCommand(sql, conn))
@@ -248,6 +453,7 @@ namespace Diplom_Bibl.Services
                                 Speciality = reader["Speciality"]?.ToString() ?? "",
                                 PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "",
                                 HomeAddress = reader["HomeAddress"]?.ToString() ?? "",
+                                PostName = reader["Post_Name"]?.ToString() ?? "",
                                 MembershipStartDate = reader["MembershipStartDate"] != DBNull.Value
                                     ? Convert.ToDateTime(reader["MembershipStartDate"])
                                     : DateTime.Now
@@ -257,6 +463,51 @@ namespace Diplom_Bibl.Services
                 }
             }
             return null;
+        }
+
+        private static List<IssuanceHistoryItem> LoadIssuanceHistory(int readerId)
+        {
+            var history = new List<IssuanceHistoryItem>();
+
+            const string sql = @"
+                SELECT 
+                    i.IssuanceDate,
+                    b.InventaryNumber,
+                    b.TitleBook,
+                    ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                    i.PlannedReturnDate,
+                    i.ReturnDate
+                FROM BookIssuance i
+                INNER JOIN Books b ON i.BookId = b.IDBook
+                LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                WHERE i.ReaderId = @ReaderId
+                ORDER BY i.IssuanceDate DESC";
+
+            using (var conn = new SqlConnection(conn_str))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@ReaderId", readerId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            history.Add(new IssuanceHistoryItem
+                            {
+                                IssuanceDate = Convert.ToDateTime(reader["IssuanceDate"]),
+                                InventaryNumber = reader["InventaryNumber"]?.ToString() ?? "",
+                                BookTitle = reader["TitleBook"]?.ToString() ?? "",
+                                AuthorName = reader["AuthorName"]?.ToString() ?? "",
+                                PlannedReturnDate = Convert.ToDateTime(reader["PlannedReturnDate"]),
+                                ReturnDate = reader["ReturnDate"] != DBNull.Value ? Convert.ToDateTime(reader["ReturnDate"]) : (DateTime?)null
+                            });
+                        }
+                    }
+                }
+            }
+
+            return history;
         }
 
         private class ReaderData
@@ -271,6 +522,7 @@ namespace Diplom_Bibl.Services
             public string Speciality { get; set; }
             public string PhoneNumber { get; set; }
             public string HomeAddress { get; set; }
+            public string PostName { get; set; }
             public DateTime MembershipStartDate { get; set; }
         }
     }
