@@ -7,12 +7,13 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class AddEditionType : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<EditionTypeItem> _allEditionType;
         private int?_currentEditionTypeId = null;
 

@@ -12,7 +12,7 @@
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
-        <TextBlock Grid.Row="0" Text="📋 Управление заявками на книги" 
+        <TextBlock Grid.Row="0" Text="📋 Управление заявками на выдачу книг" 
                    FontSize="28" FontWeight="Bold" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
 
         <!-- Фильтры -->
@@ -43,20 +43,12 @@
                     <ComboBox x:Name="CbStatusFilter" Height="38" FontSize="13"
                               SelectionChanged="CbStatusFilter_SelectionChanged"
                               BorderBrush="#BDC3C7" BorderThickness="1"
-                              Padding="8,0">
-                        <ComboBoxItem Content="Все заявки" IsSelected="True"/>
-                        <ComboBoxItem Content="Новая"/>
-                        <ComboBoxItem Content="В обработке"/>
-                        <ComboBoxItem Content="Готова"/>
-                        <ComboBoxItem Content="Выдана"/>
-                        <ComboBoxItem Content="Отменена"/>
-                        <ComboBoxItem Content="Просрочена"/>
-                    </ComboBox>
+                              Padding="8,0"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Основной контент: DataGrid + Панель деталей с вертикальным скроллом -->
+        <!-- Основной контент: DataGrid + Панель деталей -->
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
@@ -70,7 +62,7 @@
                       Background="White" BorderBrush="#D0D0D0" BorderThickness="1"
                       SelectionChanged="DgRequests_SelectionChanged"
                       FontSize="13" >
-                
+
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="№ заявки" Binding="{Binding RequestNumber}" Width="130"/>
                     <DataGridTextColumn Header="Дата" Binding="{Binding RequestDate, StringFormat='dd.MM.yyyy'}" Width="100"/>
@@ -135,7 +127,7 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <!-- Панель деталей заявки с вертикальным скроллом (внизу) -->
+            <!-- Панель деталей заявки -->
             <Border Grid.Row="1" Background="White" CornerRadius="8"
                     BorderBrush="#D0D0D0" BorderThickness="1"
                     Padding="20" Margin="0,20,0,0" Visibility="Collapsed"
@@ -182,7 +174,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Список книг с вертикальным скроллом -->
+                    <!-- Список книг -->
                     <TextBlock Text="Список книг:" FontWeight="SemiBold" FontSize="14" 
                                Margin="0,0,0,8"/>
                     <ScrollViewer MaxHeight="250" VerticalScrollBarVisibility="Auto">

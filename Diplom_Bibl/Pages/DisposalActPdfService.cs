@@ -3,12 +3,14 @@ using iTextSharp.text.pdf;
 using System;
 using System.Data.SqlClient;
 using System.IO;
+using Diplom_Bibl.Helpers;
+
 
 namespace Diplom_Bibl.Services
 {
     public static class DisposalActPdfService
     {
-        private const string ConnectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        static string ConnectionString = DatabaseHelper.ConnectionString;
 
         public static byte[] GenerateDisposalActPdf(int writeOffId)
         {

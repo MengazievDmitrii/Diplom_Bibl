@@ -7,12 +7,13 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class AddFundingSource : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<FundingSourceDisplayItem> _allFundingSources;
         private int? _currentFundingSourceId = null;
         private bool _isPlaceholderActive = true;

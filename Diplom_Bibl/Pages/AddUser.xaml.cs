@@ -9,6 +9,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using Diplom_Bibl.Helpers;
+
 
 namespace Diplom_Bibl.Pages
 {
@@ -17,7 +19,7 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddUser : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private int? _editingUserId = null;
         private ObservableCollection<UserListItem> _users = new ObservableCollection<UserListItem>();
 

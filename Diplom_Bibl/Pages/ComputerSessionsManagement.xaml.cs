@@ -10,6 +10,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Diplom_Bibl.Helpers;
+
 
 namespace Diplom_Bibl.Pages
 {
@@ -83,7 +85,7 @@ namespace Diplom_Bibl.Pages
 
     public partial class ComputerSessionsManagement : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private readonly ComputerSessionService _sessionService;
         private readonly DispatcherTimer _refreshTimer;
         private readonly ObservableCollection<SessionDisplayItem> _activeSessions;

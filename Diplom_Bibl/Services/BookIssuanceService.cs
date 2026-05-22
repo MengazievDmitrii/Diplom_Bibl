@@ -100,7 +100,7 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Получение списка доступных книг (сгруппированных по названию и автору)
+        /// Получение списка доступных книг для выдачи (НЕ учитывает резервы)
         /// </summary>
         public ObservableCollection<BookInfo> GetAvailableBooks(string searchTerm = "")
         {
@@ -110,12 +110,11 @@ namespace Diplom_Bibl.Services
         SELECT 
             b.TitleBook,
             ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-            SUM(b.AvailableCopies) AS TotalAvailableCopies,
-            SUM(b.TotalCopies) AS TotalCopiesSum,
-            COUNT(b.IDBook) AS CopiesCount
+            dbo.fn_GetActuallyAvailableForIssue(MIN(b.IDBook)) AS AvailableCopies,
+            MIN(b.IDBook) AS MinIDBook
         FROM Books b
         LEFT JOIN Authors a ON b.Author = a.ID_Autor
-        WHERE b.AvailableCopies > 0";
+        WHERE dbo.fn_GetActuallyAvailableForIssue(b.IDBook) > 0";
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -143,20 +142,15 @@ namespace Diplom_Bibl.Services
                             {
                                 string title = reader["TitleBook"]?.ToString() ?? "";
                                 string author = reader["AuthorName"]?.ToString() ?? "";
-                                int availableCopies = Convert.ToInt32(reader["TotalAvailableCopies"]);
-                                int totalCopiesSum = Convert.ToInt32(reader["TotalCopiesSum"]);
-                                int copiesCount = Convert.ToInt32(reader["CopiesCount"]);
-
-                                // Находим минимальный IDBook для этой группы
-                                int minIdBook = GetMinIdBookForBook(title, author);
+                                int availableCopies = Convert.ToInt32(reader["AvailableCopies"]);
+                                int minIdBook = Convert.ToInt32(reader["MinIDBook"]);
 
                                 books.Add(new BookInfo
                                 {
                                     IDBook = minIdBook,
                                     TitleBook = title,
                                     AuthorName = author,
-                                    AvailableCopies = availableCopies,
-                                    TotalCopies = totalCopiesSum
+                                    AvailableCopies = availableCopies
                                 });
                             }
                         }

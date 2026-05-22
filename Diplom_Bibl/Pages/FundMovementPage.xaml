@@ -253,46 +253,44 @@
                 </Style>
             </DataGrid.Resources>
 
-            <DataGrid.Columns>
+             <DataGrid.Columns>
                 <DataGridTextColumn Header="Тип" 
-                                    Binding="{Binding IssuanceTypeDisplay}" 
-                                    Width="90"/>
-                <DataGridTextColumn Header="Инв. №" 
-                                    Binding="{Binding InventaryNumber}" 
-                                    Width="100"/>
-                <DataGridTextColumn Header="Название книги" 
-                                    Binding="{Binding BookTitle}" 
-                                    Width="250"/>
+                        Binding="{Binding IssuanceTypeDisplay}" 
+                        Width="90"/>
                 <DataGridTextColumn Header="Получатель" 
-                                    Binding="{Binding RecipientDisplay}" 
-                                    Width="180"/>
+                        Binding="{Binding RecipientDisplay}" 
+                        Width="180"/>
                 <DataGridTextColumn Header="Группа/Преподаватель" 
-                                    Binding="{Binding GroupTeacherDisplay}" 
-                                    Width="150"/>
+                        Binding="{Binding GroupTeacherDisplay}" 
+                        Width="150"/>
+                <DataGridTextColumn Header="Книги" 
+                        Binding="{Binding BookTitles}" 
+                        Width="280" 
+                        />
                 <DataGridTextColumn Header="Дата выдачи" 
-                                    Binding="{Binding IssuanceDate, StringFormat=dd.MM.yyyy}" 
-                                    Width="100"/>
+                        Binding="{Binding IssuanceDate, StringFormat=dd.MM.yyyy}" 
+                        Width="100"/>
                 <DataGridTextColumn Header="План возврата" 
-                                    Binding="{Binding PlannedReturnDate, StringFormat=dd.MM.yyyy}" 
-                                    Width="100"/>
+                        Binding="{Binding PlannedReturnDate, StringFormat=dd.MM.yyyy}" 
+                        Width="100"/>
                 <DataGridTemplateColumn Header="Статус" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border CornerRadius="10"
-                                    Background="{Binding StatusColor}"
-                                    Padding="5,2">
+                        Background="{Binding StatusColor}"
+                        Padding="5,2">
                                 <TextBlock Text="{Binding StatusDisplay}" 
-                                           Foreground="White"
-                                           FontSize="10"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"/>
+                               Foreground="White"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"/>
                             </Border>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Кол-во" 
-                                    Binding="{Binding Quantity}" 
-                                    Width="60"/>
+                        Binding="{Binding TotalQuantity}" 
+                        Width="60"/>
             </DataGrid.Columns>
         </DataGrid>
 

@@ -18,10 +18,15 @@ namespace Diplom_Bibl.Pages
         private int _librarianId;
         private System.Timers.Timer _notificationTimer;
 
+        // Словари статусов из БД
+        private Dictionary<int, string> _requestStatuses = new Dictionary<int, string>();
+        private Dictionary<int, string> _itemStatuses = new Dictionary<int, string>();
+
         // Храним ID уже показанных уведомлений
         private HashSet<int> _shownNotificationIds = new HashSet<int>();
 
-        // Класс для деталей уведомления
+        #region Вспомогательные классы
+
         public class NotificationDetail
         {
             public int ID_Notification { get; set; }
@@ -41,7 +46,6 @@ namespace Diplom_Bibl.Pages
             public int Quantity { get; set; }
         }
 
-        // Класс для отображения заявки
         public class RequestItem
         {
             public int ID_Request { get; set; }
@@ -67,7 +71,6 @@ namespace Diplom_Bibl.Pages
                     {
                         case "Новая": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB"));
                         case "В обработке": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F39C12"));
-                        case "Готова": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#27AE60"));
                         case "Выдана": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1ABC9C"));
                         case "Отменена": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C"));
                         case "Просрочена": return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6"));
@@ -77,11 +80,10 @@ namespace Diplom_Bibl.Pages
             }
 
             public Visibility ConfirmVisible => (StatusName == "Новая") ? Visibility.Visible : Visibility.Collapsed;
-            public Visibility IssueVisible => (StatusName == "В обработке" || StatusName == "Готова") ? Visibility.Visible : Visibility.Collapsed;
+            public Visibility IssueVisible => (StatusName == "В обработке") ? Visibility.Visible : Visibility.Collapsed;
             public Visibility CancelVisible => (StatusName != "Выдана" && StatusName != "Отменена" && StatusName != "Просрочена") ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // Класс для элемента заявки (книги)
         public class RequestBookItem
         {
             public int ID_RequestItem { get; set; }
@@ -93,12 +95,14 @@ namespace Diplom_Bibl.Pages
             public string StatusName { get; set; } = "";
         }
 
+        #endregion
+
+        #region Конструктор и загрузка
+
         public BookRequestsManagement(int librarianId)
         {
             InitializeComponent();
             _librarianId = librarianId;
-
-            // Запускаем таймер для проверки новых заявок каждые 30 секунд
             _notificationTimer = new System.Timers.Timer(30000);
             _notificationTimer.Elapsed += async (sender, e) => await CheckNewRequests();
             _notificationTimer.Start();
@@ -106,7 +110,61 @@ namespace Diplom_Bibl.Pages
 
         private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
+            LoadStatuses();
+            LoadStatusFilters();
             await LoadDataAsync();
+        }
+
+        /// <summary>
+        /// Загрузка статусов из БД в словари
+        /// </summary>
+        private void LoadStatuses()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    using (var cmd = new SqlCommand("SELECT ID_Status, StatusName FROM RequestStatuses ORDER BY ID_Status", conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            _requestStatuses[reader.GetInt32(0)] = reader.GetString(1);
+                    }
+
+                    using (var cmd = new SqlCommand("SELECT ID_Status, StatusName FROM RequestItemStatuses ORDER BY ID_Status", conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            _itemStatuses[reader.GetInt32(0)] = reader.GetString(1);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки статусов: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Загрузка статусов в выпадающий список фильтра
+        /// </summary>
+        private void LoadStatusFilters()
+        {
+            CbStatusFilter.Items.Clear();
+            CbStatusFilter.Items.Add(new ComboBoxItem { Content = "Все заявки", IsSelected = true });
+
+            foreach (var status in _requestStatuses.Values)
+            {
+                CbStatusFilter.Items.Add(new ComboBoxItem { Content = status });
+            }
+        }
+
+        private int GetRequestStatusId(string statusName)
+        {
+            var pair = _requestStatuses.FirstOrDefault(s => s.Value == statusName);
+            return pair.Key != 0 ? pair.Key : -1;
         }
 
         private async System.Threading.Tasks.Task LoadDataAsync()
@@ -123,6 +181,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        #endregion
+
+        #region Уведомления
+
         private async System.Threading.Tasks.Task LoadUnreadNotificationsCount()
         {
             try
@@ -130,13 +192,9 @@ namespace Diplom_Bibl.Pages
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
-                    string query = "SELECT COUNT(*) FROM RequestNotifications WHERE IsRead = 0";
-                    using (var cmd = new SqlCommand(query, conn))
+                    using (var cmd = new SqlCommand("SELECT COUNT(*) FROM RequestNotifications WHERE IsRead = 0", conn))
                     {
                         int count = (int)await cmd.ExecuteScalarAsync();
-                        // Обновляем счетчик уведомлений (если есть такой элемент в XAML)
-                        //NotificationBadge.Text = count.ToString();
-                        //NotificationBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
                     }
                 }
             }
@@ -150,16 +208,11 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                // Получаем только НОВЫЕ непрочитанные уведомления (не старше 1 минуты)
                 List<NotificationDetail> newNotifications = new List<NotificationDetail>();
 
                 string query = @"
                     SELECT 
-                        n.ID_Notification,
-                        n.RequestID,
-                        n.Message,
-                        n.CreatedDate,
-                        n.IsRead,
+                        n.ID_Notification, n.RequestID, n.Message, n.CreatedDate, n.IsRead,
                         CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
                         r.RequestNumber
                     FROM RequestNotifications n
@@ -191,8 +244,6 @@ namespace Diplom_Bibl.Pages
                                     UserName = reader["UserName"]?.ToString() ?? "Неизвестный пользователь",
                                     RequestNumber = reader["RequestNumber"]?.ToString() ?? ""
                                 };
-
-                                // Получаем книги из заявки
                                 await LoadNotificationBooks(detail.RequestID, detail);
                                 newNotifications.Add(detail);
                                 _shownNotificationIds.Add(id);
@@ -206,41 +257,26 @@ namespace Diplom_Bibl.Pages
                     Dispatcher.Invoke(() =>
                     {
                         SystemSounds.Beep.Play();
-
-                        // Формируем подробное сообщение для каждой заявки
                         string message = "";
                         foreach (var notification in newNotifications)
                         {
-                            // Убираем "от пользователя ID X" из сообщения
                             string cleanMessage = notification.Message;
                             int userIndex = cleanMessage.IndexOf("от пользователя ID");
                             if (userIndex > 0)
-                            {
                                 cleanMessage = cleanMessage.Substring(0, userIndex).Trim();
-                            }
 
                             message += $"📋 {cleanMessage}\n";
                             message += $"👤 От: {notification.UserName}\n";
                             message += $"📚 Книги:\n";
-
                             if (notification.Books.Any())
-                            {
                                 foreach (var book in notification.Books)
-                                {
                                     message += $"   • {book.Title} - {book.Author} ({book.Quantity} шт.)\n";
-                                }
-                            }
                             else
-                            {
                                 message += $"   • Книги не указаны\n";
-                            }
                             message += $"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
                         }
-
                         CustomMessageBox.Show(message, "📢 Новые заявки на книги",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                        // Обновляем список заявок и счетчик
                         _ = LoadRequests();
                         _ = LoadUnreadNotificationsCount();
                     });
@@ -257,10 +293,9 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-                    SELECT 
-                        b.TitleBook,
-                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                        ri.Quantity
+                    SELECT b.TitleBook,
+                           ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                           ri.Quantity
                     FROM RequestItems ri
                     JOIN Books b ON ri.BookID = b.IDBook
                     LEFT JOIN Authors a ON b.Author = a.ID_Autor
@@ -293,25 +328,21 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        #endregion
+
+        #region Загрузка заявок
+
         private async System.Threading.Tasks.Task LoadRequests()
         {
             await System.Threading.Tasks.Task.Run(() =>
             {
                 string query = @"
                     SELECT 
-                        r.ID_Request,
-                        r.RequestNumber,
-                        r.RequestDate,
+                        r.ID_Request, r.RequestNumber, r.RequestDate,
                         r.UserID,
                         CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
-                        r.GroupID,
-                        g.GroupCode,
-                        r.LessonName,
-                        r.LessonDate,
-                        r.StatusID,
-                        rs.StatusName,
-                        r.ExpirationDate,
-                        r.UserTypeID,
+                        r.GroupID, g.GroupCode, r.LessonName, r.LessonDate,
+                        r.StatusID, rs.StatusName, r.ExpirationDate, r.UserTypeID,
                         (SELECT SUM(Quantity) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks
                     FROM BookRequests r
                     LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
@@ -356,6 +387,10 @@ namespace Diplom_Bibl.Pages
             });
         }
 
+        #endregion
+
+        #region Фильтры
+
         private void ApplyFilters()
         {
             if (_allRequests == null) return;
@@ -375,31 +410,22 @@ namespace Diplom_Bibl.Pages
             }
 
             if (statusFilter != "Все заявки")
-            {
                 filtered = filtered.Where(r => r.StatusName == statusFilter);
-            }
 
             DgRequests.ItemsSource = filtered.ToList();
         }
 
-        private void TbSearch_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            ApplyFilters();
-        }
+        private void TbSearch_TextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();
+        private void CbStatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e) => ApplyFilters();
 
-        private void CbStatusFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            ApplyFilters();
-        }
+        #endregion
+
+        #region Детали заявки
 
         private async void ViewRequest_Click(object sender, RoutedEventArgs e)
         {
-            Button btn = sender as Button;
-            if (btn != null && btn.Tag != null)
-            {
-                int requestId = (int)btn.Tag;
-                await ShowRequestDetails(requestId);
-            }
+            if (sender is Button btn && btn.Tag != null)
+                await ShowRequestDetails((int)btn.Tag);
         }
 
         private void CloseDetailsPanel_Click(object sender, RoutedEventArgs e)
@@ -417,14 +443,9 @@ namespace Diplom_Bibl.Pages
                         r.RequestNumber,
                         CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
                         rd.TypeID AS UserTypeID,
-                        r.LessonName,
-                        r.LessonDate,
-                        r.RequestDate,
-                        g.GroupCode,
-                        rs.StatusName,
-                        r.ExpirationDate,
-                        ri.ID_RequestItem,
-                        ri.BookID,
+                        r.LessonName, r.LessonDate, r.RequestDate,
+                        g.GroupCode, rs.StatusName, r.ExpirationDate,
+                        ri.ID_RequestItem, ri.BookID,
                         b.TitleBook,
                         ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
                         ri.Quantity,
@@ -467,10 +488,9 @@ namespace Diplom_Bibl.Pages
                                         TbRequestDate.Text = $"Дата создания: {Convert.ToDateTime(reader["RequestDate"]):dd.MM.yyyy HH:mm}";
                                         TbGroupInfo.Text = $"Группа: {reader["GroupCode"]?.ToString() ?? "Не указана"}";
                                         TbStatus.Text = $"Статус: {reader["StatusName"]}";
-                                        if (reader["ExpirationDate"] != DBNull.Value)
-                                            TbExpirationDate.Text = $"Срок брони: {Convert.ToDateTime(reader["ExpirationDate"]):dd.MM.yyyy}";
-                                        else
-                                            TbExpirationDate.Text = "";
+                                        TbExpirationDate.Text = reader["ExpirationDate"] != DBNull.Value
+                                            ? $"Срок брони: {Convert.ToDateTime(reader["ExpirationDate"]):dd.MM.yyyy}"
+                                            : "";
                                     });
                                     hasData = true;
                                 }
@@ -496,14 +516,10 @@ namespace Diplom_Bibl.Pages
 
                                 if (items.Count == 0)
                                 {
-                                    var emptyList = new ObservableCollection<RequestBookItem>();
-                                    emptyList.Add(new RequestBookItem
+                                    var emptyList = new ObservableCollection<RequestBookItem>
                                     {
-                                        BookTitle = "Нет книг в заявке",
-                                        AuthorName = "",
-                                        Quantity = 0,
-                                        StatusName = ""
-                                    });
+                                        new RequestBookItem { BookTitle = "Нет книг в заявке", AuthorName = "", Quantity = 0, StatusName = "" }
+                                    };
                                     DgRequestItems.ItemsSource = emptyList;
                                 }
                             });
@@ -518,195 +534,220 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        #endregion
+
+        #region Действия с заявками
+
         private async void ConfirmRequest_Click(object sender, RoutedEventArgs e)
         {
-            Button btn = sender as Button;
-            if (btn != null && btn.Tag != null)
+            if (!(sender is Button btn) || btn.Tag == null) return;
+            int requestId = (int)btn.Tag;
+
+            var request = _allRequests.FirstOrDefault(r => r.ID_Request == requestId);
+            if (request == null)
             {
-                int requestId = (int)btn.Tag;
+                CustomMessageBox.Show("Заявка не найдена.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                return;
+            }
 
-                // Находим заявку, чтобы получить UserID (ReaderID)
-                var request = _allRequests.FirstOrDefault(r => r.ID_Request == requestId);
-                if (request == null)
+            var result = CustomMessageBox.Show("Подтвердить заявку? Книги будут зарезервированы.", "Подтверждение",
+                CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+
+            if (result != CustomMessageBoxResult.Yes) return;
+
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    CustomMessageBox.Show("Заявка не найдена.", "Ошибка",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-                    return;
-                }
-
-                var result = CustomMessageBox.Show("Подтвердить заявку? Книги будут зарезервированы.", "Подтверждение",
-                    CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
-
-                if (result == CustomMessageBoxResult.Yes)
-                {
-                    try
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand("sp_ReserveBooksAtomic", conn))
                     {
-                        using (var conn = new SqlConnection(_connectionString))
-                        {
-                            await conn.OpenAsync();
-                            using (var cmd = new SqlCommand("sp_ReserveBooksAtomic", conn))
-                            {
-                                cmd.CommandType = System.Data.CommandType.StoredProcedure;
-                                cmd.Parameters.AddWithValue("@RequestID", requestId);
-                                cmd.Parameters.AddWithValue("@UserID", request.UserID);  // ← ДОБАВЛЯЕМ ЭТОТ ПАРАМЕТР!
-                                cmd.Parameters.AddWithValue("@ReserveDays", 3);
-                                await cmd.ExecuteNonQueryAsync();
-                            }
-                        }
-                        CustomMessageBox.Show("Заявка подтверждена! Книги зарезервированы.", "Успешно",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                        await LoadRequests();
-                        await LoadUnreadNotificationsCount();
-                        DetailsPanel.Visibility = Visibility.Collapsed;
-                    }
-                    catch (SqlException ex) when (ex.Number == 1205)
-                    {
-                        CustomMessageBox.Show("Система временно перегружена. Пожалуйста, повторите попытку.", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                    }
-                    catch (SqlException ex) when (ex.Message.Contains("недостаточно") || ex.Message.Contains("Недостаточно"))
-                    {
-                        CustomMessageBox.Show("Недостаточно экземпляров книг для резервирования.\n\n" +
-                            "Возможно, другие заявки уже забрали эти книги.", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                    }
-                    catch (Exception ex)
-                    {
-                        CustomMessageBox.Show($"Ошибка подтверждения: {ex.Message}", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                        cmd.Parameters.AddWithValue("@RequestID", requestId);
+                        cmd.Parameters.AddWithValue("@UserID", request.UserID);
+                        cmd.Parameters.AddWithValue("@ReserveDays", 3);
+                        await cmd.ExecuteNonQueryAsync();
                     }
                 }
+                CustomMessageBox.Show("Заявка подтверждена! Книги зарезервированы.", "Успешно",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                await LoadRequests();
+                await LoadUnreadNotificationsCount();
+                DetailsPanel.Visibility = Visibility.Collapsed;
+            }
+            catch (SqlException ex) when (ex.Number == 1205)
+            {
+                CustomMessageBox.Show("Система временно перегружена. Повторите попытку.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+            }
+            catch (SqlException ex) when (ex.Message.Contains("недостаточно") || ex.Message.Contains("Недостаточно"))
+            {
+                CustomMessageBox.Show("Недостаточно экземпляров книг для резервирования.\n\nВозможно, другие заявки уже забрали эти книги.",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка подтверждения: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
         private void IssueBooks_Click(object sender, RoutedEventArgs e)
         {
-            Button btn = sender as Button;
-            if (btn != null && btn.Tag != null)
+            if (!(sender is Button btn) || btn.Tag == null) return;
+            int requestId = (int)btn.Tag;
+
+            var request = _allRequests.FirstOrDefault(r => r.ID_Request == requestId);
+            if (request == null) return;
+
+            int cancelledId = GetRequestStatusId("Отменена");
+            if (cancelledId > 0 && request.StatusID == cancelledId)
             {
-                int requestId = (int)btn.Tag;
-
-                var request = _allRequests.FirstOrDefault(r => r.ID_Request == requestId);
-                if (request != null)
-                {
-                    // Проверка: если заявка отменена, запрещаем выдачу
-                    if (request.StatusName == "Отменена")
-                    {
-                        CustomMessageBox.Show("Нельзя выдать книги по отмененной заявке.", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                        return;
-                    }
-
-                    // Проверка: если заявка не в статусе "В обработке" или "Готова", разрешаем выдачу
-                    if (request.StatusName != "В обработке" && request.StatusName != "Готова")
-                    {
-                        CustomMessageBox.Show($"Книги по заявке еще не готовы к выдаче. Сначала подтвердите заявку. Текущий статус: {request.StatusName}", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                        return;
-                    }
-
-                    // Запрашиваем подтверждение выдачи
-                    var confirmResult = CustomMessageBox.Show(
-                        $"Выдать книги по заявке №{request.RequestNumber}?\n\nПользователь: {request.UserName}\nКниг: {request.TotalBooks} шт.",
-                        "Подтверждение выдачи",
-                        CustomMessageBoxButton.YesNo,
-                        CustomMessageBoxImage.Question);
-
-                    if (confirmResult != CustomMessageBoxResult.Yes) return;
-
-                    var infoServicePage = new InformationServicePage();
-
-                    if (request.GroupID.HasValue && request.GroupID > 0)
-                    {
-                        infoServicePage.SetDataFromRequest(
-                            requestId,
-                            request.UserID,
-                            request.GroupID,
-                            request.UserName,
-                            request.GroupCode,
-                            request.LessonName,
-                            request.LessonDate
-                        );
-                    }
-                    else
-                    {
-                        infoServicePage.SetDataFromRequestIndividual(
-                            requestId,
-                            request.UserID,
-                            request.UserName,
-                            request.LessonName,
-                            request.LessonDate,
-                            request.UserTypeID
-                        );
-                    }
-
-                    NavigationService?.Navigate(infoServicePage);
-                }
+                CustomMessageBox.Show("Нельзя выдать книги по отмененной заявке.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
             }
+
+            int processingStatusId = GetRequestStatusId("В обработке");
+            if (processingStatusId > 0 && request.StatusID != processingStatusId)
+            {
+                CustomMessageBox.Show($"Книги по заявке еще не готовы к выдаче. Сначала подтвердите заявку. Текущий статус: {request.StatusName}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
+            }
+
+            var confirmResult = CustomMessageBox.Show(
+                $"Выдать книги по заявке №{request.RequestNumber}?\n\nПользователь: {request.UserName}\nКниг: {request.TotalBooks} шт.",
+                "Подтверждение выдачи", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+
+            if (confirmResult != CustomMessageBoxResult.Yes) return;
+
+            var infoServicePage = new InformationServicePage();
+
+            if (request.GroupID.HasValue && request.GroupID > 0)
+            {
+                infoServicePage.SetDataFromRequest(requestId, request.UserID, request.GroupID,
+                    request.UserName, request.GroupCode, request.LessonName, request.LessonDate);
+            }
+            else
+            {
+                infoServicePage.SetDataFromRequestIndividual(requestId, request.UserID, request.UserName,
+                    request.LessonName, request.LessonDate, request.UserTypeID);
+            }
+
+            NavigationService?.Navigate(infoServicePage);
         }
 
         private async void CancelRequest_Click(object sender, RoutedEventArgs e)
         {
-            Button btn = sender as Button;
-            if (btn != null && btn.Tag != null)
+            if (!(sender is Button btn) || btn.Tag == null) return;
+            int requestId = (int)btn.Tag;
+
+            var result = CustomMessageBox.Show("Отменить заявку? Зарезервированные книги будут возвращены в доступные.",
+                "Подтверждение отмены", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
+
+            if (result != CustomMessageBoxResult.Yes) return;
+
+            try
             {
-                int requestId = (int)btn.Tag;
+                int cancelledRequestStatusId = GetRequestStatusId("Отменена");
+                if (cancelledRequestStatusId <= 0) cancelledRequestStatusId = 5;
 
-                var result = CustomMessageBox.Show(
-                    "Отменить заявку?",
-                    "Подтверждение отмены",
-                    CustomMessageBoxButton.YesNo,
-                    CustomMessageBoxImage.Question);
+                // Ищем ID статуса "Отменена" для позиций заявки
+                int cancelledItemStatusId = _itemStatuses
+                    .FirstOrDefault(s => s.Value == "Отменена").Key;
+                if (cancelledItemStatusId <= 0) cancelledItemStatusId = 4;
 
-                if (result == CustomMessageBoxResult.Yes)
+                // Получаем ID статуса книги "В наличии"
+                int availableBookStatusId;
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    try
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(
+                        "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%'", conn))
                     {
-                        int cancelledStatusId = 5;
+                        availableBookStatusId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    }
+                }
 
-                        using (var conn = new SqlConnection(_connectionString))
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
                         {
-                            await conn.OpenAsync();
-                            string query = "UPDATE BookRequests SET StatusID = @StatusId WHERE ID_Request = @RequestId";
-                            using (var cmd = new SqlCommand(query, conn))
+                            // 1. Возвращаем зарезервированные книги в статус "В наличии"
+                            using (var cmd = new SqlCommand(@"
+                        UPDATE b
+                        SET b.StatusBook = @AvailableStatus
+                        FROM Books b
+                        JOIN RequestItems ri ON b.IDBook = ri.BookID
+                        WHERE ri.RequestID = @RequestId 
+                          AND ri.StatusID = 2 
+                          AND b.StatusBook = (
+                              SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Зарезервирована%'
+                          )", conn, transaction))
                             {
-                                cmd.Parameters.AddWithValue("@StatusId", cancelledStatusId);
+                                cmd.Parameters.AddWithValue("@AvailableStatus", availableBookStatusId);
                                 cmd.Parameters.AddWithValue("@RequestId", requestId);
                                 await cmd.ExecuteNonQueryAsync();
                             }
+
+                            // 2. Снимаем резерв с позиций заявки
+                            using (var cmd = new SqlCommand(@"
+                        UPDATE RequestItems 
+                        SET StatusID = @CancelledItemStatus 
+                        WHERE RequestID = @RequestId AND StatusID = 2", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@CancelledItemStatus", cancelledItemStatusId);
+                                cmd.Parameters.AddWithValue("@RequestId", requestId);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // 3. Меняем статус заявки на "Отменена"
+                            using (var cmd = new SqlCommand(
+                                "UPDATE BookRequests SET StatusID = @StatusId WHERE ID_Request = @RequestId",
+                                conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@StatusId", cancelledRequestStatusId);
+                                cmd.Parameters.AddWithValue("@RequestId", requestId);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
                         }
-
-                        CustomMessageBox.Show("Заявка отменена.", "Успешно",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                        await LoadRequests();
-                        await LoadUnreadNotificationsCount();
-                        DetailsPanel.Visibility = Visibility.Collapsed;
-                    }
-                    catch (Exception ex)
-                    {
-                        CustomMessageBox.Show($"Ошибка отмены: {ex.Message}", "Ошибка",
-                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
                 }
+
+                CustomMessageBox.Show("Заявка отменена. Книги возвращены в доступные.", "Успешно",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                await LoadRequests();
+                await LoadUnreadNotificationsCount();
+                DetailsPanel.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка отмены: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
+        #endregion
+
+        #region События DataGrid
 
         private void DgRequests_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DgRequests.SelectedItem is RequestItem selected)
-            {
                 _ = ShowRequestDetails(selected.ID_Request);
-            }
         }
 
-        private void NavigateToRequest_Click(object sender, RoutedEventArgs e)
-        {
-            Button btn = sender as Button;
-            if (btn != null && btn.Tag != null)
-            {
-                int requestId = (int)btn.Tag;
-                _ = ShowRequestDetails(requestId);
-            }
-        }
+        #endregion
     }
 }

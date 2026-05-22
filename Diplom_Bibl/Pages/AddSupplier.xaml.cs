@@ -8,12 +8,13 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class AddSupplier : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<SupplierDisplayItem> _allSuppliers;
         private int? _currentSupplierId = null;
         private bool _isPlaceholderActive = true;

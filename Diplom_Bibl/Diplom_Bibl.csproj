@@ -214,6 +214,7 @@
       <DependentUpon>CustomMessageBox.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\CustomMessageBoxHelper.cs" />
+    <Compile Include="Converters\StatusColorConverter.cs" />
     <Compile Include="DatabaseHelper.cs" />
     <Compile Include="DocumentService.cs" />
     <Compile Include="ExcelImportService.cs" />

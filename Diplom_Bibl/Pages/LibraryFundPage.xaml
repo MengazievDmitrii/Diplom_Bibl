@@ -70,13 +70,13 @@
 
         <!-- Панель поиска и фильтрации -->
         <Border Grid.Row="3"
-        Background="White"
-        CornerRadius="8"
-        BorderBrush="{StaticResource BorderColor}"
-        BorderThickness="1"
-        Padding="15"
-        Margin="0,0,0,20"
-        Effect="{StaticResource DropShadowEffect}">
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                Padding="15"
+                Margin="0,0,0,20"
+                Effect="{StaticResource DropShadowEffect}">
 
             <Grid>
                 <Grid.RowDefinitions>
@@ -85,112 +85,102 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
+                <!-- Строка поиска -->
                 <Grid Grid.Row="0" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Column="0" Text="🔍 Поиск книги:" 
-               VerticalAlignment="Center" 
-               Margin="0,0,10,0"
-               FontSize="14"
-               FontWeight="SemiBold"
-               Foreground="{StaticResource TextColor}"/>
+                               VerticalAlignment="Center" 
+                               Margin="0,0,10,0"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextColor}"/>
 
                     <ComboBox x:Name="CbBookSearch" 
-              Grid.Column="1"
-              Style="{StaticResource InputFieldStyleCb}"
-              IsEditable="True"
-              TextSearch.TextPath="DisplayName"
-              StaysOpenOnEdit="True"
-              SelectionChanged="CbBookSearch_SelectionChanged"
-              GotFocus="CbBookSearch_GotFocus"
-              LostFocus="CbBookSearch_LostFocus"/>
-
-                    <Button x:Name="BtnClearSearch" 
-            Grid.Column="2"
-            Content="✖ Очистить"
-            Style="{StaticResource PrimaryButtonStyle}"
-            Background="{StaticResource LightGray}"
-            Foreground="{StaticResource TextColor}"
-            Width="80"
-            Height="36"
-            Margin="10,0,0,0"
-            Click="BtnClearSearch_Click"/>
+                              Grid.Column="1"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              IsEditable="True"
+                              TextSearch.TextPath="DisplayName"
+                              StaysOpenOnEdit="True"
+                              SelectionChanged="CbBookSearch_SelectionChanged"
+                              GotFocus="CbBookSearch_GotFocus"
+                              LostFocus="CbBookSearch_LostFocus"
+                              PreviewKeyDown="CbBookSearch_PreviewKeyDown"/>
                 </Grid>
 
                 <!-- Фильтры -->
                 <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Фильтры:" 
-                       VerticalAlignment="Center" 
-                       Margin="0,0,10,0"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Foreground="{StaticResource TextColor}"/>
+                               VerticalAlignment="Center" 
+                               Margin="0,0,10,0"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextColor}"/>
 
                     <!-- Фильтр по автору -->
                     <ComboBox x:Name="FilterAuthorCombo" 
-                      Width="200"
-                      Style="{StaticResource InputFieldStyleCb}"
-                      SelectionChanged="FilterCombo_SelectionChanged"
-                      DisplayMemberPath="DisplayAuthors"
-                      SelectedValuePath="ID_Author"
-                      Margin="0,0,10,5"/>
+                              Width="200"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayAuthors"
+                              SelectedValuePath="ID_Author"
+                              Margin="0,0,10,5"/>
 
                     <!-- Фильтр по статусу -->
                     <ComboBox x:Name="FilterStatusCombo" 
-                      Width="130"
-                      Style="{StaticResource InputFieldStyleCb}"
-                      SelectionChanged="FilterCombo_SelectionChanged"
-                      DisplayMemberPath="DisplayName"
-                      SelectedValuePath="ID_Status"
-                      Margin="0,0,10,5"/>
+                              Width="130"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Status"
+                              Margin="0,0,10,5"/>
 
                     <!-- Фильтр по жанру -->
                     <ComboBox x:Name="FilterGenreCombo" 
-                      Width="130"
-                      Style="{StaticResource InputFieldStyleCb}"
-                      SelectionChanged="FilterCombo_SelectionChanged"
-                      DisplayMemberPath="DisplayName"
-                      SelectedValuePath="ID_Gener"
-                      Margin="0,0,10,5"/>
+                              Width="130"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Gener"
+                              Margin="0,0,10,5"/>
 
                     <!-- Фильтр по году -->
                     <ComboBox x:Name="FilterYearCombo" 
-                      Width="100"
-                      Style="{StaticResource InputFieldStyleCb}"
-                      SelectionChanged="FilterCombo_SelectionChanged"
-                      Margin="0,0,10,5">
+                              Width="100"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              Margin="0,0,10,5">
                         <ComboBoxItem Content="Все годы" IsSelected="True"/>
                     </ComboBox>
 
                     <!-- Фильтр по издательству -->
                     <ComboBox x:Name="FilterPublisherCombo" 
-                      Width="180"
-                      Style="{StaticResource InputFieldStyleCb}"
-                      SelectionChanged="FilterCombo_SelectionChanged"
-                      DisplayMemberPath="DisplayName"
-                      SelectedValuePath="ID_Publisher"
-                      Margin="0,0,10,5"/>
+                              Width="180"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Publisher"
+                              Margin="0,0,10,5"/>
 
                     <!-- Кнопка сброса фильтров -->
                     <Button x:Name="ClearFiltersBtn" 
-                    Content="✖ Сбросить все" 
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Background="{StaticResource LightGray}"
-                    Foreground="{StaticResource TextColor}"
-                    Height="35"
-                    Width="120"
-                    Click="ClearFiltersBtn_Click"
-                    Margin="0,0,0,5"/>
+                            Content="✖ Сбросить все" 
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Background="{StaticResource LightGray}"
+                            Foreground="{StaticResource TextColor}"
+                            Height="35"
+                            Width="120"
+                            Click="ClearFiltersBtn_Click"
+                            Margin="0,0,0,5"/>
                 </WrapPanel>
 
                 <TextBlock Grid.Row="2" x:Name="SearchCountLabel" 
-                   FontSize="12"
-                   Foreground="{StaticResource TextColor}"
-                   Opacity="0.7"/>
+                           FontSize="12"
+                           Foreground="{StaticResource TextColor}"
+                           Opacity="0.7"/>
             </Grid>
         </Border>
 
@@ -275,7 +265,7 @@
                                     Background="{Binding StatusColor}"
                                     Padding="8,3"
                                     Margin="2">
-                                <TextBlock Text="{Binding StatusName}" 
+                                <TextBlock Text="{Binding StatusText}" 
                                            Foreground="White"
                                            FontSize="11"
                                            FontWeight="SemiBold"

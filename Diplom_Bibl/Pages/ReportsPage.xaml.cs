@@ -10,12 +10,13 @@ using Excel = Microsoft.Office.Interop.Excel;
 using Diplom_Bibl.Controls;
 using PdfSharp.Pdf;
 using PdfSharp.Drawing;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class ReportsPage : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private readonly string _excelExportPath;
 
         public ReportsPage()

@@ -7,12 +7,14 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Diplom_Bibl.Helpers;
+
 
 namespace Diplom_Bibl.Pages
 {
     public partial class AddBookCategory : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<CategoryItem> _allCategories;
         private int? _currentCategoryId = null;
 

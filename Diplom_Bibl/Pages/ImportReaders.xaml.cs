@@ -6,12 +6,13 @@ using System.Windows;
 using System.Windows.Controls;
 using ExcelDataReader;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class ImportReaders : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
 
         public ImportReaders()
         {

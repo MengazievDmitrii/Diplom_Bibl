@@ -26,7 +26,7 @@ namespace Diplom_Bibl.Pages
         private bool _isSearchPlaceholderActive;
         private bool _isBookSearchProgrammatic;
 
-        //  ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ 
+        // ==================== ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ====================
 
         public class BookSearchItem
         {
@@ -62,6 +62,14 @@ namespace Diplom_Bibl.Pages
             public List<int> BookIds { get; set; }
 
             private SolidColorBrush _statusColor;
+            private string _statusText;
+
+            /// <summary>
+            /// Цвет статуса:
+            /// - Зеленый (#28A745) - если есть книги в наличии
+            /// - Желтый (#FFC107) - если есть выданные книги
+            /// - Красный (#DC3545) - если все книги списаны
+            /// </summary>
             public SolidColorBrush StatusColor
             {
                 get
@@ -78,6 +86,24 @@ namespace Diplom_Bibl.Pages
                         _statusColor = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D"));
 
                     return _statusColor;
+                }
+            }
+
+            /// <summary>
+            /// Текст статуса для отображения
+            /// </summary>
+            public string StatusText
+            {
+                get
+                {
+                    if (AvailableCopies > 0 && IssuedCopies == 0)
+                        return "В наличии";
+                    else if (AvailableCopies > 0 && IssuedCopies > 0)
+                        return "Частично выдана";
+                    else if (AvailableCopies == 0 && IssuedCopies > 0)
+                        return "Выдана";
+                    else
+                        return "Списана";
                 }
             }
         }
@@ -103,7 +129,7 @@ namespace Diplom_Bibl.Pages
             public string DisplayName => TitlePublishingHouse;
         }
 
-        //  КОНСТРУКТОР 
+        // ==================== КОНСТРУКТОР ====================
 
         public LibraryFundPage()
         {
@@ -123,7 +149,7 @@ namespace Diplom_Bibl.Pages
             CbBookSearch.StaysOpenOnEdit = true;
         }
 
-        //  ПОИСК И ФИЛЬТРАЦИЯ 
+        // ==================== ПОИСК И ФИЛЬТРАЦИЯ ====================
 
         private void SetSearchPlaceholder()
         {
@@ -159,6 +185,32 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        /// <summary>
+        /// Обработчик нажатия клавиш в ComboBox (для Backspace)
+        /// </summary>
+        private void CbBookSearch_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            // Очистка при нажатии Backspace или Delete
+            if (e.Key == Key.Back || e.Key == Key.Delete)
+            {
+                if (string.IsNullOrEmpty(comboBox.Text) || comboBox.Text.Length <= 1)
+                {
+                    SetSearchPlaceholder();
+                    ApplyAllFilters();
+                }
+            }
+            // Очистка при нажатии Escape
+            else if (e.Key == Key.Escape)
+            {
+                SetSearchPlaceholder();
+                ApplyAllFilters();
+                e.Handled = true;
+            }
+        }
+
         private void CbBookSearch_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (CbBookSearch.SelectedItem is BookSearchItem selectedBook)
@@ -170,32 +222,22 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void BtnClearSearch_Click(object sender, RoutedEventArgs e)
-        {
-            SetSearchPlaceholder();
-            if (!_isBookSearchProgrammatic)
-            {
-                ApplyAllFilters();
-            }
-        }
-
-        //  ЗАГРУЗКА ДАННЫХ 
+        // ==================== ЗАГРУЗКА ДАННЫХ ====================
 
         private void LoadBooksForSearch()
         {
             try
             {
-                // Группировка по названию книги и автору
                 string sql = @"
-            SELECT DISTINCT
-                MIN(b.IDBook) AS IDBook,
-                b.TitleBook,
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.StatusBook != 5
-            GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-            ORDER BY b.TitleBook";
+                    SELECT DISTINCT
+                        MIN(b.IDBook) AS IDBook,
+                        b.TitleBook,
+                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName
+                    FROM Books b
+                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                    WHERE b.StatusBook != 5
+                    GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
+                    ORDER BY b.TitleBook";
 
                 _allBooksForSearch.Clear();
 
@@ -456,7 +498,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Загружаем фильтры
                 LoadAuthorsForFilter();
                 LoadStatuses();
                 LoadGenres();
@@ -487,7 +528,7 @@ namespace Diplom_Bibl.Pages
             FilterYearCombo.SelectedIndex = 0;
         }
 
-        //  ПРИМЕНЕНИЕ ФИЛЬТРОВ 
+        // ==================== ПРИМЕНЕНИЕ ФИЛЬТРОВ ====================
 
         private void ApplyAllFilters()
         {
@@ -508,7 +549,6 @@ namespace Diplom_Bibl.Pages
 
             var filtered = _allBooks.AsEnumerable();
 
-            // Поиск по названию или автору
             if (!string.IsNullOrEmpty(searchTerm))
             {
                 filtered = filtered.Where(b =>
@@ -516,23 +556,18 @@ namespace Diplom_Bibl.Pages
                     b.AuthorName.ToLower().Contains(searchTerm));
             }
 
-            // Фильтр по автору
             if (selectedAuthorId > 0)
                 filtered = filtered.Where(b => b.AuthorID == selectedAuthorId);
 
-            // Фильтр по статусу
             if (selectedStatusId > 0)
                 filtered = filtered.Where(b => b.StatusID == selectedStatusId);
 
-            // Фильтр по жанру
             if (selectedGenreId > 0)
                 filtered = filtered.Where(b => b.GenreID == selectedGenreId);
 
-            // Фильтр по издательству
             if (selectedPublisherId > 0)
                 filtered = filtered.Where(b => b.PublisherID == selectedPublisherId);
 
-            // Фильтр по году
             if (yearFilter != "Все годы" && int.TryParse(yearFilter, out int year))
                 filtered = filtered.Where(b => b.YearPublishing == year);
 
@@ -560,7 +595,7 @@ namespace Diplom_Bibl.Pages
             return 0;
         }
 
-        //  СТАТИСТИКА 
+        // ==================== СТАТИСТИКА ====================
 
         private void UpdateStatistics()
         {
@@ -579,7 +614,7 @@ namespace Diplom_Bibl.Pages
             DisposedBooksCount.Text = disposedCopies.ToString();
         }
 
-        //  ОБРАБОТЧИКИ 
+        // ==================== ОБРАБОТЧИКИ ====================
 
         private void FilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -650,7 +685,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        //  НАВИГАЦИЯ 
+        // ==================== НАВИГАЦИЯ ====================
 
         private void AdmissionBook_Click(object sender, RoutedEventArgs e)
         {

@@ -1,4 +1,5 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
@@ -11,7 +12,7 @@ namespace Diplom_Bibl.Pages
 {
     public partial class MyRequestsPage : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private readonly int _readerId;
         private ObservableCollection<RequestItem> _allRequests;
 

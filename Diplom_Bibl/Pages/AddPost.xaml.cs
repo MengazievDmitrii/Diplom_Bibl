@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
@@ -15,7 +16,7 @@ namespace Diplom_Bibl.Pages
     /// </summary>
     public partial class AddPost : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<PostItem> _allPosts;
         private int? _currentPostId = null;
         private bool _isPlaceholderActive = true;

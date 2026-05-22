@@ -1,4 +1,5 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -24,7 +25,7 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Строка подключения к базе данных
         /// </summary>
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
 
         /// <summary>
         /// ID текущего читателя/преподавателя
@@ -421,22 +422,23 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-                    SELECT 
-                        MIN(b.IDBook) AS IDBook,
-                        b.TitleBook, 
-                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                        COUNT(*) AS AvailableCopies
-                    FROM Books b
-                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
-                    WHERE b.StatusBook = 1";
+            SELECT 
+                MIN(b.IDBook) AS IDBook,
+                b.TitleBook, 
+                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                SUM(dbo.fn_GetActuallyAvailableForRequest(b.IDBook)) AS AvailableCopies
+            FROM Books b
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            WHERE dbo.fn_GetActuallyAvailableForRequest(b.IDBook) > 0";
 
+                // Условие поиска добавляется ДО GROUP BY
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
                     query += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
                 }
 
-                query += " GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor";
-                query += " ORDER BY b.TitleBook";
+                query += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
+                    ORDER BY b.TitleBook";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {

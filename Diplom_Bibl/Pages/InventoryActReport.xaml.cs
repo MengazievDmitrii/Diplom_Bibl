@@ -7,12 +7,13 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using Excel = Microsoft.Office.Interop.Excel;
+using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
     public partial class InventoryActReport : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<BookInventoryItem> _books;
 
         // Удаляем приватное поле _bookcategory — теперь используем публичное свойство
