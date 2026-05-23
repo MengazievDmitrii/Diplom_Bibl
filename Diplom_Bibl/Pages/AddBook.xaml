@@ -1,0 +1,252 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.AddBook"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+      Title="Книги" Loaded="OnPageLoaded"
+      Background="#F5F5F5">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" Text="Управление книгами" 
+                   Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,15" />
+
+        <!-- Основная форма -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="450"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Левая колонка: основные поля -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,15,0">
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Инвентарный номер *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbInventoryNumber" 
+                                 Style="{StaticResource InputFieldStyle}"
+                                 LostFocus="TbInventoryNumber_LostFocus"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Название книги *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbTitle" Style="{StaticResource InputFieldStyle}" Width="440"/>
+                    </StackPanel>
+
+                    <!-- Автор -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Автор *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbAuthor" Style="{StaticResource InputFieldStyleCb}" 
+                                      DisplayMemberPath="DisplayAuthors" SelectedValuePath="ID"/>
+                        </StackPanel>
+                        <Button Content="+" Width="30" Click="BtnAddAuthor_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Категория книги -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Категория книги *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbCategory" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="CategoryName" 
+                                      SelectedValuePath="ID_Category"/>
+                        </StackPanel>
+                        <Button x:Name="BtnAddCategory" Content="+" Width="30" Click="BtnAddCategory_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Вид издания -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Вид издания *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbEditionType" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="EditionTypeName" 
+                                      SelectedValuePath="ID_EditionType"/>
+                        </StackPanel>
+                        <Button x:Name="BtnAddEditionType" Content="+" Width="30" Click="BtnAddEditionType_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Формат издания -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Формат издания *" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbFormat" 
+                                      Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="FormatName" 
+                                      SelectedValuePath="ID_Format"/>
+                        </StackPanel>
+                        <Button x:Name="BtnAddFormat" Content="+" Width="30" Click="BtnAddFormat_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Издательство -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Издательство" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbPublisher" Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="DisplayPH" SelectedValuePath="ID"/>
+                        </StackPanel>
+                        <Button Content="+" Width="30" Click="BtnAddPublisher_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Жанр -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Жанр" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbGenre" Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="DisplayGen" SelectedValuePath="ID"/>
+                        </StackPanel>
+                        <Button Content="+" Width="30" Click="BtnAddGenre_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Статус -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Статус" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbStatus" Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="DisplayStatus" SelectedValuePath="ID"/>
+                        </StackPanel>
+                        <Button Content="+" Width="30" Click="BtnAddStatus_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <!-- Приходная накладная -->
+                    <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                        <StackPanel Width="380">
+                            <TextBlock Text="Приходная накладная" Style="{StaticResource LabelStyle}"/>
+                            <ComboBox x:Name="CbReceipt" Style="{StaticResource InputFieldStyleCb}"
+                                      DisplayMemberPath="DisplayReceipt" SelectedValuePath="ID"/>
+                        </StackPanel>
+                        <Button Content="+" Width="30" Click="BtnAddReceipt_Click" Margin="5,20,0,0"
+                                Style="{StaticResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Год издания *" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbYear" Style="{StaticResource InputFieldStyle}" MaxLength="4"
+                                 PreviewTextInput="TbYear_PreviewTextInput"
+                                 DataObject.Pasting="TbYear_Pasting"
+                                 LostFocus="TbYear_LostFocus"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Цена" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbPrice" Style="{StaticResource InputFieldStyle}"
+                                 PreviewTextInput="TbPrice_PreviewTextInput"
+                                 DataObject.Pasting="TbPrice_Pasting"
+                                 LostFocus="TbPrice_LostFocus"
+                                 MaxLength="12"/>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Аннотация" Style="{StaticResource LabelStyle}"/>
+                        <TextBox x:Name="TbAnnotation" AcceptsReturn="True" Height="80" 
+                                 Style="{StaticResource InputFieldStyle}" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button x:Name="BtnSaveNew" Content="Сохранить книгу"
+                                Style="{StaticResource SaveButtonStyle}"
+                                Click="BtnSaveNew_Click" Width="200" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnSaveChanges" Content="Сохранить изменения"
+                                Style="{StaticResource SaveButtonStyle}"
+                                Click="BtnSaveChanges_Click" Visibility="Collapsed" Width="200" Margin="0,0,10,0"/>
+                        <Button x:Name="BtnDelete" Content="Удалить"
+                                Style="{StaticResource DeleteButtonStyle}"
+                                Click="BtnDelete_Click" Visibility="Collapsed" Width="100"/>
+                    </StackPanel>
+
+                    <Button x:Name="BtnGenerateAct" Content="Сформировать акт поступления"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="BtnGenerateAct_Click" Visibility="Visible" 
+                            Background="{StaticResource SuccessColor}" Foreground="White" Width="243"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Правая колонка: список книг -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="White" CornerRadius="8" 
+                        BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                        Padding="10" Margin="0,0,0,15">
+                    <Grid>
+                        <TextBlock Text="🔍 Поиск:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox x:Name="SearchBox" Margin="55,0,0,0"
+                                 ToolTip="Поиск по инвентарному номеру, названию или автору"
+                                 TextChanged="SearchBox_TextChanged" Style="{StaticResource InputFieldStyle}"/>
+                    </Grid>
+                </Border>
+
+                <DataGrid x:Name="LvBooks" Grid.Row="1" 
+                          MouseDoubleClick="LvBooks_MouseDoubleClick"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          SelectionMode="Single"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderBrush="{StaticResource BorderColor}"
+                          BorderThickness="1"
+                          RowHeight="35"
+                          FontSize="13"
+                          Background="White"
+                          AlternatingRowBackground="#F9F9F9">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="Height" Value="35"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        </Style>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="5,0"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Инв. №" Binding="{Binding InventoryNumber}" Width="90"/>
+                        <DataGridTextColumn Header="Название книги" Binding="{Binding Title}" Width="*" MinWidth="180"/>
+                        <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="140"/>
+                        <DataGridTextColumn Header="Издательство" Binding="{Binding PublishingHouseName}" Width="140"/>
+                        <DataGridTextColumn Header="Год издания" Binding="{Binding Year}" Width="80"/>
+                        <DataGridTextColumn Header="Цена" Binding="{Binding Price}" Width="80"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <Button Grid.Row="2" Content="← Закрыть" Style="{StaticResource PrimaryButtonStyle}"
+                Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
+                HorizontalAlignment="Center" Width="160" Click="ClosePage_Click"/>
+
+        <Grid x:Name="BooksLoadingPanel" 
+              Background="#80FFFFFF" 
+              Visibility="Collapsed"
+              Grid.Row="1">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ProgressBar Width="150" Height="15" IsIndeterminate="True" 
+                             Foreground="{StaticResource PrimaryColor}"/>
+                <TextBlock Text="Загрузка списка книг..." Margin="0,10,0,0" 
+                           HorizontalAlignment="Center" FontSize="11"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

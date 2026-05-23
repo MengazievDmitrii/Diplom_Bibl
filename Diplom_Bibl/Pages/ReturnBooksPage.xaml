@@ -1,0 +1,301 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.ReturnBooksPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplom_Bibl.Pages"
+      mc:Ignorable="d" 
+      d:DesignHeight="600" d:DesignWidth="900"
+      Title="ReturnBooksPage" Loaded="Page_Loaded"
+      Background="#F5F5F5">
+
+    <Page.Resources>
+        <Style x:Key="ReturnSectionStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Effect" Value="{StaticResource DropShadowEffect}"/>
+        </Style>
+
+        <Style x:Key="IssuanceCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:GroupTypeVisibilityConverter x:Key="GroupTypeVisibilityConverter"/>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок -->
+            <TextBlock Grid.Row="0" 
+                       Text="Возврат книг" 
+                       Style="{StaticResource SectionTitleStyle}"/>
+
+            <!-- Поиск читателя -->
+            <Border Grid.Row="1" Style="{StaticResource ReturnSectionStyle}">
+                <StackPanel>
+                    <TextBlock Text="Поиск читателя" 
+                               FontSize="16" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               Margin="0,0,0,15"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="ReaderSearchBox"
+                                 Grid.Column="0"
+                                 Text="Введите фамилию, имя или номер билета..."
+                                 Style="{StaticResource InputFieldStyle}"
+                                 GotFocus="ReaderSearchBox_GotFocus"
+                                 LostFocus="ReaderSearchBox_LostFocus"
+                                 TextChanged="ReaderSearchBox_TextChanged"
+                                 Margin="0,0,10,0"/>
+
+                        <Button x:Name="ClearReaderButton"
+                                Grid.Column="1"
+                                Content="✕ Очистить"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Background="{StaticResource LightGray}"
+                                Foreground="{StaticResource TextColor}"
+                                Width="100"
+                                Click="ClearReaderButton_Click"/>
+                    </Grid>
+
+                    <ListBox x:Name="ReadersListBox"
+                             Height="150"
+                             Style="{StaticResource ModernListBoxStyle}"
+                             ItemContainerStyle="{StaticResource ModernListBoxItemStyle}"
+                             SelectionChanged="ReadersListBox_SelectionChanged"
+                             Visibility="Collapsed"
+                             Margin="0,10,0,0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayInfo}" 
+                                           Foreground="{StaticResource PrimaryColor}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+
+            <!-- Информация о читателе -->
+            <Border x:Name="ReaderInfoSection" 
+                    Grid.Row="2" 
+                    Style="{StaticResource ReturnSectionStyle}"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Информация о читателе" 
+                               FontSize="16" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               Margin="0,0,0,15"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" 
+                                   Text="Читатель:" 
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,10,5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" 
+                                   x:Name="ReaderFullNameText" 
+                                   Margin="0,0,0,5"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" 
+                                   Text="Номер билета:" 
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,10,5"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" 
+                                   x:Name="ReaderCardNumberText" 
+                                   Margin="0,0,0,5"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" 
+                                   Text="Тип:" 
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,10,0"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" 
+                                   x:Name="ReaderTypeText" 
+                                   Margin="0,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Список книг к возврату -->
+            <Border x:Name="BooksSection" 
+                    Grid.Row="3" 
+                    Style="{StaticResource ReturnSectionStyle}"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Книги на руках" 
+                               FontSize="16" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               Margin="0,0,0,15"/>
+
+                    <TextBlock x:Name="NoBooksText" 
+                               Text="У читателя нет книг на руках"
+                               Foreground="{StaticResource TextColor}"
+                               Opacity="0.7"
+                               Margin="0,10"
+                               Visibility="Collapsed"/>
+
+                    <ItemsControl x:Name="IssuancesList" Margin="0,0,0,10">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource IssuanceCardStyle}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" 
+                                                   Text="{Binding DisplayName, Mode=OneWay}" 
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryColor}"/>
+
+                                        <Border Grid.Row="0" Grid.Column="1"
+                                                Background="{Binding OverdueColor, Mode=OneWay}"
+                                                CornerRadius="10"
+                                                Padding="5,2">
+                                            <TextBlock Text="{Binding Status, Mode=OneWay}" 
+                                                       Foreground="White"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"/>
+                                        </Border>
+
+                                        <!-- Отображение информации для групповой выдачи -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Vertical"
+                                                    Margin="0,5,0,5"
+                                                    Visibility="{Binding Type, Converter={StaticResource GroupTypeVisibilityConverter}}">
+
+                                            <!-- Информация о преподавателе -->
+                                            <TextBlock Text="{Binding TeacherInfo, Mode=OneWay}" 
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource PrimaryColor}"
+                                                       Margin="0,0,0,2"/>
+
+                                            <!-- Информация о студенте -->
+                                            <TextBlock Text="{Binding StudentInfo, Mode=OneWay}" 
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextColor}"
+                                                       Margin="0,0,0,2"/>
+
+                                            <TextBlock Text="Книги:" 
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource PrimaryColor}"
+                                                       Margin="0,5,0,2"/>
+
+                                            <!-- Список книг -->
+                                            <ItemsControl ItemsSource="{Binding BookGroups, Mode=OneWay}" Margin="5,0,0,5">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Margin="0,2,0,2">
+                                                            <Run Text="{Binding BookTitle, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                            <Run Text=" ("/>
+                                                            <Run Text="{Binding RemainingQuantity, Mode=OneWay}"/>
+                                                            <Run Text=" шт.)"/>
+                                                        </TextBlock>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" 
+                                                   Text="{Binding SubInfo, Mode=OneWay}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextColor}"
+                                                   Opacity="0.7"
+                                                   Margin="0,0,0,5"/>
+
+                                        <StackPanel Grid.Row="3" Grid.Column="0" 
+                                                    Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal"
+                                                    Margin="0,0,0,0">
+                                            <TextBlock Text="Выдана: " 
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextColor}"
+                                                       Opacity="0.7"/>
+                                            <TextBlock Text="{Binding IssuanceDate, Mode=OneWay, StringFormat=dd.MM.yyyy}" 
+                                                       FontSize="11"
+                                                       Margin="0,0,15,0"/>
+
+                                            <TextBlock Text="План возврата: " 
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextColor}"
+                                                       Opacity="0.7"/>
+                                            <TextBlock Text="{Binding PlannedReturnDate, Mode=OneWay, StringFormat=dd.MM.yyyy}" 
+                                                       FontSize="11"
+                                                       Foreground="{Binding OverdueColor, Mode=OneWay}"/>
+
+                                            <!-- Кнопка обычного возврата -->
+                                            <Button x:Name="ReturnButton"
+                                                    Content="✓ Вернуть"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Background="{StaticResource SuccessColor}"
+                                                    Width="80"
+                                                    Height="25"
+                                                    FontSize="11"
+                                                    Margin="15,0,5,0"
+                                                    Visibility="{Binding ReturnButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                    Click="ReturnButton_Click"/>
+
+                                            <!-- Кнопка "Вернуть все" -->
+                                            <Button x:Name="ReturnAllButton"
+                                                    Content="↺ Вернуть все"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Background="{StaticResource AccentColor}"
+                                                    Width="100"
+                                                    Height="25"
+                                                    FontSize="11"
+                                                    Margin="5,0,0,0"
+                                                    Visibility="{Binding ReturnAllButtonVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                    Click="ReturnAllButton_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,253 @@
+﻿<Window x:Class="Diplom_Bibl.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Diplom_Bibl"
+        mc:Ignorable="d"
+        Title="Библиотечная система НМК" Loaded="Window_Loaded"
+        Height="700" Width="1200">
+    <Window.Resources>
+        <!-- Цвета и стили -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#0056B3"/>
+        <SolidColorBrush x:Key="PrimaryLightColor" Color="#E3F2FD"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#007BFF"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#FFC107"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
+        <SolidColorBrush x:Key="LightGray" Color="#E9ECEF"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#DEE2E6"/>
+        <SolidColorBrush x:Key="TextColor" Color="#333333"/>
+        <SolidColorBrush x:Key="MenuBgColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="MenuHoverColor" Color="#F0F8FF"/>
+        <SolidColorBrush x:Key="MenuActiveColor" Color="#E3F2FD"/>
+
+        <!-- Стиль для кнопок меню -->
+        <Style x:Key="MenuButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <ContentPresenter x:Name="icon" Content="{TemplateBinding Content}" />
+                                <TextBlock x:Name="text" Text="{TemplateBinding Tag}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource MenuHoverColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource MenuActiveColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActiveMenuButtonStyle" TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource MenuActiveColor}"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Левое меню -->
+        <Border Grid.Column="0" Background="{StaticResource MenuBgColor}" 
+                BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,1,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="16,24,16,16">
+                    <TextBlock Text="📚" FontSize="24" Margin="0,0,8,0"/>
+                    <TextBlock Text="Библиотека НМК-1" 
+                               FontSize="18" FontWeight="Bold" 
+                               Foreground="{StaticResource PrimaryColor}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Панель пользователя -->
+                <Border Margin="12,0,12,12" 
+                        Background="{StaticResource PrimaryLightColor}"
+                        CornerRadius="8" Padding="12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="{StaticResource PrimaryColor}"
+                                    CornerRadius="20" Width="36" Height="36"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="👤" FontSize="18" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                <TextBlock x:Name="TbUserName" Text="Пользователь" 
+                                           FontWeight="SemiBold" FontSize="13"
+                                           Foreground="{StaticResource PrimaryColor}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbUserRole" Text="Роль" 
+                                           FontSize="11" Foreground="Gray"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Панель уведомлений -->
+                <Border Margin="12,0,12,12" Background="{StaticResource PrimaryLightColor}"
+                        CornerRadius="8" Padding="10" Cursor="Hand"
+                        MouseLeftButtonDown="NotificationPanel_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="🔔" FontSize="14"/>
+                        <TextBlock Grid.Column="1" Text="Уведомления" Margin="8,0,0,0" 
+                                   FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                        <Border Grid.Column="2" Background="{StaticResource DangerColor}"
+                                CornerRadius="10" Padding="5,2" MinWidth="20"
+                                HorizontalAlignment="Right">
+                            <TextBlock x:Name="TbUnreadCount" Text="0" Foreground="White"
+                                       FontSize="10" FontWeight="Bold"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Separator Margin="12,8,12,8" Height="1" Background="{StaticResource BorderColor}"/>
+
+                <!-- Кнопки меню с разделением по ролям -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="450">
+                    <StackPanel>
+                        <!-- Администратор -->
+                        <StackPanel x:Name="MenuAdmin" Visibility="Collapsed">
+                            <Button x:Name="BtnInfoServiceAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Информационное обслуживание"
+                                    Click="MenuButton_Click">
+                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnReadersAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Читатели"
+                                    Click="MenuButton_Click">
+                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnLibraryFundAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Библиотечный фонд"
+                                    Click="MenuButton_Click">
+                                <Path Data="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnReportsAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Отчёты"
+                                    Click="MenuButton_Click">
+                                <Path Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnRequestBookAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Подать заявку"
+                                    Click="MenuButton_Click">
+                                <Path Data="M4 6h16v12H4V6zm2 2v2h12V8H6zm0 4v2h12v-2H6z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnRequestsManagementAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Управление заявками"
+                                    Click="MenuButton_Click">
+                                <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h-4v-2h4v2zm0-4h-4v-2h4v2zm6 4h-4v-2h4v2zm0-4h-4v-2h4v2z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+
+                            <Button x:Name="BtnSettingsAdmin" 
+                                    Style="{StaticResource MenuButtonStyle}"
+                                    Tag="Настройки"
+                                    Click="MenuButton_Click">
+                                <Path Data="M12 15.5A3.5 3.5 0 018.5 12 3.5 3.5 0 0112 8.5a3.5 3.5 0 013.5 3.5 3.5 3.5 0 01-3.5 3.5m7.43-2.53c.07-.3.09-.62.09-.97 0-.35-.02-.67-.09-.97l2.03-1.55c.18-.14.23-.39.13-.61l-1.92-3.32c-.1-.18-.31-.29-.53-.29h-2.53c-.46 0-.89-.25-1.13-.65L14.2 2.11c-.24-.4-.65-.65-1.13-.65s-.9.25-1.13.65L10.07 5.39c-.24.4-.65.65-1.13.65H6.41c-.22 0-.43.11-.53.29L4.06 9.65c-.1.22-.05.47.13.61l2.03 1.55c-.07.3-.09.62-.09.97 0 .35.02.67.09.97l-2.03 1.55c-.18.14-.23.39-.13.61l1.92 3.32c.1.18.31.29.53.29h2.53c.46 0 .89.25 1.13.65l1.87 3.28c.24.4.65.65 1.13.65s.9-.25 1.13-.65l1.87-3.28c.24-.4.65-.65 1.13-.65h2.53c.22 0 .43-.11.53-.29l1.92-3.32c.1-.22.05-.47-.13-.61l-2.03-1.55z"
+                                      Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                                      Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Библиотекарь -->
+                        <StackPanel x:Name="MenuLibrarian" Visibility="Collapsed">
+                            <Button Content="📖" Tag="Информационное обслуживание" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="👥" Tag="Читатели" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="📚" Tag="Библиотечный фонд" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="📊" Tag="Отчёты" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="📝" Tag="Подать заявку" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="⚙️" Tag="Управление заявками" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="💻" Tag="Управление ПК" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                        </StackPanel>
+
+                        <!-- Читатель -->
+                        <StackPanel x:Name="MenuReader" Visibility="Collapsed">
+                            <Button Content="📝" Tag="Подать заявку" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                            <Button Content="📋" Tag="Мои заявки" Click="MenuButton_Click" Style="{StaticResource MenuButtonStyle}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Separator Margin="12,16,12,16" Height="1" Background="{StaticResource BorderColor}"/>
+
+                <Button x:Name="BtnLogout"
+                        Style="{StaticResource MenuButtonStyle}"
+                        Tag="Выход"
+                        Click="BtnLogout_Click">
+                    <Path Data="M10.09 15.59L11.5 17 16.5 12 11.5 7 10.09 8.41 12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                          Width="20" Height="20" Stretch="Uniform" Margin="0,0,5,0"
+                          Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Контентная область -->
+        <Grid Grid.Column="1" Background="#F8F9FA">
+            <Frame x:Name="MainFrame"
+                   NavigationUIVisibility="Hidden"
+                   Margin="24"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch"/>
+        </Grid>
+    </Grid>
+</Window>

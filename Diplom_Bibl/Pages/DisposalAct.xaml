@@ -1,0 +1,251 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.DisposalAct"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Акт списания книг" 
+      Background="#F5F5F5">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок акта -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Акт списания книг" Style="{StaticResource SectionTitleStyle}" />
+
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="№ акта:" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1" x:Name="TbActNumber" Style="{StaticResource InputFieldStyle}" 
+                         Width="200" Margin="0,0,20,0"/>
+
+                <TextBlock Grid.Column="2" Text="Дата:" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <DatePicker Grid.Column="3" x:Name="DpDate" Style="{StaticResource DatePickerStyle}" 
+                            Width="150"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Участники и основание -->
+        <Grid Grid.Row="1" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                <TextBlock Text="Участники (ФИО и должности):" Style="{StaticResource LabelStyle}"/>
+                <TextBox x:Name="TbParticipants" 
+                         Style="{StaticResource InputFieldStyle}"
+                         AcceptsReturn="True" 
+                         TextWrapping="Wrap" 
+                         Height="80"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Основание списания:" Style="{StaticResource LabelStyle}"/>
+                <ComboBox x:Name="CbReason"
+                          Style="{StaticResource InputFieldStyleCb}"
+                          DisplayMemberPath="ReasonName"
+                          SelectedValuePath="ID_Reason"
+                          Height="36"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Основной контейнер для динамической части -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- === 1. Поиск книги === -->
+            <Border Grid.Row="0" 
+                    Background="White" 
+                    CornerRadius="8" 
+                    BorderBrush="{StaticResource BorderColor}" 
+                    BorderThickness="1" 
+                    Padding="15" 
+                    Margin="0,0,0,15"
+                    Effect="{StaticResource DropShadowEffect}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Поиск по инвентарному номеру:" 
+                               Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" x:Name="TbSearchInv" 
+                             Style="{StaticResource InputFieldStyle}" Margin="10,0"/>
+                    <Button Grid.Column="2" Content="🔍 Найти" Click="BtnFindBook_Click" 
+                            Style="{StaticResource PrimaryButtonStyle}" Width="100" Margin="10,0,0,0" Height="36"/>
+                </Grid>
+            </Border>
+
+            <!-- === 2. Детали найденной книги === -->
+            <Border Grid.Row="1" 
+                    x:Name="PnBookDetails" 
+                    Visibility="Collapsed" 
+                    Margin="0,0,0,15"
+                    Background="White" 
+                    CornerRadius="8" 
+                    BorderBrush="{StaticResource BorderColor}" 
+                    BorderThickness="1" 
+                    Padding="15"
+                    Effect="{StaticResource DropShadowEffect}">
+
+                <StackPanel>
+                    <TextBlock Text="📖 Найденная книга" 
+                               FontSize="16" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               Margin="0,0,0,15"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Инв. номер:" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" x:Name="LbInventory" FontWeight="Bold" FontSize="14" Foreground="{StaticResource PrimaryColor}"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Автор, заглавие:" Style="{StaticResource LabelStyle}" VerticalAlignment="Top"/>
+                        <TextBlock Grid.Column="1" x:Name="LbTitle" FontWeight="Bold" FontSize="14" TextWrapping="Wrap"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Издательство, год:" Style="{StaticResource LabelStyle}" VerticalAlignment="Top"/>
+                        <TextBlock Grid.Column="1" x:Name="LbPubYear" FontWeight="Bold" FontSize="14"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Цена:" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" x:Name="LbPrice" FontWeight="Bold" FontSize="14" Foreground="{StaticResource SuccessColor}"/>
+                    </Grid>
+
+                    <Button Content="➕ Добавить в акт" 
+                            Click="BtnAddToAct_Click"
+                            Style="{StaticResource SaveButtonStyle}"
+                            HorizontalAlignment="Left"
+                            Width="160"/>
+                </StackPanel>
+            </Border>
+
+            <!-- === 3. Заголовок таблицы === -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" x:Name="TableHeader" Visibility="Collapsed">
+                <TextBlock Text="📋 Список книг в акте списания" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource PrimaryColor}"/>
+                <TextBlock x:Name="BooksCountLabel" 
+                           Foreground="{StaticResource TextColor}" 
+                           FontSize="12" 
+                           VerticalAlignment="Bottom"
+                           Margin="10,0,0,5"/>
+            </StackPanel>
+
+            <!-- === 4. Список книг в акте === -->
+            <DataGrid Grid.Row="3" 
+                      x:Name="DgItems" 
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="True"
+                      Visibility="Collapsed"
+                      RowHeight="32"
+                      AlternatingRowBackground="{StaticResource LightGray}"
+                      Background="White"
+                      BorderBrush="{StaticResource BorderColor}"
+                      BorderThickness="1"
+                      Margin="0,0,0,15">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                        <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Height" Value="38"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Padding" Value="8,0"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </DataGrid.Resources>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="№ п/п" Binding="{Binding RowNum}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Автор, заглавие" Binding="{Binding Title}" Width="300"/>
+                    <DataGridTextColumn Header="Цена (руб.)" Binding="{Binding PriceRub}" Width="90"/>
+                    <DataGridTextColumn Header="коп." Binding="{Binding PriceKop}" Width="70"/>
+                    <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="70"/>
+                    <DataGridTextColumn Header="Сумма" Binding="{Binding TotalPrice, StringFormat=N2}" Width="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- === 5. Итоговая сумма === -->
+            <Border Grid.Row="4" 
+                    Background="{StaticResource PrimaryLightColor}"
+                    CornerRadius="8"
+                    Padding="15"
+                    Margin="0,0,0,15"
+                    Visibility="Collapsed"
+                    x:Name="TotalPanel">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" 
+                               Text="Общая сумма списания:" 
+                               FontWeight="SemiBold" 
+                               FontSize="14" 
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock x:Name="TbTotal" Text="0.00" FontWeight="Bold" FontSize="20" Foreground="{StaticResource DangerColor}"/>
+                        <TextBlock Text=" руб." FontSize="16" Foreground="{StaticResource TextColor}" Margin="5,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- === 6. Кнопки === -->
+            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10">
+                <Button Content="📄 Сформировать акт" Click="BtnGenerateAct_Click" 
+                        Style="{StaticResource SaveButtonStyle}" 
+                        Width="180" Margin="0,0,10,0"/>
+                <Button Content="← Закрыть" Click="BtnClose_Click" 
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Background="{StaticResource LightGray}"
+                        Foreground="{StaticResource TextColor}"
+                        Width="100"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

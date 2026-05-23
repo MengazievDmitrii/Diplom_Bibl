@@ -1,0 +1,130 @@
+﻿<!-- STAGE 2 FIX: Разблокировка полей ввода -->
+<Window x:Class="Diplom_Bibl.Windows.ComputerSessionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Регистрация рабочего места" 
+        Height="550" Width="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        WindowStyle="SingleBorderWindow"
+       >
+
+    <Window.Resources>
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <!-- Стиль для НЕ активных полей (только для чтения) -->
+        <Style TargetType="TextBox" x:Key="ReadonlyFieldStyle">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Стиль для АКТИВНЫХ полей (можно редактировать) -->
+        <Style TargetType="TextBox" x:Key="ActiveFieldStyle">
+            <Setter Property="IsReadOnly" Value="False"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- Стиль для многострочного поля цели -->
+        <Style TargetType="TextBox" x:Key="ActiveMultiLineFieldStyle">
+            <Setter Property="IsReadOnly" Value="False"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Height" Value="80"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" Text="Регистрация использования компьютера" 
+                   FontSize="20" FontWeight="Bold" Foreground="#0056B3" 
+                   Margin="0,0,0,20"/>
+
+        <!-- Скролл для формы (если контент не помещается) -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+            <StackPanel>
+                <!-- Дата и время (только для чтения) -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Дата и время" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TbDateTime" Style="{StaticResource ReadonlyFieldStyle}"/>
+                </StackPanel>
+
+                <!-- Группа (только для чтения, автозаполнение) -->
+                <StackPanel x:Name="GroupPanel" Margin="0,0,0,15" Visibility="Visible">
+                    <TextBlock Text="№ группы" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TbGroup" Style="{StaticResource ReadonlyFieldStyle}"/>
+                </StackPanel>
+
+                <!-- ФИО (только для чтения, автозаполнение) -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="ФИО" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TbFullName" Style="{StaticResource ReadonlyFieldStyle}"/>
+                </StackPanel>
+
+                <!-- № компьютера (только для чтения, автозаполнение) -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="№ компьютера" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TbComputerNumber" Style="{StaticResource ReadonlyFieldStyle}"/>
+                </StackPanel>
+
+                <!-- Цель (активное поле для ввода) -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Цель использования *" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="TbPurpose" 
+                             Style="{StaticResource ActiveMultiLineFieldStyle}"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             MaxLength="500"
+                             VerticalScrollBarVisibility="Auto"/>
+                </StackPanel>
+
+                <!-- Информационное сообщение -->
+                <Border Background="#E3F2FD" CornerRadius="6" Padding="10" Margin="0,10,0,0">
+                    <TextBlock Text="ℹ️ После нажатия кнопки &quot;Записаться&quot; окно будет заблокировано. 
+    Для завершения сессии используйте кнопку &quot;Выход&quot; на панели библиотекаря или закройте приложение."
+                               FontSize="12" Foreground="#0056B3" TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Кнопки -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button x:Name="BtnRegister" Content="✅ Записаться" 
+                    Style="{StaticResource SaveButtonStyle}"
+                    Width="140" Height="40"
+                    Click="BtnRegister_Click"/>
+            <Button x:Name="BtnCancel" Content="❌ Отмена" 
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Background="{StaticResource LightGray}"
+                    Foreground="{StaticResource TextColor}"
+                    Width="100" Height="40"
+                    Margin="10,0,0,0"
+                    Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
