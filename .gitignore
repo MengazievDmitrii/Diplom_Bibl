@@ -1,3 +1,44 @@
 ```
-repo_temp/
+# Build artifacts and binaries
+*.exe
+*.dll
+*.pdb
+*.exe.config
+App.config
+*.csproj.user
+
+# Dependencies
+packages/
+bin/
+obj/
+
+# Test results and coverage
+TestResults/
+*.trx
+
+# Environment specific
+.vs/
+.vscode/
+*.userprefs
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*~
+
+# Database related
+*.mdb
+*.accdb
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Sensitive files
+*.key
+*.pem
+*.cer
 ```
