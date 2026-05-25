@@ -1,0 +1,11 @@
+﻿*.user
+.vs/
+bin/
+obj/
+packages/
+*.suo
+*.userprefs
+*.dbmdl
+*.pdb
+*/bin/
+*/obj/

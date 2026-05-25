@@ -1,0 +1,116 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.MyBooksPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplom_Bibl.Pages"
+      mc:Ignorable="d" 
+      d:DesignHeight="700" d:DesignWidth="1000"
+      Title="Мои книги"
+      Background="#F8F9FA">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" 
+                   Text="Мои книги" 
+                   Style="{StaticResource SectionTitleStyle}"/>
+
+        <!-- Статистика -->
+        <Border Grid.Row="1"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                Padding="15"
+                Margin="0,10,0,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <TextBlock Text="Всего выдано" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
+                    <TextBlock x:Name="TotalIssuedCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock Text="В наличии" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
+                    <TextBlock x:Name="CurrentlyHeldCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <TextBlock Text="Просрочено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
+                    <TextBlock x:Name="OverdueCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Список книг -->
+        <DataGrid Grid.Row="2" 
+                  x:Name="MyBooksDataGrid"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  RowHeight="50"
+                  AlternatingRowBackground="{StaticResource LightGray}"
+                  Background="White"
+                  BorderBrush="{StaticResource BorderColor}"
+                  BorderThickness="1">
+            <DataGrid.Resources>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Height" Value="38"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                </Style>
+                <Style TargetType="DataGridCell">
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Padding" Value="8,0"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                </Style>
+            </DataGrid.Resources>
+
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Название книги" 
+                        Binding="{Binding BookTitle}" 
+                        Width="300"/>
+                <DataGridTextColumn Header="Автор" 
+                        Binding="{Binding BookAuthor}" 
+                        Width="200"/>
+                <DataGridTextColumn Header="Дата выдачи" 
+                        Binding="{Binding IssuanceDate, StringFormat=dd.MM.yyyy}" 
+                        Width="120"/>
+                <DataGridTextColumn Header="План. возврат" 
+                        Binding="{Binding PlannedReturnDate, StringFormat=dd.MM.yyyy}" 
+                        Width="120"/>
+                <DataGridTextColumn Header="Факт. возврат"
+                        Binding="{Binding ActualReturnDate, StringFormat=dd.MM.yyyy, TargetNullValue='Не возвращена'}"
+                        Width="120"/>
+                <DataGridTemplateColumn Header="Статус" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="12"
+                        Background="{Binding StatusColor}"
+                        Padding="6,2">
+                                <TextBlock Text="{Binding StatusText}" 
+                               Foreground="White"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</Page>

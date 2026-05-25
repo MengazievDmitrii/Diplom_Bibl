@@ -1,0 +1,383 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.ReportsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:Diplom_Bibl"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="ReportsPage">
+
+    <Page.Resources>
+        <!-- Цвета -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#0056B3"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#007BFF"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#FFC107"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
+        <SolidColorBrush x:Key="LightGray" Color="#E9ECEF"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#DEE2E6"/>
+
+        <!-- Заголовок секции -->
+        <Style x:Key="PageTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="PageSubtitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Foreground" Value="#6C757D"/>
+            <Setter Property="Margin" Value="0,0,0,24"/>
+        </Style>
+
+        <!-- Фильтры -->
+        <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#495057"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="FilterControlStyle" TargetType="Control">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- Карточка отчёта -->
+        <Style x:Key="ReportCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.1" Color="#000000"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Иконка отчёта -->
+        <Style x:Key="ReportIconStyle" TargetType="Path">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="Fill" Value="{StaticResource PrimaryColor}"/>
+        </Style>
+
+        <!-- Название отчёта -->
+        <Style x:Key="ReportTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#212529"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <!-- Описание -->
+        <Style x:Key="ReportDescStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#6C757D"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="MaxWidth" Value="300"/>
+        </Style>
+
+        <!-- Кнопка действия -->
+        <Style x:Key="ReportButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                               >
+                            <TextBlock Text="{TemplateBinding Content}"
+                                       VerticalAlignment="Top"
+                                       Foreground="{TemplateBinding Foreground}" Margin="0,7,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" >
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="487*"/>
+                <RowDefinition Height="243*"/>
+            </Grid.RowDefinitions>
+            <!-- Заголовок -->
+            <StackPanel Grid.RowSpan="2">
+                <TextBlock Text="📊 Отчёты" Style="{StaticResource PageTitleStyle}"/>
+                <TextBlock Text="Формирование и экспорт статистических данных по библиотечной деятельности"
+                           Style="{StaticResource PageSubtitleStyle}"/>
+            </StackPanel>
+
+            <!-- Панель фильтров -->
+            <Border x:Name="FilterBorder"
+                    Background="White"
+                    CornerRadius="8"
+                    BorderBrush="{StaticResource BorderColor}"
+                    BorderThickness="1"
+                    Padding="20"
+                    Margin="0,65,0,22">
+                <StackPanel>
+                    <TextBlock Text="Параметры отчёта" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="40"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Период: С -->
+                        <TextBlock Grid.Column="0" Text="Период:" Style="{StaticResource FilterLabelStyle}" VerticalAlignment="Center"/>
+                        <DatePicker x:Name="StartDatePicker" Grid.Column="1" Style="{StaticResource FilterControlStyle}"/>
+
+                        <TextBlock Grid.Column="3" Text="— по:" Style="{StaticResource FilterLabelStyle}" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                        <DatePicker x:Name="EndDatePicker" Grid.Column="4" Style="{StaticResource FilterControlStyle}"/>
+
+                        <!-- Тип отчёта -->
+                        <TextBlock Grid.Column="6" Text="Тип:" Style="{StaticResource FilterLabelStyle}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="7" Style="{StaticResource FilterControlStyle}">
+                            <ComboBoxItem Content="Все отчёты" IsSelected="True"/>
+                            <ComboBoxItem Content="Ежедневные"/>
+                            <ComboBoxItem Content="Еженедельные"/>
+                            <ComboBoxItem Content="Ежемесячные"/>
+                            <ComboBoxItem Content="Годовые"/>
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Список отчётов -->
+            <TextBlock Text="Доступные отчёты" FontSize="18" FontWeight="SemiBold" Margin="10,160,0,546"/>
+
+            <ItemsControl Margin="0,190,0,304">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <!--Отчёт 1: Выдача литературы-->
+                <Border Style="{StaticResource ReportCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+
+                        <!--Иконка-->
+
+                        <Path Grid.Column="0"
+                              Data="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"
+                              Style="{StaticResource ReportIconStyle}"
+                              Margin="0,0,16,0"/>
+
+
+                        <!--Текст-->
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Выдача литературы"
+                                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="Анализ выдачи книг по категориям, читателям, периодам."
+                                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+
+
+                        <!--Кнопки-->
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Content="Просмотр" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource AccentColor}"
+                                    Foreground="White"
+                                    Margin="0,0,8,0"
+                                    Click="ViewReport_Click"/>
+                            <Button Content="Excel" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource SuccessColor}"
+                                    Foreground="White"
+                                    Margin="0,0,8,0"
+                                    Click="ExportExcel_Click"/>
+                            <Button Content="Печать" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource LightGray}"
+                                    Foreground="#495057"
+                                    Click="PrintReport_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+
+                <!-- Отчёт 2: Читательская активность -->
+                <Border Style="{StaticResource ReportCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+              Style="{StaticResource ReportIconStyle}"
+              Margin="0,0,16,0"
+              Fill="{StaticResource SuccessColor}"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Читательская активность"
+                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="Рейтинги, посещаемость, новые читатели, возвраты."
+                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Content="Просмотр" Style="{StaticResource ReportButtonStyle}"
+                    Background="{StaticResource AccentColor}" Foreground="White" Margin="0,0,8,0"
+                    Click="ViewReaderActivity_Click"/>
+                            <Button Content="Excel" Style="{StaticResource ReportButtonStyle}"
+                    Background="{StaticResource SuccessColor}" Foreground="White" Margin="0,0,8,0"
+                    Click="ExportReaderActivityExcel_Click"/>
+                            <Button Content="PDF" Style="{StaticResource ReportButtonStyle}"
+                    Background="#6F42C1" Foreground="White"
+                    Click="ExportReaderActivityPDF_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Отчёт 3: Фонд библиотеки -->
+                <Border Style="{StaticResource ReportCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+              Data="M3 4l9 16 9-16H3zm10.41 12L9 10.22l1.41-1.41L13 11.78l5.59-5.59L20 7.59l-8 12z"
+              Style="{StaticResource ReportIconStyle}"
+              Margin="0,0,16,0"
+              Fill="{StaticResource WarningColor}"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Состояние библиотечного фонда"
+                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="Износ, утраты, новые поступления, редкие издания."
+                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Content="Просмотр" Style="{StaticResource ReportButtonStyle}"
+                    Background="{StaticResource AccentColor}" Foreground="White" Margin="0,0,8,0"
+                    Click="ViewFundReport_Click"/>
+                            <Button Content="PDF" Style="{StaticResource ReportButtonStyle}"
+                    Background="#6F42C1" Foreground="White"
+                    Click="ExportFundReportPDF_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <!-- Отчёт 4: Информационное обслуживание -->
+                <Border Style="{StaticResource ReportCardStyle}" Width="446">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+                              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                              Style="{StaticResource ReportIconStyle}"
+                              Margin="0,0,16,0"
+                              Fill="{StaticResource DangerColor}"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Информационное обслуживание"
+                                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="Выдано книг, справок, обслужено во человек во время мероприятий"
+                                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button x:Name="ViewReportButton"
+                                    Content="Просмотр" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource AccentColor}" 
+                                    Foreground="White" 
+                                    Margin="0,0,8,0"
+                                    Click="ViewReportButton_Click"/>
+                            <!-- УБРАНО: Click="ViewReport_Click" -->
+                            <Button x:Name="ExportExcelButton"
+                                    Content="Excel" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource SuccessColor}" 
+                                    Foreground="White"
+                                    Click="ExportExcelButton_Click"/>
+                            <!-- ДОБАВЛЕНО: Click обработчик -->
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <!-- Отчёт 4: Проверка библиотечного фонда -->
+                <Border Style="{StaticResource ReportCardStyle}" Width="446">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0"
+                              Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                              Style="{StaticResource ReportIconStyle}"
+                              Margin="0,0,16,0"
+                              Fill="{StaticResource DangerColor}"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Проверка библиотечного фонда"
+                                       Style="{StaticResource ReportTitleStyle}"/>
+                            <TextBlock Text="-"
+                                       Style="{StaticResource ReportDescStyle}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Grid.ColumnSpan="2" HorizontalAlignment="Right" Width="70">
+                            <Button x:Name="OpenButton"
+                                    Content="Открыть" 
+                                    Style="{StaticResource ReportButtonStyle}"
+                                    Background="{StaticResource AccentColor}" 
+                                    Foreground="White" 
+                                    Margin="0,0,8,0"
+                                    Click="OpenButton_Click"/>
+                            <!-- УБРАНО: Click="ViewReport_Click" -->
+
+                            <!-- ДОБАВЛЕНО: Click обработчик -->
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </ItemsControl>
+
+            <!-- Подвал -->
+            <TextBlock Text="💡 Совет: Для формирования отчёта за текущий день выберите одинаковые даты в фильтре."
+                       FontStyle="Italic"
+                       Foreground="#6C757D"
+                       FontSize="13"
+                       Margin="-9,30,0,670"
+                       HorizontalAlignment="Left" Width="852"/>
+        </Grid>
+    </ScrollViewer>
+</Page>

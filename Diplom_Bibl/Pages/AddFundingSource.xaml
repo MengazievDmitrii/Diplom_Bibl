@@ -1,0 +1,100 @@
+﻿<Page x:Class="Diplom_Bibl.Pages.AddFundingSource"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Управление статьями финансирования" Loaded="Page_Loaded"
+      Background="#F5F5F5">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Управление статьями финансирования" 
+                   Style="{StaticResource SectionTitleStyle}"/>
+
+        <Grid Grid.Row="1" Margin="0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Форма ввода -->
+            <StackPanel Grid.Column="0" Width="400" Margin="15">
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Код *" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbFundingSourceCode" Style="{StaticResource InputFieldStyle}" MaxLength="20"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Название *" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbFundingSourceName" Style="{StaticResource InputFieldStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Бухгалтерский счёт" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbAccountingAccount" Style="{StaticResource InputFieldStyle}" MaxLength="20"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Описание" Style="{StaticResource LabelStyle}"/>
+                    <TextBox x:Name="TbDescription" AcceptsReturn="True" Height="80" Style="{StaticResource InputFieldStyle}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,15" Orientation="Horizontal">
+                    <TextBlock Text="Активен" Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
+                    <CheckBox x:Name="ChkIsActive" IsChecked="True" Margin="10,0,0,0"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="BtnSaveNew" Content="Сохранить"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="BtnSaveNew_Click" Width="160" Margin="0,0,10,0"/>
+                    <Button x:Name="BtnSaveChanges" Content="Сохранить изменения"
+                            Style="{StaticResource SaveButtonStyle}"
+                            Click="BtnSaveChanges_Click" Visibility="Collapsed" Margin="0,0,10,0"/>
+                    <Button x:Name="BtnDelete" Content="Удалить"
+                            Style="{StaticResource DeleteButtonStyle}"
+                            Click="BtnDelete_Click" Visibility="Collapsed" Width="100"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Список -->
+            <Grid Grid.Column="1" Margin="15">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBox x:Name="SearchBox" Grid.Row="0" Style="{StaticResource InputFieldStyle}"
+                         TextChanged="SearchBox_TextChanged" Margin="0,0,0,10"
+                         ToolTip="Поиск по коду или названию"/>
+
+                <DataGrid x:Name="LvFundingSources" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                          RowHeight="32" AlternatingRowBackground="{StaticResource LightGray}"
+                          MouseDoubleClick="LvFundingSources_MouseDoubleClick">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Height" Value="35"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Код" Binding="{Binding FundingSourceCode}" Width="100"/>
+                        <DataGridTextColumn Header="Название" Binding="{Binding FundingSourceName}" Width="180"/>
+                        <DataGridTextColumn Header="Счёт" Binding="{Binding AccountingAccount}" Width="100"/>
+                        <DataGridTextColumn Header="Описание" Binding="{Binding Description}" Width="150"/>
+                        <DataGridCheckBoxColumn Header="Активен" Binding="{Binding IsActive}" Width="80"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <Button Grid.Row="2" Content="← Закрыть" Style="{StaticResource PrimaryButtonStyle}"
+                Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
+                HorizontalAlignment="Center" Width="160" Click="ClosePage_Click" Margin="0,20,0,0"/>
+    </Grid>
+</Page>
