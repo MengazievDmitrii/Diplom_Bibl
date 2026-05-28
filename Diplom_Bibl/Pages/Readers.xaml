@@ -5,8 +5,32 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       mc:Ignorable="d" 
       d:DesignHeight="650" d:DesignWidth="900"
-      Title="Readers" Loaded="Page_Loaded"
+      Title="Читатели" 
+      Loaded="Page_Loaded"
       Background="#F5F5F5">
+
+    <Page.Resources>
+        <DataTemplate x:Key="ReaderSearchItemTemplate">
+            <Border BorderBrush="{StaticResource BorderColor}" 
+                    BorderThickness="0,0,0,1" 
+                    Padding="10,8">
+                <StackPanel>
+                    <TextBlock Text="{Binding FullName}" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               FontSize="14"/>
+                    <TextBlock Text="{Binding CardNumber}" 
+                               FontSize="11" 
+                               Foreground="{StaticResource TextColor}"
+                               Margin="0,2,0,0"/>
+                    <TextBlock Text="{Binding TypeName}" 
+                               FontSize="11" 
+                               Foreground="{StaticResource SuccessColor}"
+                               FontStyle="Italic"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Page.Resources>
 
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -17,12 +41,10 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Заголовок -->
         <TextBlock Grid.Row="0" 
                    Text="Читатели" 
                    Style="{StaticResource SectionTitleStyle}"/>
 
-        <!-- Кнопка добавления -->
         <StackPanel Grid.Row="1" 
                     Orientation="Horizontal" 
                     Margin="0,10,0,20">
@@ -40,7 +62,6 @@
                     Margin="0,0,10,0"/>
         </StackPanel>
 
-        <!-- Панель поиска и фильтрации -->
         <Border Grid.Row="2"
                 Background="White"
                 CornerRadius="8"
@@ -57,30 +78,61 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Строка поиска -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                    <TextBlock Text="🔍 Поиск:" 
-                               VerticalAlignment="Center" 
-                               Margin="0,0,10,0"
-                               FontSize="14"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource TextColor}"/>
-                    <TextBox x:Name="SearchBox" 
-                             Width="400" 
-                             Style="{StaticResource InputFieldStyle}"
-                             Padding="8"
-                             TextChanged="SearchBox_TextChanged"
-                             GotFocus="SearchBox_GotFocus"
-                             LostFocus="SearchBox_LostFocus"/>
-                    <TextBlock x:Name="SearchCountLabel" 
-                               VerticalAlignment="Center"
-                               Margin="10,0,0,0"
-                               FontSize="12"
-                               Foreground="{StaticResource TextColor}"
-                               Opacity="0.7"/>
+                <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0,0,0,10">
+                    <!-- Поиск по ФИО/билету -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="🔍 Поиск по ФИО/билету:" 
+                                   VerticalAlignment="Center" 
+                                   Margin="0,0,10,0"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextColor}"/>
+                        <StackPanel>
+                            <TextBox x:Name="SearchBox" 
+                                     Width="400" 
+                                     Style="{StaticResource InputFieldStyle}"
+                                     Padding="8"
+                                     TextChanged="SearchBox_TextChanged"
+                                     GotFocus="SearchBox_GotFocus"
+                                     LostFocus="SearchBox_LostFocus"
+                                     PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                            <ListBox x:Name="SearchResultsList" 
+                                     Visibility="Collapsed"
+                                     MaxHeight="200"
+                                     Width="400"
+                                     Margin="0,2,0,0"
+                                     Background="White"
+                                     BorderBrush="{StaticResource BorderColor}"
+                                     BorderThickness="1"
+                                     ItemTemplate="{StaticResource ReaderSearchItemTemplate}"
+                                     SelectionChanged="SearchResultsList_SelectionChanged"/>
+                        </StackPanel>
+                        <TextBlock x:Name="SearchCountLabel" 
+                                   VerticalAlignment="Center"
+                                   Margin="10,0,0,0"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextColor}"
+                                   Opacity="0.7"/>
+                    </StackPanel>
+
+                    <!-- Поиск по должности -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔍 Поиск по должности:" 
+                                   VerticalAlignment="Center" 
+                                   Margin="0,0,10,0"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextColor}"/>
+                        <TextBox x:Name="SearchBoxPost" 
+                                 Width="300" 
+                                 Style="{StaticResource InputFieldStyle}"
+                                 Padding="8"
+                                 TextChanged="SearchBoxPost_TextChanged"
+                                 GotFocus="SearchBoxPost_GotFocus"
+                                 LostFocus="SearchBoxPost_LostFocus"/>
+                    </StackPanel>
                 </StackPanel>
 
-                <!-- Фильтры -->
                 <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Фильтры:" 
                                VerticalAlignment="Center" 
@@ -88,8 +140,6 @@
                                FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource TextColor}"/>
-
-                    <!-- Фильтр по типу читателя -->
                     <ComboBox x:Name="FilterTypeCombo" 
                               Width="150"
                               Style="{StaticResource InputFieldStyleCb}"
@@ -97,8 +147,6 @@
                               DisplayMemberPath="DisplayName"
                               SelectedValuePath="TypeID"
                               Margin="0,0,10,5"/>
-
-                    <!-- Фильтр по группе (для студентов) -->
                     <ComboBox x:Name="FilterGroupCombo" 
                               Width="120"
                               Style="{StaticResource InputFieldStyleCb}"
@@ -106,8 +154,6 @@
                               DisplayMemberPath="GroupCode"
                               SelectedValuePath="GroupID"
                               Margin="0,0,10,5"/>
-
-                    <!-- Кнопка сброса фильтров -->
                     <Button x:Name="ClearFiltersBtn" 
                             Content="✖ Сбросить все фильтры" 
                             Style="{StaticResource PrimaryButtonStyle}"
@@ -119,7 +165,6 @@
                             Margin="0,0,0,5"/>
                 </WrapPanel>
 
-                <!-- Текст подсказки -->
                 <TextBlock Grid.Row="2" 
                            Text="💡 Совет: Выберите тип читателя 'Студент', чтобы увидеть фильтр по группам. Поиск работает по фамилии, имени, номеру билета и должности."
                            FontSize="11"
@@ -129,7 +174,6 @@
             </Grid>
         </Border>
 
-        <!-- Список читателей -->
         <ListBox Grid.Row="3" 
                  x:Name="ReadersListView" 
                  Style="{StaticResource ModernListBoxStyle}"
@@ -137,8 +181,7 @@
                  SelectionMode="Single"
                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                  Margin="0,0,0,20"
-                 MouseDoubleClick="ReadersListView_MouseDoubleClick">
-
+                 MouseDoubleClick="ReadersListView_MouseDoubleClick" d:ItemsSource="{d:SampleData ItemCount=5}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Border Padding="15" 
@@ -147,7 +190,6 @@
                             Background="{StaticResource PrimaryLightColor}"
                             BorderBrush="{StaticResource BorderColor}"
                             BorderThickness="1">
-
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -155,7 +197,6 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Аватар с инициалами -->
                             <Border Grid.Column="0"
                                     Width="50"
                                     Height="50"
@@ -170,58 +211,26 @@
                                            VerticalAlignment="Center"/>
                             </Border>
 
-                            <!-- Информация о читателе -->
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="{Binding FullName}" 
                                            FontSize="18" 
                                            FontWeight="Bold"
                                            Foreground="{StaticResource PrimaryColor}"/>
-
                                 <WrapPanel Margin="0,5,0,5">
-                                    <TextBlock Text="№: " 
-                                               FontSize="13" 
-                                               Foreground="{StaticResource TextColor}"
-                                               Opacity="0.7"/>
-                                    <TextBlock Text="{Binding CardNumber}" 
-                                               FontSize="13" 
-                                               Foreground="{StaticResource AccentColor}"
-                                               FontWeight="Bold"
-                                               Margin="0,0,15,0"/>
-
-                                    <TextBlock Text="Тип: " 
-                                               FontSize="13" 
-                                               Foreground="{StaticResource TextColor}"
-                                               Opacity="0.7"/>
-                                    <TextBlock Text="{Binding TypeName}" 
-                                               FontSize="13" 
-                                               Foreground="{StaticResource SuccessColor}"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,15,0"/>
+                                    <TextBlock Text="№: " FontSize="13" Foreground="{StaticResource TextColor}" Opacity="0.7"/>
+                                    <TextBlock Text="{Binding CardNumber}" FontSize="13" Foreground="{StaticResource AccentColor}" FontWeight="Bold" Margin="0,0,15,0"/>
+                                    <TextBlock Text="Тип: " FontSize="13" Foreground="{StaticResource TextColor}" Opacity="0.7"/>
+                                    <TextBlock Text="{Binding TypeName}" FontSize="13" Foreground="{StaticResource SuccessColor}" FontWeight="SemiBold" Margin="0,0,15,0"/>
                                 </WrapPanel>
-
                                 <WrapPanel>
-                                    <TextBlock Text="📞 " 
-                                               FontSize="12"/>
-                                    <TextBlock Text="{Binding PhoneNumber}" 
-                                               FontSize="12" 
-                                               Foreground="{StaticResource TextColor}"
-                                               Margin="0,0,15,0"/>
-
-                                    <TextBlock Text="📅 " 
-                                               FontSize="12"/>
-                                    <TextBlock Text="{Binding MembershipDateString}" 
-                                               FontSize="12" 
-                                               Foreground="{StaticResource TextColor}"/>
+                                    <TextBlock Text="📞 " FontSize="12"/>
+                                    <TextBlock Text="{Binding PhoneNumber}" FontSize="12" Foreground="{StaticResource TextColor}" Margin="0,0,15,0"/>
+                                    <TextBlock Text="📅 " FontSize="12"/>
+                                    <TextBlock Text="{Binding MembershipDateString}" FontSize="12" Foreground="{StaticResource TextColor}"/>
                                 </WrapPanel>
-
-                                <TextBlock Text="{Binding GroupOrPostInfo}" 
-                                           FontSize="12" 
-                                           Foreground="{StaticResource WarningColor}"
-                                           FontStyle="Italic"
-                                           Margin="0,5,0,0"/>
+                                <TextBlock Text="{Binding GroupOrPostInfo}" FontSize="12" Foreground="{StaticResource WarningColor}" FontStyle="Italic" Margin="0,5,0,0"/>
                             </StackPanel>
 
-                            <!-- Иконка для перехода -->
                             <Border Grid.Column="2"
                                     Width="30"
                                     Height="30"
@@ -230,12 +239,7 @@
                                     Margin="10,0,0,0"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center">
-                                <TextBlock Text="→" 
-                                           FontSize="16"
-                                           FontWeight="Bold"
-                                           Foreground="{StaticResource PrimaryColor}"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="→" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
                     </Border>
@@ -243,7 +247,6 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- Панель статистики -->
         <Border Grid.Row="4"
                 Background="White"
                 CornerRadius="8"
@@ -251,33 +254,13 @@
                 BorderThickness="1"
                 Padding="15"
                 Effect="{StaticResource DropShadowEffect}">
-
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="Всего читателей: " 
-                           FontWeight="Bold"
-                           Foreground="{StaticResource TextColor}"/>
-                <TextBlock x:Name="TotalReadersCount" 
-                           Text="0" 
-                           Margin="0,0,30,0"
-                           Foreground="{StaticResource PrimaryColor}"
-                           FontWeight="Bold"/>
-
-                <TextBlock Text="Студентов: " 
-                           FontWeight="Bold"
-                           Foreground="{StaticResource TextColor}"/>
-                <TextBlock x:Name="StudentsCount" 
-                           Text="0" 
-                           Margin="0,0,30,0"
-                           Foreground="{StaticResource SuccessColor}"
-                           FontWeight="Bold"/>
-
-                <TextBlock Text="Сотрудников: " 
-                           FontWeight="Bold"
-                           Foreground="{StaticResource TextColor}"/>
-                <TextBlock x:Name="EmployeesCount" 
-                           Text="0" 
-                           Foreground="{StaticResource AccentColor}"
-                           FontWeight="Bold"/>
+                <TextBlock Text="Всего читателей: " FontWeight="Bold" Foreground="{StaticResource TextColor}"/>
+                <TextBlock x:Name="TotalReadersCount" Text="0" Margin="0,0,30,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold"/>
+                <TextBlock Text="Студентов: " FontWeight="Bold" Foreground="{StaticResource TextColor}"/>
+                <TextBlock x:Name="StudentsCount" Text="0" Margin="0,0,30,0" Foreground="{StaticResource SuccessColor}" FontWeight="Bold"/>
+                <TextBlock Text="Сотрудников: " FontWeight="Bold" Foreground="{StaticResource TextColor}"/>
+                <TextBlock x:Name="EmployeesCount" Text="0" Foreground="{StaticResource AccentColor}" FontWeight="Bold"/>
             </StackPanel>
         </Border>
     </Grid>

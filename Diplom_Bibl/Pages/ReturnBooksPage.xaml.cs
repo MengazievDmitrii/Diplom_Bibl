@@ -453,31 +453,40 @@ namespace Diplom_Bibl.Pages
 
         private void ReturnIndividualBook(int issuanceId)
         {
-            try
+            // Проверка, что выдача ещё активна
+            if (!IsIssuanceActive(issuanceId))
             {
-                var result = CustomMessageBox.Show(
-                    "Вернуть книгу?",
-                    "Подтверждение возврата",
-                    CustomMessageBoxButton.YesNo,
-                    CustomMessageBoxImage.Question);
+                CustomMessageBox.Show("Эта книга уже возвращена!", "Предупреждение",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
+            }
 
-                if (result == CustomMessageBoxResult.Yes)
+            var result = CustomMessageBox.Show("Вернуть книгу?",
+                "Подтверждение возврата",
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
+
+            if (result == CustomMessageBoxResult.Yes)
+            {
+                _issuanceService.ReturnBook("individual", issuanceId);
+                // Обновляем список выдач после возврата
+                if (_selectedReader != null)
                 {
-                    _issuanceService.ReturnBook("individual", issuanceId);
-
-                    CustomMessageBox.Show("Книга успешно возвращена!", "Успех",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                    if (_selectedReader != null)
-                    {
-                        LoadActiveIssuances(_selectedReader.ReaderID, _selectedReader.TypeName);
-                    }
+                    LoadActiveIssuances(_selectedReader.ReaderID, _selectedReader.TypeName);
                 }
             }
-            catch (Exception ex)
+        }
+        private bool IsIssuanceActive(int issuanceId)
+        {
+            using (var conn = new SqlConnection(_connectionString))
             {
-                CustomMessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                conn.Open();
+                string sql = "SELECT COUNT(*) FROM BookIssuance WHERE ID_Issuance = @Id AND ReturnDate IS NULL";
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Id", issuanceId);
+                    return (int)cmd.ExecuteScalar() > 0;
+                }
             }
         }
 
@@ -508,12 +517,13 @@ namespace Diplom_Bibl.Pages
                                     foreach (var book in bookGroup.Items.Where(i => i.RemainingQuantity > 0))
                                     {
                                         string updateBooksSql = @"
-                                            UPDATE Books 
-                                            SET 
-                                                CopiesInUse = CopiesInUse - @Quantity,
-                                                AvailableCopies = AvailableCopies + @Quantity,
-                                                StatusBook = CASE WHEN AvailableCopies + @Quantity > 0 THEN 1 ELSE StatusBook END
-                                            WHERE IDBook = @IDBook";
+    UPDATE Books 
+    SET 
+        CopiesInUse = CopiesInUse - @Quantity,
+        AvailableCopies = AvailableCopies + @Quantity,
+        StatusBook = 1
+    WHERE IDBook = @IDBook
+      AND CopiesInUse >= @Quantity";   
 
                                         using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                         {
@@ -664,12 +674,13 @@ namespace Diplom_Bibl.Pages
                                         if (checkBox.IsChecked == true && checkBox.Tag is GroupBookItem book)
                                         {
                                             string updateBooksSql = @"
-                                                UPDATE Books 
-                                                SET 
-                                                    CopiesInUse = CopiesInUse - 1,
-                                                    AvailableCopies = AvailableCopies + 1,
-                                                    StatusBook = 1
-                                                WHERE IDBook = @IDBook";
+    UPDATE Books 
+    SET 
+        CopiesInUse = CopiesInUse - 1,
+        AvailableCopies = AvailableCopies + 1,
+        StatusBook = 1
+    WHERE IDBook = @IDBook
+      AND CopiesInUse > 0";   
 
                                             using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                             {

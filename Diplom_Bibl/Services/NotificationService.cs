@@ -90,63 +90,48 @@ namespace Diplom_Bibl.Services
 
                     if (IsLibrarianOrAdmin())
                     {
-                        // Загружаем только НЕПРОЧИТАННЫЕ уведомления для библиотекаря
+                        // Упрощенный запрос для библиотекаря (без лишних подзапросов)
                         query = @"
-                            SELECT 
-                                n.ID_Notification, 
-                                n.RequestID, 
-                                n.Message, 
-                                nt.TypeName AS NotificationType,
-                                n.CreatedDate, 
-                                n.IsRead,
-                                br.RequestNumber,
-                                br.ExpirationDate,
-                                ISNULL(rf.LastName + ' ' + rf.FirstName + ' ' + rf.MiddleName, 'Не указано') AS UserName,
-                                ISNULL(g.GroupCode, 'Не указана') AS GroupName,
-                                ISNULL(br.LessonName, 'Не указано') AS LessonName,
-                                FORMAT(br.LessonDate, 'dd.MM.yyyy') AS LessonDate,
-                                ISNULL(LEFT(br.LessonTime, 5), 'Не указано') AS LessonTime,
-                                (SELECT COUNT(*) FROM RequestItems WHERE RequestID = br.ID_Request) AS BooksCount,
-                                STUFF((
-                                    SELECT ', ' + b.TitleBook 
-                                    FROM RequestItems ri
-                                    INNER JOIN Books b ON ri.BookID = b.IDBook
-                                    WHERE ri.RequestID = br.ID_Request
-                                    FOR XML PATH('')
-                                ), 1, 2, '') AS BookTitles
-                            FROM RequestNotifications n
-                            INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
-                            INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
-                            LEFT JOIN ReaderForm rf ON br.UserID = rf.ReaderID
-                            LEFT JOIN Groups g ON rf.GroupID = g.GroupID
-                            WHERE n.IsRead = 0
-                            ORDER BY n.CreatedDate DESC";
+                    SELECT TOP 5 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        br.RequestNumber,
+                        br.ExpirationDate,
+                        ISNULL(rf.LastName + ' ' + rf.FirstName + ' ' + rf.MiddleName, 'Не указано') AS UserName,
+                        ISNULL(g.GroupCode, 'Не указана') AS GroupName,
+                        ISNULL(br.LessonName, 'Не указано') AS LessonName,
+                        CONVERT(NVARCHAR(10), br.LessonDate, 104) AS LessonDate,
+                        ISNULL(LEFT(br.LessonTime, 5), 'Не указано') AS LessonTime
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    LEFT JOIN ReaderForm rf ON br.UserID = rf.ReaderID
+                    LEFT JOIN Groups g ON rf.GroupID = g.GroupID
+                    WHERE n.IsRead = 0
+                    ORDER BY n.CreatedDate DESC";
                     }
                     else
                     {
-                        // Для читателей - только свои НЕПРОЧИТАННЫЕ уведомления
+                        // Упрощенный запрос для читателя
                         query = @"
-                            SELECT 
-                                n.ID_Notification, 
-                                n.RequestID, 
-                                n.Message, 
-                                nt.TypeName AS NotificationType,
-                                n.CreatedDate, 
-                                n.IsRead,
-                                br.RequestNumber,
-                                br.ExpirationDate,
-                                '' AS UserName,
-                                '' AS GroupName,
-                                '' AS LessonName,
-                                '' AS LessonDate,
-                                '' AS LessonTime,
-                                0 AS BooksCount,
-                                '' AS BookTitles
-                            FROM RequestNotifications n
-                            INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
-                            INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
-                            WHERE br.UserID = @UserId AND n.IsRead = 0
-                            ORDER BY n.CreatedDate DESC";
+                    SELECT TOP 5 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        br.RequestNumber,
+                        br.ExpirationDate
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    WHERE br.UserID = @UserId AND n.IsRead = 0
+                    ORDER BY n.CreatedDate DESC";
                     }
 
                     using (var cmd = new SqlCommand(query, conn))
@@ -172,15 +157,18 @@ namespace Diplom_Bibl.Services
                                     CreatedDate = reader.GetDateTime(4),
                                     IsRead = reader.GetBoolean(5),
                                     RequestNumber = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                    ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
-                                    UserName = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                                    GroupName = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                                    LessonName = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                                    LessonDate = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                                    LessonTime = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                                    BooksCount = reader.IsDBNull(13) ? 0 : reader.GetInt32(13),
-                                    BookTitles = reader.IsDBNull(14) ? "" : reader.GetString(14)
+                                    ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7)
                                 };
+
+                                // Для библиотекаря добавляем дополнительные поля
+                                if (IsLibrarianOrAdmin())
+                                {
+                                    notification.UserName = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                    notification.GroupName = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                                    notification.LessonName = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                                    notification.LessonDate = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                                    notification.LessonTime = reader.IsDBNull(12) ? "" : reader.GetString(12);
+                                }
 
                                 _notifications.Add(notification);
 
@@ -189,7 +177,7 @@ namespace Diplom_Bibl.Services
                             }
 
                             _lastNotificationId = maxId;
-                            System.Diagnostics.Debug.WriteLine($"Загружено НЕПРОЧИТАННЫХ уведомлений: {_notifications.Count}");
+                            System.Diagnostics.Debug.WriteLine($"Загружено уведомлений: {_notifications.Count}");
 
                             _dispatcher.Invoke(() => NotificationsUpdated?.Invoke(this, _notifications));
                             _dispatcher.Invoke(() => UnreadCountChanged?.Invoke(this, GetUnreadCount()));

@@ -41,6 +41,7 @@ namespace Diplom_Bibl.Windows
         private int? _currentSessionId;
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private bool _isLoggingOut = false;
+        private System.Threading.Timer _returnDateTimer; // Сохраняем таймер для корректного завершения
 
         #endregion
 
@@ -71,7 +72,16 @@ namespace Diplom_Bibl.Windows
             InitializeNotificationService();
             SetupMenuVisibility();
             this.SizeChanged += MainWindow_SizeChanged;
-            StartReturnDateMonitoring();
+
+            // ЗАПУСКАЕМ МОНИТОРИНГ С ЗАДЕРЖКОЙ (через 30 секунд после загрузки)
+            StartReturnDateMonitoringDelayed();
+        }
+
+        private async void StartReturnDateMonitoringDelayed()
+        {
+            // Ждем 30 секунд после загрузки окна
+            await Task.Delay(30000);
+            StartReturnDateMonitoringAsync();
         }
 
         #endregion
@@ -307,6 +317,10 @@ namespace Diplom_Bibl.Windows
                     _notificationService.StopPolling();
                     _notificationService.Dispose();
                 }
+                if (_returnDateTimer != null)
+                {
+                    _returnDateTimer.Dispose();
+                }
                 var autorisationWindow = new AutorisationWindow();
                 autorisationWindow.Show();
                 this.Close();
@@ -332,6 +346,10 @@ namespace Diplom_Bibl.Windows
                 _notificationService.StopPolling();
                 _notificationService.Dispose();
             }
+            if (_returnDateTimer != null)
+            {
+                _returnDateTimer.Dispose();
+            }
             base.OnClosing(e);
         }
 
@@ -343,9 +361,9 @@ namespace Diplom_Bibl.Windows
         {
             int notificationUserId;
             if (_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN"))
-                notificationUserId = _currentUserId;  // Для библиотекаря
+                notificationUserId = _currentUserId;
             else
-                notificationUserId = _currentReaderId; // Для читателя
+                notificationUserId = _currentReaderId;
 
             System.Diagnostics.Debug.WriteLine($"=== ИНИЦИАЛИЗАЦИЯ NotificationService ===");
             System.Diagnostics.Debug.WriteLine($"_currentUserId: {_currentUserId}");
@@ -358,12 +376,12 @@ namespace Diplom_Bibl.Windows
                 Dispatcher.CurrentDispatcher,
                 notificationUserId,
                 _currentUserTypeId,
-                _userRoles  // Передаем роли!
+                _userRoles
             );
 
             _notificationService.NewNotificationReceived += OnNewNotificationReceived;
             _notificationService.UnreadCountChanged += OnUnreadCountChanged;
-            _notificationService.StartPolling(5);
+            _notificationService.StartPolling(10);
         }
 
         private void OnNewNotificationReceived(object sender, NotificationService.NotificationItem notification)
@@ -373,7 +391,6 @@ namespace Diplom_Bibl.Windows
 
             Dispatcher.Invoke(() =>
             {
-                // Показываем всплывающее окно для ВСЕХ типов уведомлений
                 ShowFloatingNotification(notification);
             });
         }
@@ -404,7 +421,6 @@ namespace Diplom_Bibl.Windows
 
             var mainStack = new StackPanel();
 
-            // Заголовок
             var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
 
             string icon = "🔔";
@@ -454,7 +470,6 @@ namespace Diplom_Bibl.Windows
             notificationWindow.Content = border;
             notificationWindow.Show();
 
-            // Автоматическое закрытие через 7 секунд
             var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
             timer.Tick += (s, e) =>
             {
@@ -556,7 +571,10 @@ namespace Diplom_Bibl.Windows
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}"); }
         }
 
-        public async Task CheckUpcomingReturnDates()
+        /// <summary>
+        /// Проверка приближающихся сроков возврата книг - АСИНХРОННЫЙ МЕТОД
+        /// </summary>
+        private async Task CheckUpcomingReturnDatesAsync()
         {
             try
             {
@@ -603,7 +621,7 @@ namespace Diplom_Bibl.Windows
                     }
                 }
             }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}"); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка проверки сроков возврата: {ex.Message}"); }
         }
 
         public async Task SendComputerSessionNotificationToLibrarian(string userName, string groupCode)
@@ -628,10 +646,19 @@ namespace Diplom_Bibl.Windows
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}"); }
         }
 
-        public void StartReturnDateMonitoring()
+        /// <summary>
+        /// Запуск фоновой проверки сроков возврата книг (НЕ БЛОКИРУЕТ UI)
+        /// </summary>
+        private async void StartReturnDateMonitoringAsync()
         {
-            Task.Run(async () => await CheckUpcomingReturnDates());
-            var timer = new System.Threading.Timer(async _ => await CheckUpcomingReturnDates(), null, GetNextMorningTime(), TimeSpan.FromHours(24));
+            // Запускаем проверку в фоновом потоке, не дожидаясь результата
+            await Task.Run(async () => await CheckUpcomingReturnDatesAsync());
+
+            // Запускаем таймер для следующей проверки
+            _returnDateTimer = new System.Threading.Timer(async _ =>
+            {
+                await CheckUpcomingReturnDatesAsync();
+            }, null, GetNextMorningTime(), TimeSpan.FromHours(24));
         }
 
         private TimeSpan GetNextMorningTime()
@@ -865,7 +892,6 @@ namespace Diplom_Bibl.Windows
             parent.Children.Add(row);
         }
 
-        
         #endregion
     }
 }

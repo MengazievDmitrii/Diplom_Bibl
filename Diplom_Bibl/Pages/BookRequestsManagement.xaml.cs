@@ -622,18 +622,18 @@ namespace Diplom_Bibl.Pages
 
             if (confirmResult != CustomMessageBoxResult.Yes) return;
 
-            var infoServicePage = new InformationServicePage();
-
-            if (request.GroupID.HasValue && request.GroupID > 0)
-            {
-                infoServicePage.SetDataFromRequest(requestId, request.UserID, request.GroupID,
-                    request.UserName, request.GroupCode, request.LessonName, request.LessonDate);
-            }
-            else
-            {
-                infoServicePage.SetDataFromRequestIndividual(requestId, request.UserID, request.UserName,
-                    request.LessonName, request.LessonDate, request.UserTypeID);
-            }
+            // ПЕРЕДАЁМ ВСЕ ДАННЫЕ ЧЕРЕЗ КОНСТРУКТОР!
+            var infoServicePage = new InformationServicePage(
+                requestId: requestId,
+                userId: request.UserID,
+                groupId: request.GroupID,
+                userName: request.UserName,
+                groupCode: request.GroupCode,
+                lessonName: request.LessonName,
+                lessonDate: request.LessonDate,
+                userTypeId: request.UserTypeID,
+                quantity: request.TotalBooks
+            );
 
             NavigationService?.Navigate(infoServicePage);
         }

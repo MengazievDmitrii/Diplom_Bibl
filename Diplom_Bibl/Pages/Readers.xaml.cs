@@ -15,10 +15,14 @@ namespace Diplom_Bibl.Pages
 {
     public partial class Readers : Page
     {
-        private string connectionString = DatabaseHelper.ConnectionString ;
+        private string connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<ReaderDisplayItem> _allReaders;
         private ObservableCollection<ReaderDisplayItem> _filteredReaders;
+        private ObservableCollection<ReaderDisplayItem> _searchResults;
+
         private int? _currentReaderId = null;
+        private bool _isSearchProgrammatic = false;
+
 
         // Класс для отображения читателя в списке
         public class ReaderDisplayItem
@@ -82,6 +86,18 @@ namespace Diplom_Bibl.Pages
         public Readers()
         {
             InitializeComponent();
+            _searchResults = new ObservableCollection<ReaderDisplayItem>();
+
+            // Устанавливаем плейсхолдеры
+            SetPlaceholders();
+        }
+
+        private void SetPlaceholders()
+        {
+            SearchBox.Text = "Поиск по фамилии, имени или номеру билета...";
+            SearchBox.Foreground = Brushes.Gray;
+            SearchBoxPost.Text = "Поиск по должности...";
+            SearchBoxPost.Foreground = Brushes.Gray;
         }
 
         private void Page_Loaded(object sender, RoutedEventArgs e)
@@ -237,15 +253,24 @@ namespace Diplom_Bibl.Pages
 
             var filtered = _allReaders.AsEnumerable();
 
-            // Фильтр по тексту поиска (включая поиск по должности)
+            // Фильтр по тексту поиска (ФИО, номер билета)
             string searchTerm = SearchBox.Text?.Trim() ?? "";
-            if (!string.IsNullOrEmpty(searchTerm) && searchTerm != "Поиск по фамилии или номеру билета...")
+            if (!string.IsNullOrEmpty(searchTerm) &&
+                searchTerm != "Поиск по фамилии, имени или номеру билета...")
             {
                 filtered = filtered.Where(r =>
                     r.LastName.ToLower().Contains(searchTerm.ToLower()) ||
                     r.FirstName.ToLower().Contains(searchTerm.ToLower()) ||
-                    r.CardNumber.ToLower().Contains(searchTerm.ToLower()) ||
-                    (r.PostName?.ToLower().Contains(searchTerm.ToLower()) ?? false));
+                    r.CardNumber.ToLower().Contains(searchTerm.ToLower()));
+            }
+
+            // Фильтр по должности
+            string searchPostTerm = SearchBoxPost.Text?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(searchPostTerm) &&
+                searchPostTerm != "Поиск по должности...")
+            {
+                filtered = filtered.Where(r =>
+                    (r.PostName?.ToLower().Contains(searchPostTerm.ToLower()) ?? false));
             }
 
             // Фильтр по типу читателя
@@ -282,14 +307,25 @@ namespace Diplom_Bibl.Pages
             EmployeesCount.Text = _allReaders.Count(r => r.TypeName?.ToLower().Contains("сотрудник") == true).ToString();
         }
 
+        // Обработчики SearchBox (ФИО/билет)
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ApplyFilters();
+            if (_isSearchProgrammatic) return;
+
+            string searchText = SearchBox.Text.Trim();
+            if (string.IsNullOrEmpty(searchText) || searchText == "Поиск по фамилии, имени или номеру билета...")
+            {
+                SearchResultsList.Visibility = Visibility.Collapsed;
+                ApplyFilters();  // Показываем всех (фильтр по другим параметрам)
+                return;
+            }
+
+            PerformSearch(searchText);
         }
 
         private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
         {
-            if (SearchBox.Text == "Поиск по фамилии или номеру билета...")
+            if (SearchBox.Text == "Поиск по фамилии, имени или номеру билета...")
             {
                 SearchBox.Text = "";
                 SearchBox.Foreground = Brushes.Black;
@@ -300,8 +336,32 @@ namespace Diplom_Bibl.Pages
         {
             if (string.IsNullOrWhiteSpace(SearchBox.Text))
             {
-                SearchBox.Text = "Поиск по фамилии или номеру билета...";
+                SearchBox.Text = "Поиск по фамилии, имени или номеру билета...";
                 SearchBox.Foreground = Brushes.Gray;
+            }
+        }
+
+        // Обработчики SearchBoxPost (должность)
+        private void SearchBoxPost_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilters();
+        }
+
+        private void SearchBoxPost_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (SearchBoxPost.Text == "Поиск по должности...")
+            {
+                SearchBoxPost.Text = "";
+                SearchBoxPost.Foreground = Brushes.Black;
+            }
+        }
+
+        private void SearchBoxPost_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(SearchBoxPost.Text))
+            {
+                SearchBoxPost.Text = "Поиск по должности...";
+                SearchBoxPost.Foreground = Brushes.Gray;
             }
         }
 
@@ -314,8 +374,87 @@ namespace Diplom_Bibl.Pages
         {
             FilterTypeCombo.SelectedIndex = 0;
             FilterGroupCombo.SelectedIndex = 0;
-            SearchBox.Text = "";
+            SearchBox.Text = "Поиск по фамилии, имени или номеру билета...";
+            SearchBox.Foreground = Brushes.Gray;
+            SearchBoxPost.Text = "Поиск по должности...";
+            SearchBoxPost.Foreground = Brushes.Gray;
             ApplyFilters();
+        }
+        private void PerformSearch(string searchText)
+        {
+            if (string.IsNullOrWhiteSpace(searchText) ||
+                searchText == "Поиск по фамилии, имени или номеру билета...")
+            {
+                SearchResultsList.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            _searchResults.Clear();
+
+            var filtered = _allReaders.Where(r =>
+                r.LastName.ToLower().Contains(searchText.ToLower()) ||
+                r.FirstName.ToLower().Contains(searchText.ToLower()) ||
+                r.CardNumber.ToLower().Contains(searchText.ToLower()))
+                .Take(10);
+
+            foreach (var item in filtered)
+                _searchResults.Add(item);
+
+            SearchResultsList.ItemsSource = _searchResults;
+            SearchResultsList.Visibility = _searchResults.Any() ? Visibility.Visible : Visibility.Collapsed;
+        }
+        private void SearchResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SearchResultsList.SelectedItem is ReaderDisplayItem selected)
+            {
+                _isSearchProgrammatic = true;
+                SearchBox.Text = selected.FullName;
+                SearchResultsList.Visibility = Visibility.Collapsed;
+
+                // Применяем фильтр по выбранному читателю (очищаем другие фильтры поиска)
+                FilterTypeCombo.SelectedIndex = 0;
+                FilterGroupCombo.SelectedIndex = 0;
+                SearchBoxPost.Text = "Поиск по должности...";
+                SearchBoxPost.Foreground = Brushes.Gray;
+
+                // Фильтруем по ID выбранного читателя
+                var filtered = _allReaders.Where(r => r.ReaderID == selected.ReaderID);
+                _filteredReaders = new ObservableCollection<ReaderDisplayItem>(filtered);
+                ReadersListView.ItemsSource = _filteredReaders;
+                UpdateSearchCount();
+
+                _isSearchProgrammatic = false;
+                SearchBox.SelectAll();  // Выделить текст для удобства
+            }
+        }
+        private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (SearchResultsList.Visibility != Visibility.Visible) return;
+
+            switch (e.Key)
+            {
+                case Key.Down:
+                    if (SearchResultsList.SelectedIndex < SearchResultsList.Items.Count - 1)
+                        SearchResultsList.SelectedIndex++;
+                    e.Handled = true;
+                    break;
+                case Key.Up:
+                    if (SearchResultsList.SelectedIndex > 0)
+                        SearchResultsList.SelectedIndex--;
+                    e.Handled = true;
+                    break;
+                case Key.Enter:
+                    if (SearchResultsList.SelectedItem != null)
+                    {
+                        SearchResultsList_SelectionChanged(null, null);
+                        e.Handled = true;
+                    }
+                    break;
+                case Key.Escape:
+                    SearchResultsList.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                    break;
+            }
         }
 
         private void AddReader_Click(object sender, RoutedEventArgs e)
