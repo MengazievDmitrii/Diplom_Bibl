@@ -5,7 +5,7 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplom_Bibl.Pages"
       mc:Ignorable="d" 
-      d:DesignHeight="850" d:DesignWidth="1000"
+      d:DesignHeight="950" d:DesignWidth="1000"
       Title="Массовое добавление книг" Loaded="Page_Loaded"
       Background="#F5F5F5">
 
@@ -16,11 +16,20 @@
             <Setter Property="Padding" Value="10"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
         </Style>
+
+        <!-- Стиль для панели создания акта -->
+        <Style x:Key="ReceiptFormStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource LightGray}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
     </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid Margin="24">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -41,20 +50,118 @@
                                Foreground="{StaticResource PrimaryColor}"
                                FontSize="14"
                                Margin="0,0,0,5"/>
-                    <TextBlock Text="Заполните данные о книге один раз. Укажите количество экземпляров, и система автоматически создаст указанное количество записей с уникальными инвентарными номерами." 
+                    <TextBlock Text="1. Если акта поступления ещё нет - создайте его в разделе ниже
+                               2. Заполните данные о книге
+                               3. Укажите количество экземпляров. 
+                               4.Нажмите 'Сохранить книги'" 
                                TextWrapping="Wrap"
                                FontSize="13"/>
                 </StackPanel>
             </Border>
 
-            <!-- Форма добавления книги -->
-            <Border Grid.Row="2"
+            <!-- ========== ПАНЕЛЬ СОЗДАНИЯ НОВОГО АКТА ПОСТУПЛЕНИЯ ========== -->
+            <Border Grid.Row="2" Style="{StaticResource ReceiptFormStyle}">
+                <StackPanel>
+                    <TextBlock Text="📋 Создание нового акта поступления" 
+                               FontWeight="Bold" 
+                               FontSize="14"
+                               Foreground="{StaticResource PrimaryColor}"
+                               Margin="0,0,0,10"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Ответственное лицо -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,10,5">
+                            <TextBlock Text="Ответственное лицо *" 
+                                       Style="{StaticResource LabelStyle}"
+                                       FontSize="12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="NewReceiptResponsibleCombo"
+                                          Grid.Column="0"
+                                          Style="{StaticResource InputFieldStyleCb}"
+                                          DisplayMemberPath="FullName"
+                                          SelectedValuePath="ID_User"
+                                          Height="32"/>
+                                <Button Grid.Column="1"
+                                        Content="+"
+                                        Width="32"
+                                        Height="32"
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Click="AddResponsibleUser_Click"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Поставщик -->
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="10,0,10,5">
+                            <TextBlock Text="Поставщик" 
+                                       Style="{StaticResource LabelStyle}"
+                                       FontSize="12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="NewReceiptSupplierCombo"
+                                          Grid.Column="0"
+                                          Style="{StaticResource InputFieldStyleCb}"
+                                          DisplayMemberPath="SupplierName"
+                                          SelectedValuePath="ID_Supplier"
+                                          Height="32"/>
+                                <Button Grid.Column="1"
+                                        Content="+"
+                                        Width="32"
+                                        Height="32"
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Click="AddSupplier_Click"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Комментарий -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,5,10,0">
+                            <TextBlock Text="Комментарий к акту" 
+                                       Style="{StaticResource LabelStyle}"
+                                       FontSize="12"/>
+                            <TextBox x:Name="NewReceiptCommentBox"
+                                     Style="{StaticResource InputFieldStyle}"
+                                     Height="30"/>
+                        </StackPanel>
+
+                        <!-- Кнопка создания акта -->
+                        <Button Grid.Row="1" Grid.Column="2"
+                                Content="➕ Создать акт"
+                                Style="{StaticResource SaveButtonStyle}"
+                                Width="140"
+                                Height="36"
+                                Click="CreateNewReceipt_Click"
+                                VerticalAlignment="Bottom"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ========== ОСНОВНАЯ ФОРМА ДОБАВЛЕНИЯ КНИГИ ========== -->
+            <Border Grid.Row="3"
                     Background="White"
                     CornerRadius="8"
                     BorderBrush="{StaticResource BorderColor}"
                     BorderThickness="1"
                     Padding="20"
-                    Effect="{StaticResource DropShadowEffect}">
+                    Effect="{StaticResource DropShadowEffect}"
+                    Margin="0,10,0,0">
 
                 <StackPanel>
                     <TextBlock Text="Данные книги" 
@@ -136,7 +243,7 @@
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Вид издания (EditionTypes) - заменяет ViewBook -->
+                            <!-- Вид издания -->
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="Вид издания *" 
                                            Style="{StaticResource LabelStyle}"/>
@@ -184,9 +291,9 @@
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Акт поступления -->
+                            <!-- Акт поступления (выбор существующего) -->
                             <StackPanel Margin="0,0,0,10">
-                                <TextBlock Text="Акт поступления" 
+                                <TextBlock Text="Акт поступления *" 
                                            Style="{StaticResource LabelStyle}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -200,12 +307,13 @@
                                               SelectedValuePath="ID"
                                               SelectionChanged="ReceiptCombo_SelectionChanged"/>
                                     <Button Grid.Column="1"
-                                            Content="+"
+                                            Content="🔄"
                                             Width="36"
                                             Height="36"
                                             Margin="5,0,0,0"
                                             Style="{StaticResource PrimaryButtonStyle}"
-                                            Click="AddReceipt_Click"/>
+                                            ToolTip="Обновить список актов"
+                                            Click="RefreshReceipts_Click"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>
@@ -305,7 +413,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Аннотация (на всю ширину) -->
+                        <!-- Аннотация -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,10">
                             <TextBlock Text="Аннотация" Style="{StaticResource LabelStyle}"/>
                             <TextBox x:Name="AnnotationBox" 
@@ -315,27 +423,32 @@
                                      TextWrapping="Wrap"/>
                         </StackPanel>
 
-                        <!-- Количество экземпляров (на всю ширину) -->
+                        <!-- Количество экземпляров + Начальный инвентарный номер -->
                         <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                 Background="{StaticResource PrimaryLightColor}"
                                 CornerRadius="8"
                                 Padding="15"
                                 Margin="0,10,0,15">
                             <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0"
+                                <!-- Количество экземпляров -->
+                                <TextBlock Grid.Row="0" Grid.Column="0"
                                            Text="📚 Количество экземпляров:"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"
-                                           Margin="0,0,15,0"/>
+                                           Margin="0,5,15,5"/>
 
                                 <TextBox x:Name="QuantityBox"
-                                         Grid.Column="1"
+                                         Grid.Row="0" Grid.Column="1"
                                          Text="1"
                                          Width="100"
                                          HorizontalAlignment="Left"
@@ -343,11 +456,36 @@
                                          PreviewTextInput="NumberValidationTextBox"
                                          TextChanged="QuantityBox_TextChanged"/>
 
-                                <TextBlock Grid.Column="2"
+                                <TextBlock Grid.Row="0" Grid.Column="2"
                                            Text="шт."
                                            VerticalAlignment="Center"
-                                           Margin="10,0,0,0"
+                                           Margin="10,5,0,5"
                                            Foreground="#666666"/>
+
+                                <!-- Начальный инвентарный номер -->
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="🏷️ Начальный инвентарный номер:"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Margin="0,5,15,5"/>
+
+                                <TextBox x:Name="StartInventoryBox"
+                                         Grid.Row="1" Grid.Column="1"
+                                         Text=""
+                                         Width="120"
+                                         HorizontalAlignment="Left"
+                                         Style="{StaticResource InputFieldStyle}"
+                                         PreviewTextInput="InventoryNumberValidationTextBox"
+                                         TextChanged="StartInventoryBox_TextChanged"
+                                         MaxLength="6"
+                                         ToolTip="Введите номер вручную или оставьте пустым для автоматической генерации"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="2"
+                                           Text="(6 цифр)"
+                                           VerticalAlignment="Center"
+                                           Margin="10,5,0,5"
+                                           Foreground="#666666"
+                                           FontSize="11"/>
                             </Grid>
                         </Border>
 
@@ -365,13 +503,21 @@
                                            Text="000001, 000002, 000003, ..."
                                            FontSize="12"
                                            Foreground="{StaticResource PrimaryColor}"
-                                           FontWeight="Bold"/>
+                                           FontWeight="Bold"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </Grid>
 
                     <!-- Кнопки -->
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                        <Button x:Name="GenerateActButton"
+                                Content="📄 Сформировать акт"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Width="160"
+                                Height="40"
+                                Margin="0,0,10,0"
+                                Click="GenerateActButton_Click"/>
                         <Button x:Name="SaveButton"
                                 Content="💾 Сохранить книги"
                                 Style="{StaticResource SaveButtonStyle}"

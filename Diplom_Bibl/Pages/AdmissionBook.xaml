@@ -1,137 +1,129 @@
 ﻿<Page x:Class="Diplom_Bibl.Pages.AdmissionBook"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Title="Приход книг (поступление в фонд)" Loaded="Page_Loaded"
+      Title="Управление приходом книг" Loaded="Page_Loaded"
       Background="#F5F5F5">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="24">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+    <Page.Resources>
+        <!-- Стиль для центрирования ячеек -->
+        <Style x:Key="CenterAlignedCell" TargetType="TextBlock">
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Page.Resources>
 
-            <!-- Заголовок -->
-            <TextBlock Grid.Row="0" Text="Приход книг (поступление в фонд)" 
-                       Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,15"/>
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- Основной контент: левая колонка - форма, правая колонка - список -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="450"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" Text="Управление приходом книг" 
+                   Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,15"/>
 
-                <!-- ЛЕВАЯ КОЛОНКА: Форма добавления/редактирования -->
-                <Border Grid.Column="0" Background="White" CornerRadius="8" 
-                        BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
-                        Padding="20" Margin="0,0,15,20" Effect="{StaticResource DropShadowEffect}">
+        <!-- Кнопки управления -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,15">
+            <Button x:Name="BtnPrint" 
+                    Content="📄 Сформировать акт"
+                    Style="{StaticResource SaveButtonStyle}"
+                    Width="180"
+                    Height="36"
+                    Click="BtnPrint_Click"
+                    Margin="0,0,10,0"/>
+            <Button x:Name="BtnRefresh" 
+                    Content="🔄 Обновить список"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Background="{StaticResource LightGray}"
+                    Foreground="{StaticResource TextColor}"
+                    Width="150"
+                    Height="36"
+                    Click="BtnRefresh_Click"/>
+        </StackPanel>
 
-                    <StackPanel>
-                        <TextBlock Text="Общие сведения" FontSize="16" FontWeight="SemiBold" 
-                                   Foreground="{StaticResource PrimaryColor}" Margin="0,0,0,15"/>
+        <!-- Поиск -->
+        <StackPanel Grid.Row="2" Margin="0,0,0,10">
+            <TextBlock Text="🔍 Поиск по накладным:" 
+                       Style="{StaticResource LabelStyle}" 
+                       Margin="0,0,0,5"/>
+            <TextBox x:Name="SearchBox"
+                     Style="{StaticResource InputFieldStyle}"
+                     TextChanged="SearchBox_TextChanged" 
+                     ToolTip="Поиск по номеру, поставщику или комментарию"
+                     Height="36" Padding="10,0"/>
+        </StackPanel>
 
-                        <StackPanel Margin="0,0,0,15">
-                            <TextBlock Text="Номер накладной *" Style="{StaticResource LabelStyle}"/>
-                            <TextBox x:Name="TbReceiptNumber" IsEnabled="False" Style="{StaticResource InputFieldStyle}"/>
-                        </StackPanel>
+        <!-- Список приходных накладных -->
+        <DataGrid x:Name="LvReceipts" Grid.Row="3"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
+                  Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                  SelectionChanged="LvReceipts_SelectionChanged">
+            <DataGrid.Resources>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Height" Value="35"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                </Style>
+                <Style TargetType="DataGridCell">
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Padding" Value="8,0"/>
+                </Style>
+            </DataGrid.Resources>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Номер" Binding="{Binding ReceiptNumber}" Width="120">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
 
-                        <StackPanel Margin="0,0,0,15">
-                            <TextBlock Text="Дата поступления" Style="{StaticResource LabelStyle}"/>
-                            <TextBox x:Name="TbReceiptDate" IsEnabled="False" Style="{StaticResource InputFieldStyle}"/>
-                        </StackPanel>
+                <DataGridTextColumn Header="Дата" 
+                                    Binding="{Binding ReceiptDate, StringFormat='dd.MM.yyyy HH:mm'}" 
+                                    Width="140"/>
 
-                        <StackPanel Margin="0,0,0,15">
-                            <TextBlock Text="Ответственное лицо *" Style="{StaticResource LabelStyle}"/>
-                            <StackPanel Orientation="Horizontal">
-                                <ComboBox x:Name="CbResponsible"
-                                          DisplayMemberPath="FullName"
-                                          SelectedValuePath="ID_User"
-                                          Style="{StaticResource InputFieldStyleCb}"
-                                          Height="36" Width="320"/>
-                                <Button Content="+" Width="36" Click="Button_Click" Margin="5,0,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
+                <DataGridTextColumn Header="Ответственный" 
+                                    Binding="{Binding ResponsiblePerson}" 
+                                    Width="180"/>
 
-                        <StackPanel Margin="0,0,0,15">
-                            <TextBlock Text="Поставщик" Style="{StaticResource LabelStyle}"/>
-                            <StackPanel Orientation="Horizontal">
-                                <ComboBox x:Name="CbSupplier"
-                                          DisplayMemberPath="SupplierName"
-                                          SelectedValuePath="ID_Supplier"
-                                          Style="{StaticResource InputFieldStyleCb}"
-                                          Height="36" Width="320"/>
-                                <Button x:Name="BtnAddSupplier" Content="+" Width="36" 
-                                        Click="BtnAddSupplier_Click" Margin="5,0,0,0"/>
-                            </StackPanel>
-                        </StackPanel>
+                <DataGridTextColumn Header="Поставщик" 
+                                    Binding="{Binding SupplierName}" 
+                                    Width="150"/>
 
-                        <StackPanel Margin="0,0,0,15">
-                            <TextBlock Text="Комментарий" Style="{StaticResource LabelStyle}"/>
-                            <TextBox x:Name="TbComment" AcceptsReturn="True" Height="80" 
-                                     Style="{StaticResource InputFieldStyle}" TextWrapping="Wrap"/>
-                        </StackPanel>
+                <DataGridTextColumn Header="Комментарий" 
+                                    Binding="{Binding Comment}" 
+                                    Width="*" MinWidth="200"/>
 
-                        <!-- Кнопки -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                            <Button x:Name="BtnSaveNew" Content="📥 Сохранить приход"
-                                    Style="{StaticResource SaveButtonStyle}"
-                                    Click="BtnSaveNew_Click" Width="160" Margin="0,0,10,0"/>
+                <!-- Исправленная колонка количества книг -->
+                <DataGridTextColumn Header="Кол-во книг" 
+                                    Binding="{Binding BooksCount}" 
+                                    Width="100">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextAlignment" Value="Center"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
 
-                            <Button x:Name="BtnSaveChanges" Content="💾 Сохранить изменения"
-                                    Style="{StaticResource SaveButtonStyle}"
-                                    Click="BtnSaveChanges_Click" Visibility="Collapsed" Width="160" Margin="0,0,10,0"/>
-
-                            <Button x:Name="BtnDelete" Content="🗑️ Удалить"
-                                    Style="{StaticResource DeleteButtonStyle}"
-                                    Click="BtnDelete_Click" Visibility="Collapsed" Width="100"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- ПРАВАЯ КОЛОНКА: Список накладных -->
-                <StackPanel Grid.Column="1" Margin="15,0,0,0">
-                    <TextBlock Text="Список приходных накладных" 
-                               Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,15"/>
-
-                    <TextBox x:Name="SearchBox" Style="{StaticResource InputFieldStyle}"
-                             TextChanged="SearchBox_TextChanged" Margin="0,0,0,10"
-                             ToolTip="Поиск по номеру, поставщику или комментарию"
-                             Height="36" Padding="10,0"/>
-
-                    <DataGrid x:Name="LvReceipts" AutoGenerateColumns="False" IsReadOnly="True"
-                              RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
-                              Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
-                              MouseDoubleClick="LvReceipts_MouseDoubleClick">
-                        <DataGrid.Resources>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="Height" Value="35"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                            </Style>
-                            <Style TargetType="DataGridCell">
-                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                <Setter Property="Padding" Value="8,0"/>
-                            </Style>
-                        </DataGrid.Resources>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Номер" Binding="{Binding ReceiptNumber}" Width="100"/>
-                            <DataGridTextColumn Header="Дата" Binding="{Binding ReceiptDate, StringFormat='dd.MM.yyyy'}" Width="90"/>
-                            <DataGridTextColumn Header="Ответственный" Binding="{Binding ResponsiblePerson}" Width="150"/>
-                            <DataGridTextColumn Header="Поставщик" Binding="{Binding SupplierName}" Width="150"/>
-                            <DataGridTextColumn Header="Комментарий" Binding="{Binding Comment}" Width="*" MinWidth="120"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </StackPanel>
-            </Grid>
-
-            <!-- Кнопка закрытия (внизу по центру) -->
-            <Button Grid.Row="2" Content="← Закрыть" Style="{StaticResource PrimaryButtonStyle}"
-                    Background="{StaticResource LightGray}" Foreground="{StaticResource TextColor}"
-                    HorizontalAlignment="Center" Width="160" Click="ClosePage_Click" Margin="0,20,0,0"/>
-        </Grid>
-    </ScrollViewer>
+        <!-- Информационная панель внизу -->
+        <Border Grid.Row="4" Background="{StaticResource LightGray}" CornerRadius="6" 
+                Padding="10" Margin="0,15,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="SelectedInfo" Text="Выберите накладную для печати" 
+                           Foreground="{StaticResource TextColor}" FontSize="12"/>
+            </StackPanel>
+        </Border>
+    </Grid>
 </Page>

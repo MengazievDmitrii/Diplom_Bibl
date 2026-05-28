@@ -1,6 +1,7 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Globalization;
@@ -953,11 +954,83 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentIDBook.HasValue)
             {
-                CustomMessageBox.Show("Нет выбранной книги для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет выбранной книги для удаления.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
-            if (CustomMessageBox.Show("Вы уверены, что хотите удалить эту книгу?", "Подтверждение удаления",
-                CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question) != CustomMessageBoxResult.Yes) return;
+
+            // Проверяем наличие связанных записей
+            var references = new Dictionary<string, int>();
+
+            await Task.Run(() =>
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    // Проверка GroupIssuanceItems
+                    using (var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM GroupIssuanceItems WHERE BookId = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", _currentIDBook.Value);
+                        references["групповых выдачах"] = (int)cmd.ExecuteScalar();
+                    }
+
+                    // Проверка BookIssuance
+                    using (var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM BookIssuance WHERE BookId = @Id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", _currentIDBook.Value);
+                        references["индивидуальных выдачах"] = (int)cmd.ExecuteScalar();
+                    }
+
+                    // Проверка BookReservations
+                    using (var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM BookReservations WHERE BookID = @Id AND StatusID = 1", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", _currentIDBook.Value);
+                        references["активных резервированиях"] = (int)cmd.ExecuteScalar();
+                    }
+
+                    // Проверка RequestItems
+                    using (var cmd = new SqlCommand(
+                        "SELECT COUNT(*) FROM RequestItems WHERE BookID = @Id AND StatusID IN (1, 2)", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", _currentIDBook.Value);
+                        references["активных заявках"] = (int)cmd.ExecuteScalar();
+                    }
+                }
+            });
+
+            // Формируем сообщение о наличии связей
+            var activeReferences = references.Where(r => r.Value > 0).ToList();
+
+            if (activeReferences.Any())
+            {
+                var message = "Невозможно удалить книгу, так как она используется в:\n\n";
+                foreach (var refItem in activeReferences)
+                {
+                    message += $"• {refItem.Key}: {refItem.Value} записей\n";
+                }
+                message += "\nПожалуйста, сначала:\n";
+                message += "• Верните все выданные экземпляры\n";
+                message += "• Отмените или завершите активные резервирования\n";
+                message += "• Обработайте активные заявки\n\n";
+                message += "Или используйте функцию списания книги вместо удаления.";
+
+                CustomMessageBox.Show(message, "Невозможно удалить",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
+            }
+
+            // Если связей нет — удаляем
+            var confirm = CustomMessageBox.Show(
+                "Вы уверены, что хотите удалить эту книгу?",
+                "Подтверждение удаления",
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
+
+            if (confirm != CustomMessageBoxResult.Yes) return;
 
             try
             {
@@ -973,21 +1046,30 @@ namespace Diplom_Bibl.Pages
                         }
                     }
                 });
-                CustomMessageBox.Show("Книга удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
+                CustomMessageBox.Show("Книга удалена.", "Успешно",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
                 ClearForm();
                 _cancellationTokenSource = new CancellationTokenSource();
                 await LoadBooksToListAsync(_cancellationTokenSource.Token);
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                CustomMessageBox.Show("Невозможно удалить книгу: на неё ссылаются другие записи.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show(
+                    "Невозможно удалить книгу: на неё ссылаются другие записи.\n\n" +
+                    "Возможно, за время проверки появились новые связи.\n" +
+                    "Попробуйте снова или используйте списание книги.",
+                    "Ошибка",
+                    CustomMessageBoxButton.OK,
+                    CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка удаления: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
         private async void ClearForm()
         {
             await Dispatcher.InvokeAsync(() =>
