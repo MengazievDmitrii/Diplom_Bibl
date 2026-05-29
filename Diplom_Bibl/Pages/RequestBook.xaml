@@ -22,10 +22,9 @@
                        FontSize="24" FontWeight="Bold" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,20"/>
 
             <!-- Основная форма -->
-            <Border Grid.Row="1" Background="White" CornerRadius="8"
-                    BorderBrush="#D0D0D0" BorderThickness="1"
-                    Padding="20" Margin="0,0,0,20">
-
+            <Border Grid.Row="2" Background="White" CornerRadius="8"
+        BorderBrush="#D0D0D0" BorderThickness="1"
+        Padding="20" Margin="0,0,0,20">
                 <StackPanel>
                     <TextBlock Text="Данные заявки" FontSize="16" FontWeight="SemiBold"
                               Style="{StaticResource SubtitleTitleStyle}" Margin="0,0,0,15"/>
@@ -91,10 +90,9 @@
                 </StackPanel>
             </Border>
 
-            <!-- Секция добавления книг -->
-            <Border Grid.Row="2" Background="White" CornerRadius="8"
-                    BorderBrush="#D0D0D0" BorderThickness="1"
-                    Padding="20" Margin="0,0,0,20">
+            <Border Grid.Row="1" Background="White" CornerRadius="8"
+        BorderBrush="#D0D0D0" BorderThickness="1"
+        Padding="20" Margin="0,0,0,20">
 
                 <StackPanel>
                     <TextBlock Text="📚 Выбор книг" FontSize="16" FontWeight="SemiBold"

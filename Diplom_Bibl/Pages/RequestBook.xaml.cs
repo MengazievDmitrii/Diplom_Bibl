@@ -112,21 +112,37 @@ namespace Diplom_Bibl.Pages
         {
             InitializeComponent();
 
-            // Сохраняем данные о пользователе
             _currentReaderId = readerId;
             _currentUserTypeId = userTypeId;
 
-            // Устанавливаем дату занятия по умолчанию - сегодня
+            // Инициализируем интерфейс в зависимости от типа пользователя
+            SetupUIForUserType();
+
             DpLessonDateSimple.SelectedDate = DateTime.Today;
-
-            // Загружаем данные пользователя
-            LoadUserData();
-
-            // Загружаем список доступных книг
             LoadAvailableBooks();
-
-            // Подписываемся на событие загрузки страницы
             this.Loaded += RequestBook_Loaded;
+        }
+
+        private void SetupUIForUserType()
+        {
+            if (_currentUserTypeId == 3) // Преподаватель
+            {
+                // Показываем все поля
+                GroupPanel.Visibility = Visibility.Visible;
+                TbLessonName.Visibility = Visibility.Visible;
+                DpLessonDateSimple.Visibility = Visibility.Visible;
+                CbLessonPeriod.Visibility = Visibility.Visible;
+            }
+            else // Читатель (индивидуальная выдача)
+            {
+                // Скрываем поля, не нужные для читателя
+                GroupPanel.Visibility = Visibility.Collapsed;
+                TbLessonName.Visibility = Visibility.Collapsed;
+                DpLessonDateSimple.Visibility = Visibility.Collapsed;
+                CbLessonPeriod.Visibility = Visibility.Collapsed;
+
+                
+            }
         }
 
         /// <summary>
@@ -365,31 +381,21 @@ namespace Diplom_Bibl.Pages
             try
             {
                 const string query = "SELECT GroupID, GroupCode FROM Groups ORDER BY GroupCode";
+
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
+
                     using (var cmd = new SqlCommand(query, conn))
                     using (var reader = cmd.ExecuteReader())
                     {
                         var groups = new ObservableCollection<GroupItem>();
 
-                        // Отладочный вывод - посмотрим сколько колонок
-                        for (int i = 0; i < reader.FieldCount; i++)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Колонка {i}: {reader.GetName(i)} - Тип: {reader.GetFieldType(i)}");
-                        }
-
                         while (reader.Read())
                         {
-                            // Пробуем разные способы чтения
-                            object groupIdObj = reader[0];  // Первая колонка
-                            object groupCodeObj = reader[1]; // Вторая колонка
-
-                            System.Diagnostics.Debug.WriteLine($"GroupID: {groupIdObj} (тип: {groupIdObj?.GetType()})");
-                            System.Diagnostics.Debug.WriteLine($"GroupCode: {groupCodeObj} (тип: {groupCodeObj?.GetType()})");
-
-                            int groupId = Convert.ToInt32(groupIdObj);
-                            string groupCode = groupCodeObj?.ToString() ?? "";
+                            // Безопасное чтение данных с проверкой на DBNull
+                            int groupId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            string groupCode = reader.IsDBNull(1) ? "Неизвестно" : reader.GetString(1);
 
                             groups.Add(new GroupItem
                             {
@@ -397,18 +403,27 @@ namespace Diplom_Bibl.Pages
                                 GroupCode = groupCode
                             });
                         }
+
+                        // Привязка данных
                         CbGroup.ItemsSource = groups;
                         CbGroup.DisplayMemberPath = "GroupCode";
                         CbGroup.SelectedValuePath = "GroupID";
+
+                        System.Diagnostics.Debug.WriteLine($"Загружено групп: {groups.Count}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}\n{ex.StackTrace}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки групп: {ex.Message}\n{ex.StackTrace}");
+                CustomMessageBox.Show(
+                    $"Не удалось загрузить список групп. Проверьте подключение к базе данных.\nОшибка: {ex.Message}",
+                    "Ошибка загрузки данных",
+                    CustomMessageBoxButton.OK,
+                    CustomMessageBoxImage.Error);
             }
         }
+
         #endregion
 
         #region Работа с книгами
@@ -426,23 +441,26 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-            SELECT 
+            SELECT
                 MIN(b.IDBook) AS IDBook,
-                b.TitleBook, 
+                b.TitleBook,
                 ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
                 SUM(dbo.fn_GetActuallyAvailableForRequest(b.IDBook)) AS AvailableCopies
             FROM Books b
             LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE dbo.fn_GetActuallyAvailableForRequest(b.IDBook) > 0";
+            WHERE dbo.fn_GetActuallyAvailableForRequest(b.IDBook) > 0
+              AND b.StatusBook IN (
+                  SELECT ID_Status FROM StatusBook
+                  WHERE Title_Status IN ('В наличии')
+              )";
 
-                // Условие поиска добавляется ДО GROUP BY
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
                     query += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
                 }
 
                 query += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-                    ORDER BY b.TitleBook";
+            ORDER BY b.TitleBook";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -471,15 +489,15 @@ namespace Diplom_Bibl.Pages
                         }
                     }
                 }
-
                 DgAvailableBooks.ItemsSource = _availableBooks;
             }
             catch (Exception ex)
             {
                 CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
         /// <summary>
         /// Добавление книги в заявку
         /// </summary>
@@ -497,34 +515,43 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-            // Проверяем, не добавлена ли уже эта книга
-            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b => b.BookTitle == book.TitleBook && b.AuthorName == book.AuthorName);
+            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b =>
+                b.IDBook == book.IDBook);
 
             if (existing != null)
             {
-                // Увеличиваем количество, если не превышает доступное
+                // Для читателя — только 1 экземпляр
+                if (_currentUserTypeId != 3 && existing.Quantity >= 1)
+                {
+                    CustomMessageBox.Show("Для индивидуальной выдачи можно взять только 1 экземпляр книги.",
+                        "Ограничение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return;
+                }
+
                 if (existing.Quantity + 1 <= actualAvailable)
                     existing.Quantity++;
                 else
-                    CustomMessageBox.Show($"Доступно только {actualAvailable} экземпляров этой книги.", "Предупреждение",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show($"Доступно только {actualAvailable} экземпляров этой книги.",
+                        "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
             else
             {
-                // Добавляем новую книгу
+                int maxQuantity = (_currentUserTypeId == 3) ? actualAvailable : 1;
+
                 _selectedBooks.Add(new SelectedBookItem
                 {
                     IDBook = book.IDBook,
                     BookTitle = book.TitleBook,
                     AuthorName = book.AuthorName,
                     Quantity = 1,
-                    MaxQuantity = actualAvailable
+                    MaxQuantity = maxQuantity
                 });
             }
 
             DgSelectedBooks.ItemsSource = _selectedBooks;
             UpdateTotalCount();
         }
+
 
         /// <summary>
         /// Обновление общего количества выбранных книг
@@ -686,47 +713,51 @@ namespace Diplom_Bibl.Pages
         /// </summary>
         private bool ValidateForm()
         {
-            // Проверка названия занятия
-            if (string.IsNullOrWhiteSpace(TbLessonName.Text))
+            // Для преподавателя (тип 3) — полная валидация всех полей
+            if (_currentUserTypeId == 3)
             {
-                CustomMessageBox.Show("Введите название занятия/предмета.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return false;
+                // Проверка названия занятия
+                if (string.IsNullOrWhiteSpace(TbLessonName.Text))
+                {
+                    CustomMessageBox.Show("Введите название занятия/предмета.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return false;
+                }
+
+                // Проверка даты занятия
+                if (!DpLessonDateSimple.SelectedDate.HasValue)
+                {
+                    CustomMessageBox.Show("Выберите дату занятия.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return false;
+                }
+
+                // Дату нельзя выбрать раньше сегодня
+                if (DpLessonDateSimple.SelectedDate.Value.Date < DateTime.Today)
+                {
+                    CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return false;
+                }
+
+                // Для преподавателя обязателен выбор группы
+                if (CbGroup.SelectedItem == null)
+                {
+                    CustomMessageBox.Show("Выберите группу.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return false;
+                }
+
+                // Проверка выбора пары
+                if (CbLessonPeriod.SelectedItem == null)
+                {
+                    CustomMessageBox.Show("Выберите пару / время занятия.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    return false;
+                }
             }
 
-            // Проверка даты занятия
-            if (!DpLessonDateSimple.SelectedDate.HasValue)
-            {
-                CustomMessageBox.Show("Выберите дату занятия.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return false;
-            }
-
-            // Дату нельзя выбрать раньше сегодня
-            if (DpLessonDateSimple.SelectedDate.Value.Date < DateTime.Today)
-            {
-                CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return false;
-            }
-
-            // Для преподавателя обязателен выбор группы
-            if (_currentUserTypeId == 3 && CbGroup.SelectedItem == null)
-            {
-                CustomMessageBox.Show("Выберите группу.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return false;
-            }
-
-            // Проверка выбора пары
-            if (CbLessonPeriod.SelectedItem == null)
-            {
-                CustomMessageBox.Show("Выберите пару / время занятия.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return false;
-            }
-
-            // Проверка наличия выбранных книг
+            // Проверка наличия выбранных книг — обязательна для всех пользователей
             if (_selectedBooks == null || _selectedBooks.Count == 0)
             {
                 CustomMessageBox.Show("Добавьте хотя бы одну книгу в заявку.", "Ошибка",
@@ -734,8 +765,23 @@ namespace Diplom_Bibl.Pages
                 return false;
             }
 
+            // Дополнительная проверка для читателя: убедиться, что количество книг не превышает ограничение (1 экземпляр на книгу)
+            if (_currentUserTypeId != 3) // Читатель
+            {
+                foreach (var book in _selectedBooks)
+                {
+                    if (book.Quantity > 1)
+                    {
+                        CustomMessageBox.Show($"Для индивидуальной выдачи можно взять только 1 экземпляр книги '{book.BookTitle}'.",
+                            "Ограничение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                        return false;
+                    }
+                }
+            }
+
             return true;
         }
+
 
         /// <summary>
         /// Отправка заявки (основной метод сохранения)

@@ -1,6 +1,5 @@
 ﻿// Файл: MainWindow.xaml.cs
 // Описание: Код окна главной навигации библиотечной системы НМК
-// Стандарт оформления: СТ НМК-17, приложение Б
 // Язык: C# 7.3
 
 using Diplom_Bibl.Controls;
@@ -41,66 +40,85 @@ namespace Diplom_Bibl.Windows
         private int? _currentSessionId;
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private bool _isLoggingOut = false;
-        private System.Threading.Timer _returnDateTimer; // Сохраняем таймер для корректного завершения
+        private System.Threading.Timer _returnDateTimer;
+        private bool _isInitialized = false;
 
         #endregion
 
-        #region Конструктор и инициализация
+        #region Конструктор и инициализация (БЫСТРЫЙ)
 
         public MainWindow(int userId, int readerId, string fullName, List<string> roles, int userTypeId)
         {
             InitializeComponent();
 
+            // ТОЛЬКО БЫСТРАЯ ИНИЦИАЛИЗАЦИЯ - без БД и тяжелых операций
             _currentUserId = userId;
             _currentReaderId = readerId;
             _currentUserTypeId = userTypeId;
             _currentUserFullName = fullName;
-            _userRoles = roles;
+            _userRoles = roles ?? new List<string>();
 
-            TbUserName.Text = fullName;
+            // Быстрая настройка UI
+            TbUserName.Text = fullName ?? "Пользователь";
             TbUserRole.Text = GetRoleDisplayName();
+            SetupMenuVisibility();
+
+            // Подписка на события окна
+            this.Loaded += Window_Loaded;
+            this.SizeChanged += MainWindow_SizeChanged;
+        }
+
+        /// <summary>
+        /// Обработчик загрузки окна - асинхронный
+        /// </summary>
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Отписываемся, чтобы не вызвалось повторно
+            this.Loaded -= Window_Loaded;
+            await OnWindowLoadedAsync();
+        }
+
+        /// <summary>
+        /// Асинхронная загрузка всех тяжелых операций ПОСЛЕ отображения окна
+        /// </summary>
+        private async Task OnWindowLoadedAsync()
+        {
+            if (_isInitialized) return;
+            _isInitialized = true;
 
             try
             {
-                _notificationSound = new SoundPlayer();
+                // Показываем индикатор загрузки
+                await Dispatcher.InvokeAsync(() => ShowLoadingOverlay(true));
+
+                // Запускаем тяжелые операции НЕ в UI потоке
+                var loadTasks = new List<Task>
+                {
+                    Task.Run(() => InitializeNotificationServiceSync()),
+                    Task.Run(() => CheckAndHandleComputerSession()),
+                    Task.Run(() => StartReturnDateMonitoringBackground())
+                };
+
+                // Ждем завершения всех фоновых задач
+                await Task.WhenAll(loadTasks);
+
+                // Загружаем начальную страницу в UI потоке
+                await Dispatcher.InvokeAsync(() => LoadInitialPage());
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("⚠️ Ошибка инициализации звука: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки: {ex.Message}");
             }
-
-            InitializeNotificationService();
-            SetupMenuVisibility();
-            this.SizeChanged += MainWindow_SizeChanged;
-
-            // ЗАПУСКАЕМ МОНИТОРИНГ С ЗАДЕРЖКОЙ (через 30 секунд после загрузки)
-            StartReturnDateMonitoringDelayed();
-        }
-
-        private async void StartReturnDateMonitoringDelayed()
-        {
-            // Ждем 30 секунд после загрузки окна
-            await Task.Delay(30000);
-            StartReturnDateMonitoringAsync();
-        }
-
-        #endregion
-
-        #region Обработчики событий окна
-
-        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (this.ActualWidth < 1200 && _isMenuExpanded)
+            finally
             {
-                ToggleMenu();
-            }
-            else if (this.ActualWidth >= 1400 && !_isMenuExpanded)
-            {
-                ToggleMenu();
+                await Dispatcher.InvokeAsync(() => ShowLoadingOverlay(false));
             }
         }
 
-        private async void Window_Loaded(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Загрузка начальной страницы
+        /// </summary>
+        private void LoadInitialPage()
         {
             if (_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN"))
             {
@@ -110,13 +128,193 @@ namespace Diplom_Bibl.Windows
             {
                 MainFrame.Navigate(new RequestBook(_currentReaderId, _currentUserTypeId));
             }
+        }
 
-            await ShowComputerSessionIfNeeded();
+        /// <summary>
+        /// Синхронная инициализация сервиса уведомлений (запускается в фоновом потоке)
+        /// </summary>
+        private void InitializeNotificationServiceSync()
+        {
+            try
+            {
+                int notificationUserId;
+                if (_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN"))
+                    notificationUserId = _currentUserId;
+                else
+                    notificationUserId = _currentReaderId;
+
+                // Используем Dispatcher.Invoke для создания объектов на UI потоке
+                Dispatcher.Invoke(() =>
+                {
+                    _notificationService = new NotificationService(
+                        _connectionString,
+                        Dispatcher.CurrentDispatcher,
+                        notificationUserId,
+                        _currentUserTypeId,
+                        _userRoles
+                    );
+
+                    _notificationService.NewNotificationReceived += OnNewNotificationReceived;
+                    _notificationService.UnreadCountChanged += OnUnreadCountChanged;
+                    _notificationService.StartPolling(10);
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Ошибка инициализации уведомлений: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Проверка и обработка компьютерной сессии (в фоновом потоке)
+        /// </summary>
+        private void CheckAndHandleComputerSession()
+        {
+            bool isLibrarianOrAdmin = _userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN");
+            if (isLibrarianOrAdmin) return;
+
+            try
+            {
+                var sessionService = new ComputerSessionService();
+                var activeSessions = sessionService.GetActiveSessionsAsync().GetAwaiter().GetResult();
+                var existingSession = activeSessions.FirstOrDefault(s => s.UserID == _currentUserId);
+
+                if (existingSession != null)
+                {
+                    _currentSessionId = existingSession.ID_Session;
+                    return;
+                }
+
+                string groupCode = string.Empty;
+                if (_currentUserTypeId == 1)
+                {
+                    using (var conn = new SqlConnection(_connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = new SqlCommand(
+                            "SELECT ISNULL(g.GroupCode, '') FROM ReaderForm r LEFT JOIN Groups g ON r.GroupID = g.GroupID WHERE r.ReaderID = @ReaderId",
+                            conn))
+                        {
+                            cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId);
+                            var result = cmd.ExecuteScalar();
+                            groupCode = result != null ? result.ToString() : string.Empty;
+                        }
+                    }
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    var computerWindow = new ComputerSessionWindow(_currentUserId, _currentReaderId, _currentUserFullName, groupCode);
+                    computerWindow.Owner = this;
+                    computerWindow.ShowDialog();
+                });
+
+                var updatedSessions = sessionService.GetActiveSessionsAsync().GetAwaiter().GetResult();
+                var newSession = updatedSessions.FirstOrDefault(s => s.UserID == _currentUserId);
+                if (newSession != null) _currentSessionId = newSession.ID_Session;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("❌ Ошибка при работе с сессией ПК: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Запуск фоновой проверки сроков возврата книг
+        /// </summary>
+        private void StartReturnDateMonitoringBackground()
+        {
+            try
+            {
+                // Задержка 30 секунд перед первым запуском
+                System.Threading.Thread.Sleep(30000);
+
+                // Запускаем первую проверку
+                CheckUpcomingReturnDatesSync();
+
+                // Запускаем таймер для следующей проверки
+                _returnDateTimer = new System.Threading.Timer(_ =>
+                {
+                    CheckUpcomingReturnDatesSync();
+                }, null, TimeSpan.FromHours(24), TimeSpan.FromHours(24));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ Ошибка запуска мониторинга: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Синхронная проверка приближающихся сроков возврата книг
+        /// </summary>
+        private void CheckUpcomingReturnDatesSync()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                        SELECT bi.ID_Issuance, bi.ReaderID, bi.PlannedReturnDate, br.RequestNumber, b.TitleBook
+                        FROM BookIssuance bi
+                        INNER JOIN Books b ON bi.BookID = b.IDBook
+                        LEFT JOIN BookRequests br ON bi.RequestID = br.ID_Request
+                        WHERE bi.PlannedReturnDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 3, CAST(GETDATE() AS DATE))
+                        AND bi.ReturnDate IS NULL AND (bi.IsNotified IS NULL OR bi.IsNotified = 0)";
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int issuanceId = reader.GetInt32(0);
+                            DateTime returnDate = reader.GetDateTime(2);
+                            string requestNumber = reader.IsDBNull(3) ? "не указан" : reader.GetString(3);
+                            string bookTitle = reader.GetString(4);
+
+                            string insertSql = @"
+                                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
+                                VALUES (ISNULL((SELECT ID_Request FROM BookIssuance WHERE ID_Issuance = @IssuanceId), 0),
+                                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Скоро возврат'),
+                                    @Message, 0, GETDATE())";
+                            using (var insertCmd = new SqlCommand(insertSql, conn))
+                            {
+                                insertCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
+                                insertCmd.Parameters.AddWithValue("@Message", $"⏰ Книга '{bookTitle}' по заявке №{requestNumber} должна быть возвращена до {returnDate:dd.MM.yyyy}");
+                                insertCmd.ExecuteNonQuery();
+                            }
+
+                            string updateSql = "UPDATE BookIssuance SET IsNotified = 1 WHERE ID_Issuance = @IssuanceId";
+                            using (var updateCmd = new SqlCommand(updateSql, conn))
+                            {
+                                updateCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
+                                updateCmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка проверки сроков возврата: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Отображение индикатора загрузки
+        /// </summary>
+        private void ShowLoadingOverlay(bool show)
+        {
+            var overlay = FindName("LoadingOverlay") as Border;
+            if (overlay != null)
+            {
+                overlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
 
         #endregion
 
-        #region Логика сворачивания меню
+        #region Логика сворачивания меню (БЫСТРАЯ - без БД)
 
         private void BtnToggleMenu_Click(object sender, RoutedEventArgs e)
         {
@@ -179,6 +377,18 @@ namespace Diplom_Bibl.Windows
             }
         }
 
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (this.ActualWidth < 1200 && _isMenuExpanded)
+            {
+                ToggleMenu();
+            }
+            else if (this.ActualWidth >= 1400 && !_isMenuExpanded)
+            {
+                ToggleMenu();
+            }
+        }
+
         #endregion
 
         #region Навигация по приложению
@@ -236,54 +446,6 @@ namespace Diplom_Bibl.Windows
         #endregion
 
         #region Управление сессией работы за ПК
-
-        private async Task ShowComputerSessionIfNeeded()
-        {
-            bool isLibrarianOrAdmin = _userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN");
-            if (isLibrarianOrAdmin) return;
-
-            try
-            {
-                var sessionService = new ComputerSessionService();
-                var activeSessions = await sessionService.GetActiveSessionsAsync();
-                var existingSession = activeSessions.FirstOrDefault(s => s.UserID == _currentUserId);
-
-                if (existingSession != null)
-                {
-                    _currentSessionId = existingSession.ID_Session;
-                    return;
-                }
-
-                string groupCode = string.Empty;
-                if (_currentUserTypeId == 1)
-                {
-                    using (var conn = new SqlConnection(_connectionString))
-                    {
-                        await conn.OpenAsync();
-                        using (var cmd = new SqlCommand(
-                            "SELECT ISNULL(g.GroupCode, '') FROM ReaderForm r LEFT JOIN Groups g ON r.GroupID = g.GroupID WHERE r.ReaderID = @ReaderId",
-                            conn))
-                        {
-                            cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId);
-                            var result = await cmd.ExecuteScalarAsync();
-                            groupCode = result != null ? result.ToString() : string.Empty;
-                        }
-                    }
-                }
-
-                var computerWindow = new ComputerSessionWindow(_currentUserId, _currentReaderId, _currentUserFullName, groupCode);
-                computerWindow.Owner = this;
-                computerWindow.ShowDialog();
-
-                var updatedSessions = await sessionService.GetActiveSessionsAsync();
-                var newSession = updatedSessions.FirstOrDefault(s => s.UserID == _currentUserId);
-                if (newSession != null) _currentSessionId = newSession.ID_Session;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("❌ Ошибка при работе с сессией ПК: " + ex.Message);
-            }
-        }
 
         private async Task EndComputerSessionAsync()
         {
@@ -356,33 +518,6 @@ namespace Diplom_Bibl.Windows
         #endregion
 
         #region Сервис уведомлений
-
-        private void InitializeNotificationService()
-        {
-            int notificationUserId;
-            if (_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN"))
-                notificationUserId = _currentUserId;
-            else
-                notificationUserId = _currentReaderId;
-
-            System.Diagnostics.Debug.WriteLine($"=== ИНИЦИАЛИЗАЦИЯ NotificationService ===");
-            System.Diagnostics.Debug.WriteLine($"_currentUserId: {_currentUserId}");
-            System.Diagnostics.Debug.WriteLine($"_currentReaderId: {_currentReaderId}");
-            System.Diagnostics.Debug.WriteLine($"notificationUserId: {notificationUserId}");
-            System.Diagnostics.Debug.WriteLine($"_userRoles: {string.Join(", ", _userRoles)}");
-
-            _notificationService = new NotificationService(
-                _connectionString,
-                Dispatcher.CurrentDispatcher,
-                notificationUserId,
-                _currentUserTypeId,
-                _userRoles
-            );
-
-            _notificationService.NewNotificationReceived += OnNewNotificationReceived;
-            _notificationService.UnreadCountChanged += OnUnreadCountChanged;
-            _notificationService.StartPolling(10);
-        }
 
         private void OnNewNotificationReceived(object sender, NotificationService.NotificationItem notification)
         {
@@ -504,7 +639,7 @@ namespace Diplom_Bibl.Windows
 
         #endregion
 
-        #region Вспомогательные методы
+        #region Вспомогательные методы (БЫСТРЫЕ)
 
         private string GetRoleDisplayName()
         {
@@ -527,7 +662,7 @@ namespace Diplom_Bibl.Windows
 
         #endregion
 
-        #region Уведомления о статусе заявок и сроках возврата
+        #region Уведомления о статусе заявок
 
         public async Task SendStatusChangeNotification(int requestId, string newStatus, string requestNumber)
         {
@@ -571,59 +706,6 @@ namespace Diplom_Bibl.Windows
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}"); }
         }
 
-        /// <summary>
-        /// Проверка приближающихся сроков возврата книг - АСИНХРОННЫЙ МЕТОД
-        /// </summary>
-        private async Task CheckUpcomingReturnDatesAsync()
-        {
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    await conn.OpenAsync();
-                    string query = @"
-                        SELECT bi.ID_Issuance, bi.ReaderID, bi.PlannedReturnDate, br.RequestNumber, b.TitleBook
-                        FROM BookIssuance bi
-                        INNER JOIN Books b ON bi.BookID = b.IDBook
-                        LEFT JOIN BookRequests br ON bi.RequestID = br.ID_Request
-                        WHERE bi.PlannedReturnDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 3, CAST(GETDATE() AS DATE))
-                        AND bi.ReturnDate IS NULL AND (bi.IsNotified IS NULL OR bi.IsNotified = 0)";
-
-                    using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = await cmd.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            int issuanceId = reader.GetInt32(0);
-                            DateTime returnDate = reader.GetDateTime(2);
-                            string requestNumber = reader.IsDBNull(3) ? "не указан" : reader.GetString(3);
-                            string bookTitle = reader.GetString(4);
-
-                            string insertSql = @"
-                                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
-                                VALUES (ISNULL((SELECT ID_Request FROM BookIssuance WHERE ID_Issuance = @IssuanceId), 0),
-                                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Скоро возврат'),
-                                    @Message, 0, GETDATE())";
-                            using (var insertCmd = new SqlCommand(insertSql, conn))
-                            {
-                                insertCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
-                                insertCmd.Parameters.AddWithValue("@Message", $"⏰ Книга '{bookTitle}' по заявке №{requestNumber} должна быть возвращена до {returnDate:dd.MM.yyyy}");
-                                await insertCmd.ExecuteNonQueryAsync();
-                            }
-
-                            string updateSql = "UPDATE BookIssuance SET IsNotified = 1 WHERE ID_Issuance = @IssuanceId";
-                            using (var updateCmd = new SqlCommand(updateSql, conn))
-                            {
-                                updateCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
-                                await updateCmd.ExecuteNonQueryAsync();
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка проверки сроков возврата: {ex.Message}"); }
-        }
-
         public async Task SendComputerSessionNotificationToLibrarian(string userName, string groupCode)
         {
             try
@@ -644,29 +726,6 @@ namespace Diplom_Bibl.Windows
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}"); }
-        }
-
-        /// <summary>
-        /// Запуск фоновой проверки сроков возврата книг (НЕ БЛОКИРУЕТ UI)
-        /// </summary>
-        private async void StartReturnDateMonitoringAsync()
-        {
-            // Запускаем проверку в фоновом потоке, не дожидаясь результата
-            await Task.Run(async () => await CheckUpcomingReturnDatesAsync());
-
-            // Запускаем таймер для следующей проверки
-            _returnDateTimer = new System.Threading.Timer(async _ =>
-            {
-                await CheckUpcomingReturnDatesAsync();
-            }, null, GetNextMorningTime(), TimeSpan.FromHours(24));
-        }
-
-        private TimeSpan GetNextMorningTime()
-        {
-            DateTime now = DateTime.Now;
-            DateTime nextMorning = new DateTime(now.Year, now.Month, now.Day, 9, 0, 0);
-            if (nextMorning <= now) nextMorning = nextMorning.AddDays(1);
-            return nextMorning - now;
         }
 
         #endregion
