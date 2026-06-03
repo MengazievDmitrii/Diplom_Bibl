@@ -4,6 +4,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:Diplom_Bibl"
+      xmlns:System="clr-namespace:System;assembly=mscorlib"
       mc:Ignorable="d" 
       d:DesignHeight="450" d:DesignWidth="800"
       Title="ReportsPage">
@@ -155,12 +156,23 @@
 
                         <!-- Период: С -->
                         <TextBlock Grid.Column="0" Text="Период:" Style="{StaticResource FilterLabelStyle}" VerticalAlignment="Center"/>
-                        <DatePicker x:Name="StartDatePicker" Grid.Column="1" Style="{StaticResource FilterControlStyle}"  
-                                    IsEnabled="True" SelectedDateFormat="Short"/>
-
+                        <DatePicker x:Name="StartDatePicker"
+            Grid.Column="1"
+            Style="{StaticResource FilterControlStyle}"
+            IsEnabled="True"
+            SelectedDateFormat="Short"
+            DisplayDateStart="{x:Static System:DateTime.MinValue}"
+            DisplayDateEnd="{x:Static System:DateTime.MaxValue}"
+            SelectedDateChanged="StartDatePicker_SelectedDateChanged"/>
                         <TextBlock Grid.Column="2" Text="по:" Style="{StaticResource FilterLabelStyle}" VerticalAlignment="Center" Margin="0,0,0,0"/>
-                        <DatePicker x:Name="EndDatePicker" Grid.Column="3" Style="{StaticResource FilterControlStyle}"  
-                                    IsEnabled="True" SelectedDateFormat="Short"/>
+                        <DatePicker x:Name="EndDatePicker"
+            Grid.Column="3"
+            Style="{StaticResource FilterControlStyle}"
+            IsEnabled="True"
+            SelectedDateFormat="Short"
+            DisplayDateStart="{x:Static System:DateTime.MinValue}"
+            DisplayDateEnd="{x:Static System:DateTime.MaxValue}"
+            SelectedDateChanged="EndDatePicker_SelectedDateChanged"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -328,13 +340,13 @@
                 </Border>
             </ItemsControl>
 
-            <!-- Подвал -->
+            <!-- Подвал --><!--
             <TextBlock Grid.Row="1" 
                        Text="💡 Совет: Для формирования отчёта за текущий день выберите одинаковые даты в фильтре."
                        FontStyle="Italic"
                        Foreground="#6C757D"
                        FontSize="13"
-                       Margin="0,0,0,0"/>
+                       Margin="0,0,0,0"/>-->
         </Grid>
     </ScrollViewer>
 </Page>

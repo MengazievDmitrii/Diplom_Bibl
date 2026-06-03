@@ -1,15 +1,19 @@
 ﻿using Dadata.Model;
+using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Controls;
-using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
@@ -456,7 +460,229 @@ namespace Diplom_Bibl.Pages
                     break;
             }
         }
+        private async void ExportReadersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ExportReadersBtn.IsEnabled = false;
+                ExportReadersBtn.Content = "⏳ Экспорт...";
 
+                var dialog = new SaveFileDialog
+                {
+                    Filter = "Excel файлы (*.xlsx)|*.xlsx|CSV файлы (*.csv)|*.csv",
+                    Title = "Сохранить список читателей",
+                    FileName = $"Читатели_{DateTime.Now:yyyyMMdd_HHmm}"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    string filePath = dialog.FileName;
+                    string extension = System.IO.Path.GetExtension(filePath).ToLower();
+
+                    var result = await Task.Run(() => ExportReadersToFile(filePath, extension));
+
+                    CustomMessageBox.Show(result, "Экспорт завершен",
+                        CustomMessageBoxButton.OK,
+                        result.Contains("ошибка") ? CustomMessageBoxImage.Error : CustomMessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка при экспорте: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
+            finally
+            {
+                ExportReadersBtn.IsEnabled = true;
+                ExportReadersBtn.Content = "📥 Экспортировать читателей";
+            }
+        }
+
+        private string ExportReadersToFile(string filePath, string extension)
+        {
+            try
+            {
+                // Получаем данные читателей с логинами и паролями
+                var readers = GetReadersWithCredentials();
+
+                if (extension == ".csv")
+                {
+                    ExportToCsv(readers, filePath);
+                }
+                else
+                {
+                    ExportToExcel(readers, filePath);
+                }
+
+                return $"Экспорт успешно завершен!\nСохранено: {readers.Count} читателей\nФайл: {filePath}";
+            }
+            catch (Exception ex)
+            {
+                return $"Ошибка при экспорте: {ex.Message}";
+            }
+        }
+
+        private List<ReaderExportModel> GetReadersWithCredentials()
+        {
+            var readers = new List<ReaderExportModel>();
+
+            string query = @"
+        SELECT 
+            r.ReaderID,
+            r.CardNumber,
+            r.LastName,
+            r.FirstName,
+            r.MiddleName,
+            rt.TypeName,
+            g.GroupCode,
+            p.Post_Name,
+            r.Speciality,
+            r.PhoneNumber,
+            r.HomeAddress,
+            r.MembershipStartDate,
+            r.FormFillDate,
+            u.Login,
+            '' AS Password  -- Пароль не хранится в открытом виде, показываем сообщение
+        FROM ReaderForm r
+        LEFT JOIN ReaderType rt ON r.TypeID = rt.TypeID
+        LEFT JOIN Groups g ON r.GroupID = g.GroupID
+        LEFT JOIN Post p ON r.Post = p.ID_Post
+        LEFT JOIN Users u ON r.ReaderID = u.ReaderID
+        ORDER BY r.LastName, r.FirstName";
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand(query, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var item = new ReaderExportModel
+                        {
+                            ReaderID = reader["ReaderID"] != DBNull.Value ? Convert.ToInt32(reader["ReaderID"]) : 0,
+                            CardNumber = reader["CardNumber"]?.ToString() ?? "",
+                            LastName = reader["LastName"]?.ToString() ?? "",
+                            FirstName = reader["FirstName"]?.ToString() ?? "",
+                            MiddleName = reader["MiddleName"]?.ToString() ?? "",
+                            TypeName = reader["TypeName"]?.ToString() ?? "",
+                            GroupCode = reader["GroupCode"]?.ToString() ?? "",
+                            PostName = reader["Post_Name"]?.ToString() ?? "",
+                            Speciality = reader["Speciality"]?.ToString() ?? "",
+                            PhoneNumber = reader["PhoneNumber"]?.ToString() ?? "",
+                            HomeAddress = reader["HomeAddress"]?.ToString() ?? "",
+                            MembershipStartDate = reader["MembershipStartDate"] != DBNull.Value ? Convert.ToDateTime(reader["MembershipStartDate"]) : DateTime.MinValue,
+                            FormFillDate = reader["FormFillDate"] != DBNull.Value ? Convert.ToDateTime(reader["FormFillDate"]) : DateTime.MinValue,
+                            Login = reader["Login"]?.ToString() ?? "",
+                            Password = "******"  // Пароль скрыт для безопасности
+                        };
+                        readers.Add(item);
+                    }
+                }
+            }
+
+            return readers;
+        }
+
+        private void ExportToExcel(List<ReaderExportModel> readers, string filePath)
+        {
+            var excelApp = new Microsoft.Office.Interop.Excel.Application();
+            Microsoft.Office.Interop.Excel.Workbook workbook = null;
+            Microsoft.Office.Interop.Excel.Worksheet worksheet = null;
+
+            try
+            {
+                excelApp.Visible = false;
+                workbook = excelApp.Workbooks.Add();
+                worksheet = workbook.ActiveSheet;
+                worksheet.Name = "Читатели";
+
+                // Заголовки
+                string[] headers = {
+            "ID", "№ билета", "Фамилия", "Имя", "Отчество",
+            "Тип читателя", "Группа", "Должность", "Специальность",
+            "Телефон", "Адрес", "Дата начала членства", "Дата оформления",
+            "Логин", "Пароль"
+        };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cells[1, i + 1] = headers[i];
+                    var range = (Microsoft.Office.Interop.Excel.Range)worksheet.Cells[1, i + 1];
+                    range.Font.Bold = true;
+                    range.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
+                }
+
+                // Данные
+                int row = 2;
+                foreach (var r in readers)
+                {
+                    worksheet.Cells[row, 1] = r.ReaderID;
+                    worksheet.Cells[row, 2] = r.CardNumber;
+                    worksheet.Cells[row, 3] = r.LastName;
+                    worksheet.Cells[row, 4] = r.FirstName;
+                    worksheet.Cells[row, 5] = r.MiddleName;
+                    worksheet.Cells[row, 6] = r.TypeName;
+                    worksheet.Cells[row, 7] = r.GroupCode;
+                    worksheet.Cells[row, 8] = r.PostName;
+                    worksheet.Cells[row, 9] = r.Speciality;
+                    worksheet.Cells[row, 10] = r.PhoneNumber;
+                    worksheet.Cells[row, 11] = r.HomeAddress;
+                    worksheet.Cells[row, 12] = r.MembershipStartDate.ToString("dd.MM.yyyy");
+                    worksheet.Cells[row, 13] = r.FormFillDate.ToString("dd.MM.yyyy");
+                    worksheet.Cells[row, 14] = r.Login;
+                    worksheet.Cells[row, 15] = r.Password;
+                    row++;
+                }
+
+                worksheet.Columns.AutoFit();
+                workbook.SaveAs(filePath, Microsoft.Office.Interop.Excel.XlFileFormat.xlOpenXMLWorkbook);
+            }
+            finally
+            {
+                if (worksheet != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
+                if (workbook != null)
+                {
+                    workbook.Close(false);
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
+                }
+                if (excelApp != null)
+                {
+                    excelApp.Quit();
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
+                }
+            }
+        }
+
+        private void ExportToCsv(List<ReaderExportModel> readers, string filePath)
+        {
+            var sb = new StringBuilder();
+
+            // Заголовки
+            sb.AppendLine("ID;Номер билета;Фамилия;Имя;Отчество;Тип читателя;Группа;Должность;Специальность;Телефон;Адрес;Дата начала членства;Дата оформления;Логин;Пароль");
+
+            // Данные
+            foreach (var r in readers)
+            {
+                sb.AppendLine($"{r.ReaderID};{EscapeCsv(r.CardNumber)};{EscapeCsv(r.LastName)};{EscapeCsv(r.FirstName)};{EscapeCsv(r.MiddleName)};{EscapeCsv(r.TypeName)};{EscapeCsv(r.GroupCode)};{EscapeCsv(r.PostName)};{EscapeCsv(r.Speciality)};{EscapeCsv(r.PhoneNumber)};{EscapeCsv(r.HomeAddress)};{r.MembershipStartDate:dd.MM.yyyy};{r.FormFillDate:dd.MM.yyyy};{EscapeCsv(r.Login)};{EscapeCsv(r.Password)}");
+            }
+
+            File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+        }
+
+        private string EscapeCsv(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            // Экранируем точку с запятой и кавычки
+            if (value.Contains(";") || value.Contains("\""))
+            {
+                value = value.Replace("\"", "\"\"");
+                return $"\"{value}\"";
+            }
+            return value;
+        }
+
+        
         private void AddReader_Click(object sender, RoutedEventArgs e)
         {
             NavigationService?.Navigate(new AddReader());
@@ -476,3 +702,22 @@ namespace Diplom_Bibl.Pages
         }
     }
 }
+// Модель для экспорта
+        public class ReaderExportModel
+        {
+            public int ReaderID { get; set; }
+            public string CardNumber { get; set; }
+            public string LastName { get; set; }
+            public string FirstName { get; set; }
+            public string MiddleName { get; set; }
+            public string TypeName { get; set; }
+            public string GroupCode { get; set; }
+            public string PostName { get; set; }
+            public string Speciality { get; set; }
+            public string PhoneNumber { get; set; }
+            public string HomeAddress { get; set; }
+            public DateTime MembershipStartDate { get; set; }
+            public DateTime FormFillDate { get; set; }
+            public string Login { get; set; }
+            public string Password { get; set; }
+        }

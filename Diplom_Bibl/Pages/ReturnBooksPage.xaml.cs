@@ -478,17 +478,27 @@ namespace Diplom_Bibl.Pages
         }
         private bool IsIssuanceActive(int issuanceId)
         {
-            using (var conn = new SqlConnection(_connectionString))
+            try
             {
-                conn.Open();
-                string sql = "SELECT COUNT(*) FROM BookIssuance WHERE ID_Issuance = @Id AND ReturnDate IS NULL";
-                using (var cmd = new SqlCommand(sql, conn))
+                using (var conn = new SqlConnection(_connectionString))
                 {
-                    cmd.Parameters.AddWithValue("@Id", issuanceId);
-                    return (int)cmd.ExecuteScalar() > 0;
+                    conn.Open();
+                    string sql = "SELECT COUNT(*) FROM BookIssuance WHERE IssuanceId = @Id AND ReturnDate IS NULL";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", issuanceId);
+                        return (int)cmd.ExecuteScalar() > 0;
+                    }
                 }
             }
+            catch (SqlException sqlEx)
+            {
+                CustomMessageBox.Show($"Ошибка при проверки на активную выдачу: {sqlEx.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                return false; // <-- Добавляем возврат значения при ошибке
+            }
         }
+
 
         private async void ReturnGroupBooks(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups, bool returnAll = false)
         {

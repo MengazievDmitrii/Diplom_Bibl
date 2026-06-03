@@ -246,6 +246,137 @@ namespace Diplom_Bibl.Pages
             NavigationService?.GoBack();
         }
 
+        // ==================== ГЕНЕРАЦИЯ ДАННЫХ ДЛЯ ВХОДА ====================
+
+        private bool IsLoginExists(string login)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    const string query = "SELECT COUNT(*) FROM Users WHERE Login = @Login";
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Login", login);
+                        int count = (int)cmd.ExecuteScalar();
+                        return count > 0;
+                    }
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void CreateUserForReader(int readerId, string surname, string name, string patronymic, string cardNumber)
+        {
+            try
+            {
+                // Логин = номер читательского билета (основной логин)
+                string login = cardNumber.Trim();
+
+                // Пароль = номер читательского билета (проверяем длину)
+                string plainPassword = cardNumber.Trim();
+
+                // Если пароль короче 4 символов, добавляем "lib" в начало
+                if (plainPassword.Length < 4)
+                {
+                    plainPassword = "lib" + plainPassword;
+                }
+
+                // Хэшируем пароль с помощью BCrypt
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
+
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    const string query = @"
+                INSERT INTO Users (Surname, Name, Patronymic, Login, PasswordHash, ReaderID)
+                VALUES (@Surname, @Name, @Patronymic, @Login, @PasswordHash, @ReaderID)";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@Surname", surname);
+                        cmd.Parameters.AddWithValue("@Name", name);
+                        // Если отчество пустое или null, передаём DBNull.Value
+                        cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(patronymic) ? (object)DBNull.Value : patronymic);
+                        cmd.Parameters.AddWithValue("@Login", login);
+                        cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                        cmd.Parameters.AddWithValue("@ReaderID", readerId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Показываем сгенерированные данные для входа
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    string loginByName = $"{surname}{name}";
+
+                    CustomMessageBox.Show(
+                        $"Читатель успешно добавлен!\n\n" +
+                        $"Данные для входа в систему:\n" +
+                        $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+                        $"1. По номеру билета:\n" +
+                        $"   Логин: {login}\n" +
+                        $"   Пароль: {plainPassword}\n\n" +
+                        $"2. По ФИО:\n" +
+                        $"   Логин: {loginByName}\n" +
+                        $"   Пароль: {plainPassword}\n\n" +
+                        $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+                        "Учетная запись создана",
+                        CustomMessageBoxButton.OK,
+                        CustomMessageBoxImage.Information);
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка создания пользователя: {ex.Message}");
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    CustomMessageBox.Show(
+                        $"Читатель добавлен, но произошла ошибка при создании учётной записи:\n{ex.Message}\n\n" +
+                        $"Обратитесь к администратору для создания учётной записи.",
+                        "Ошибка",
+                        CustomMessageBoxButton.OK,
+                        CustomMessageBoxImage.Warning);
+                });
+            }
+        }
+
+
+        private void UpdateUserInfo(int readerId, string surname, string name, string patronymic)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    const string query = @"
+                UPDATE Users 
+                SET Surname = @Surname,
+                    Name = @Name,
+                    Patronymic = @Patronymic
+                WHERE ReaderID = @ReaderID";
+
+                    using (var cmd = new SqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ReaderID", readerId);
+                        cmd.Parameters.AddWithValue("@Surname", surname);
+                        cmd.Parameters.AddWithValue("@Name", name);
+                        // Если отчество пустое или null, передаём DBNull.Value
+                        cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(patronymic) ? (object)DBNull.Value : patronymic);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка обновления пользователя: {ex.Message}");
+            }
+        }
+
         private void LoadReaderById(int readerId)
         {
             try
@@ -694,35 +825,54 @@ namespace Diplom_Bibl.Pages
             return true;
         }
 
-        private void AddReaderBtn_Click(object sender, RoutedEventArgs e)
+        private async void AddReaderBtn_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateForm()) return;
+
             try
             {
                 var selectedType = (ReaderTypeItem)TRCb.SelectedItem;
                 bool isStudent = selectedType.TypeName?.ToLower().Contains("студент") ?? false;
                 bool isEmployee = selectedType.TypeName?.ToLower().Contains("сотрудник") ?? false;
 
+                string cardNumber = CardNumberTb.Text.Trim();
+                string lastName = LastNameTb.Text.Trim();
+                string firstName = FirstNameTb.Text.Trim();
+                // Отчество может быть null или пустой строкой
+                string middleName = string.IsNullOrWhiteSpace(MiddleNameTb.Text) ? null : MiddleNameTb.Text.Trim();
+
+                // Проверяем, не существует ли уже пользователь с таким логином (номер билета)
+                if (IsLoginExists(cardNumber))
+                {
+                    CustomMessageBox.Show("Пользователь с таким номером билета уже существует.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    return;
+                }
+
                 const string query = @"
-                    INSERT INTO ReaderForm (
-                        CardNumber, LastName, FirstName, MiddleName,
-                        TypeID, GroupID, Post, Speciality,
-                        PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
-                    ) VALUES (
-                        @CardNumber, @LastName, @FirstName, @MiddleName,
-                        @TypeID, @GroupID, @Post, @Speciality,
-                        @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
-                    )";
+            INSERT INTO ReaderForm (
+                CardNumber, LastName, FirstName, MiddleName,
+                TypeID, GroupID, Post, Speciality,
+                PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
+            ) VALUES (
+                @CardNumber, @LastName, @FirstName, @MiddleName,
+                @TypeID, @GroupID, @Post, @Speciality,
+                @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
+            );
+            SELECT SCOPE_IDENTITY();";
+
+                int newReaderId = 0;
 
                 using (var connection = new SqlConnection(connectionString))
                 {
-                    connection.Open();
+                    await connection.OpenAsync();
                     using (var command = new SqlCommand(query, connection))
                     {
-                        command.Parameters.AddWithValue("@CardNumber", CardNumberTb.Text.Trim());
-                        command.Parameters.AddWithValue("@LastName", LastNameTb.Text.Trim());
-                        command.Parameters.AddWithValue("@FirstName", FirstNameTb.Text.Trim());
-                        command.Parameters.AddWithValue("@MiddleName", string.IsNullOrWhiteSpace(MiddleNameTb.Text) ? (object)DBNull.Value : MiddleNameTb.Text.Trim());
+                        command.Parameters.AddWithValue("@CardNumber", cardNumber);
+                        command.Parameters.AddWithValue("@LastName", lastName);
+                        command.Parameters.AddWithValue("@FirstName", firstName);
+                        // Если отчество пустое или null, передаём DBNull.Value
+                        command.Parameters.AddWithValue("@MiddleName", string.IsNullOrWhiteSpace(middleName) ? (object)DBNull.Value : middleName);
                         command.Parameters.AddWithValue("@TypeID", selectedType.ID);
                         command.Parameters.AddWithValue("@GroupID", (isStudent && GrCb.SelectedValue != null) ? GrCb.SelectedValue : (object)DBNull.Value);
                         command.Parameters.AddWithValue("@Post", (isEmployee && PostCb.SelectedValue != null) ? PostCb.SelectedValue : (object)DBNull.Value);
@@ -732,23 +882,47 @@ namespace Diplom_Bibl.Pages
                         command.Parameters.AddWithValue("@MembershipStartDate", MembershipStartDatePicker.SelectedDate.Value);
                         command.Parameters.AddWithValue("@FormFillDate", FormFillDatePicker.SelectedDate.Value);
 
-                        int result = command.ExecuteNonQuery();
-                        if (result > 0)
-                        {
-                            CustomMessageBox.Show("Читатель успешно добавлен.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                            ClearForm();
-                            LoadReaders();
-                        }
+                        newReaderId = Convert.ToInt32(await command.ExecuteScalarAsync());
                     }
+                }
+
+                if (newReaderId > 0)
+                {
+                    // Создаём учётную запись пользователя (отчество может быть null)
+                    CreateUserForReader(
+                        newReaderId,
+                        lastName,
+                        firstName,
+                        middleName,  // может быть null
+                        cardNumber
+                    );
+
+                    ClearForm();
+                    LoadReaders();
                 }
             }
             catch (SqlException ex) when (ex.Number == 2627)
             {
-                CustomMessageBox.Show("Читатель с таким номером билета уже существует.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                if (ex.Message.Contains("UQ_Users_Login"))
+                {
+                    CustomMessageBox.Show("Пользователь с таким номером билета уже существует.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
+                else if (ex.Message.Contains("UQ__ReaderFo__A4E9FFE9EF8FB088") || ex.Message.Contains("CardNumber"))
+                {
+                    CustomMessageBox.Show("Читатель с таким номером билета уже существует.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
+                else
+                {
+                    CustomMessageBox.Show("Ошибка при добавлении читателя. Возможно, такой пользователь уже существует.", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка при добавлении читателя: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при добавлении читателя: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -756,7 +930,8 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentReaderId.HasValue)
             {
-                CustomMessageBox.Show("Выберите читателя для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите читателя для редактирования.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
             if (!ValidateForm()) return;
@@ -768,20 +943,20 @@ namespace Diplom_Bibl.Pages
                 bool isEmployee = selectedType.TypeName?.ToLower().Contains("сотрудник") ?? false;
 
                 const string query = @"
-                    UPDATE ReaderForm 
-                    SET CardNumber = @CardNumber,
-                        LastName = @LastName,
-                        FirstName = @FirstName,
-                        MiddleName = @MiddleName,
-                        TypeID = @TypeID,
-                        GroupID = @GroupID,
-                        Post = @Post,
-                        Speciality = @Speciality,
-                        PhoneNumber = @PhoneNumber,
-                        HomeAddress = @HomeAddress,
-                        MembershipStartDate = @MembershipStartDate,
-                        FormFillDate = @FormFillDate
-                    WHERE ReaderID = @ReaderID";
+            UPDATE ReaderForm 
+            SET CardNumber = @CardNumber,
+                LastName = @LastName,
+                FirstName = @FirstName,
+                MiddleName = @MiddleName,
+                TypeID = @TypeID,
+                GroupID = @GroupID,
+                Post = @Post,
+                Speciality = @Speciality,
+                PhoneNumber = @PhoneNumber,
+                HomeAddress = @HomeAddress,
+                MembershipStartDate = @MembershipStartDate,
+                FormFillDate = @FormFillDate
+            WHERE ReaderID = @ReaderID";
 
                 using (var connection = new SqlConnection(connectionString))
                 {
@@ -805,7 +980,16 @@ namespace Diplom_Bibl.Pages
                         int result = command.ExecuteNonQuery();
                         if (result > 0)
                         {
-                            CustomMessageBox.Show("Данные читателя успешно обновлены.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                            // Обновляем данные пользователя
+                            UpdateUserInfo(
+     _currentReaderId.Value,
+     LastNameTb.Text.Trim(),
+     FirstNameTb.Text.Trim(),
+     string.IsNullOrWhiteSpace(MiddleNameTb.Text) ? null : MiddleNameTb.Text.Trim()  // может быть null
+ );
+
+                            CustomMessageBox.Show("Данные читателя успешно обновлены.", "Успешно",
+                                CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             ClearForm();
                             LoadReaders();
                         }
@@ -814,11 +998,13 @@ namespace Diplom_Bibl.Pages
             }
             catch (SqlException ex) when (ex.Number == 2627)
             {
-                CustomMessageBox.Show("Читатель с таким номером билета уже существует.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show("Читатель с таким номером билета уже существует.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка при обновлении читателя: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при обновлении читателя: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -845,21 +1031,6 @@ namespace Diplom_Bibl.Pages
 
         private async void DeleteReaderBtn_Click(object sender, RoutedEventArgs e)
         {
-            using (var conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET TeacherId = NULL WHERE TeacherId = @ReaderId", conn))
-                {
-                    cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);
-                    cmd.ExecuteNonQuery();
-                }
-                using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET StudentId = NULL WHERE StudentId = @ReaderId", conn))
-                {
-                    cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);
-                    cmd.ExecuteNonQuery();
-                }
-            }
-
             if (!_currentReaderId.HasValue)
             {
                 CustomMessageBox.Show("Выберите читателя для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
@@ -876,21 +1047,43 @@ namespace Diplom_Bibl.Pages
             }
 
             var result = CustomMessageBox.Show("Вы уверены, что хотите удалить этого читателя?\n" +
-                "Все исторические записи о его выдачах сохранятся (без привязки к читателю).",
+                "Все исторические записи о его выдачах сохранятся (без привязки к читателю).\n" +
+                "Учётная запись пользователя также будет удалена.",
                 "Подтверждение удаления", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
             if (result != CustomMessageBoxResult.Yes) return;
 
             try
             {
-                const string query = "DELETE FROM ReaderForm WHERE ReaderID = @ReaderID";
+                // Сначала удаляем пользователя (если есть)
                 using (var connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    using (var command = new SqlCommand(query, connection))
+
+                    // Удаляем из Users
+                    using (var cmd = new SqlCommand("DELETE FROM Users WHERE ReaderID = @ReaderID", connection))
                     {
-                        command.Parameters.AddWithValue("@ReaderID", _currentReaderId.Value);
-                        int rowsAffected = command.ExecuteNonQuery();
+                        cmd.Parameters.AddWithValue("@ReaderID", _currentReaderId.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Обнуляем связи в групповых выдачах
+                    using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET TeacherId = NULL WHERE TeacherId = @ReaderId", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                    using (var cmd = new SqlCommand("UPDATE GroupBookIssuance SET StudentId = NULL WHERE StudentId = @ReaderId", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Удаляем читателя
+                    using (var cmd = new SqlCommand("DELETE FROM ReaderForm WHERE ReaderID = @ReaderID", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@ReaderID", _currentReaderId.Value);
+                        int rowsAffected = cmd.ExecuteNonQuery();
                         if (rowsAffected > 0)
                         {
                             CustomMessageBox.Show("Читатель успешно удалён. Записи о выдачах сохранены.", "Успешно",

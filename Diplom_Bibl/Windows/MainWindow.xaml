@@ -348,12 +348,6 @@
                                             <TextBlock x:Name="BtnReportsLibText" Text="Отчёты" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button x:Name="BtnRequestBookLib" Style="{StaticResource MenuButtonStyle}" Click="MenuButton_Click">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path Data="M4 6h16v12H4V6zm2 2v2h12V8H6zm0 4v2h12v-2H6z" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>
-                                            <TextBlock x:Name="BtnRequestBookLibText" Text="Подать заявку" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
                                     <Button x:Name="BtnRequestsManagementLib" Style="{StaticResource MenuButtonStyle}" Click="MenuButton_Click">
                                         <StackPanel Orientation="Horizontal">
                                             <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h-4v-2h4v2zm0-4h-4v-2h4v2zm6 4h-4v-2h4v2zm0-4h-4v-2h4v2z" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0" Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"/>

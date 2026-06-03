@@ -7,17 +7,19 @@
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Заголовок -->
         <TextBlock Grid.Row="0" Text="📋 Мои заявки на книги" 
-                   FontSize="28" FontWeight="Bold" Foreground="#2C3E50" Margin="0,0,0,20"/>
+                   Style="{StaticResource SectionTitleStyle}" 
+                   Margin="0,0,0,20"/>
 
         <!-- Фильтры -->
         <Border Grid.Row="1" Background="White" CornerRadius="8"
-                BorderBrush="#D0D0D0" BorderThickness="1"
+                BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
                 Padding="15" Margin="0,0,0,20"
                 Effect="{StaticResource DropShadowEffect}">
             <Grid>
@@ -28,25 +30,22 @@
 
                 <StackPanel Grid.Column="0" Margin="0,0,15,0">
                     <TextBlock Text="🔍 Поиск" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="#2C3E50" Margin="0,0,0,8"/>
+                               Foreground="{StaticResource TextColor}" Margin="0,0,0,8"/>
                     <TextBox x:Name="TbSearch" Height="38" FontSize="13"
+                             Style="{StaticResource InputFieldStyle}"
                              TextChanged="TbSearch_TextChanged"
-                             ToolTip="Поиск по номеру заявки, занятию или группе"
-                             BorderBrush="#BDC3C7" BorderThickness="1"
-                             Padding="8,0"/>
+                             ToolTip="Поиск по номеру заявки, занятию или группе"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Margin="0,0,15,0">
                     <TextBlock Text="📊 Статус заявки" FontSize="14" FontWeight="SemiBold" 
-                               Foreground="#2C3E50" Margin="0,0,0,8"/>
+                               Foreground="{StaticResource TextColor}" Margin="0,0,0,8"/>
                     <ComboBox x:Name="CbStatusFilter" Height="38" FontSize="13"
-                              SelectionChanged="CbStatusFilter_SelectionChanged"
-                              BorderBrush="#BDC3C7" BorderThickness="1"
-                              Padding="8,0">
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="CbStatusFilter_SelectionChanged">
                         <ComboBoxItem Content="Все заявки" IsSelected="True"/>
                         <ComboBoxItem Content="Новая"/>
                         <ComboBoxItem Content="В обработке"/>
-                        <ComboBoxItem Content="Готова"/>
                         <ComboBoxItem Content="Выдана"/>
                         <ComboBoxItem Content="Отменена"/>
                         <ComboBoxItem Content="Просрочена"/>
@@ -55,66 +54,73 @@
             </Grid>
         </Border>
 
-        <!-- Список заявок -->
-        <DataGrid Grid.Row="2" x:Name="DgRequests" AutoGenerateColumns="False"
-                  IsReadOnly="True" SelectionMode="Single"
-                  RowHeight="45" AlternatingRowBackground="#F9F9F9"
-                  Background="White" BorderBrush="#D0D0D0" BorderThickness="1"
-                  SelectionChanged="DgRequests_SelectionChanged"
-                  FontSize="13">
-            <DataGrid.Resources>
-                <Style TargetType="DataGridColumnHeader">
-                    <Setter Property="Background" Value="#34495E"/>
-                    <Setter Property="Foreground" Value="White"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                    <Setter Property="Height" Value="42"/>
-                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                    <Setter Property="FontSize" Value="13"/>
-                </Style>
-                <Style TargetType="DataGridCell">
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                    <Setter Property="Padding" Value="10,0"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                </Style>
-            </DataGrid.Resources>
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="№ заявки" Binding="{Binding RequestNumber}" Width="140"/>
-                <DataGridTextColumn Header="Дата" Binding="{Binding RequestDate, StringFormat='dd.MM.yyyy'}" Width="100"/>
-                <DataGridTextColumn Header="Занятие" Binding="{Binding LessonName}" Width="200"/>
-                <DataGridTextColumn Header="Дата занятия" Binding="{Binding LessonDate, StringFormat='dd.MM.yyyy'}" Width="110"/>
-                <DataGridTextColumn Header="Книг" Binding="{Binding TotalBooks}" Width="70"/>
-                <DataGridTemplateColumn Header="Статус" Width="130">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="12" Padding="8,4"
-                                    Background="{Binding StatusColor}"
-                                    HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding StatusName}" 
-                                           Foreground="White" FontSize="11"
-                                           HorizontalAlignment="Center"
-                                           FontWeight="SemiBold"/>
-                            </Border>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTemplateColumn Header="Действия" Width="100">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Button Content="📖 Просмотр" Width="80" Height="30"
-                                    Background="#3498DB" Foreground="White"
-                                    BorderThickness="0" 
-                                    Click="ViewRequest_Click"
-                                    Tag="{Binding ID_Request}"
-                                    Cursor="Hand"/>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+        <!-- Список заявок с ScrollViewer -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <DataGrid x:Name="DgRequests" AutoGenerateColumns="False"
+                      IsReadOnly="True" SelectionMode="Single"
+                      RowHeight="45" AlternatingRowBackground="{StaticResource LightGray}"
+                      Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                      SelectionChanged="DgRequests_SelectionChanged"
+                      FontSize="13"
+                      MinHeight="200"
+                      MaxHeight="400"
+                      ScrollViewer.CanContentScroll="True"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Height" Value="42"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="FontSize" Value="13"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Padding" Value="10,0"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="№ заявки" Binding="{Binding RequestNumber}" Width="140"/>
+                    <DataGridTextColumn Header="Дата" Binding="{Binding RequestDate, StringFormat='dd.MM.yyyy'}" Width="100"/>
+                    <DataGridTextColumn Header="Занятие" Binding="{Binding LessonName}" Width="200"/>
+                    <DataGridTextColumn Header="Дата занятия" Binding="{Binding LessonDate, StringFormat='dd.MM.yyyy'}" Width="110"/>
+                    <DataGridTextColumn Header="Книг" Binding="{Binding TotalBooks}" Width="70"/>
+                    <DataGridTemplateColumn Header="Статус" Width="130">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="12" Padding="8,4"
+                                        Background="{Binding StatusColor}"
+                                        HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding StatusName}" 
+                                               Foreground="White" FontSize="11"
+                                               HorizontalAlignment="Center"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Действия" Width="100">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="📖 Просмотр" Width="80" Height="30"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Background="{StaticResource AccentColor}"
+                                        Click="ViewRequest_Click"
+                                        Tag="{Binding ID_Request}"
+                                        Cursor="Hand"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
 
         <!-- Панель деталей заявки -->
         <Border Grid.Row="3" Background="White" CornerRadius="8"
-                BorderBrush="#D0D0D0" BorderThickness="1"
+                BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
                 Padding="20" Margin="0,20,0,0" Visibility="Collapsed"
                 x:Name="DetailsPanel"
                 Effect="{StaticResource DropShadowEffect}">
@@ -126,11 +132,10 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="📄 Детали заявки" FontSize="18" FontWeight="SemiBold"
-                               Foreground="#2C3E50" VerticalAlignment="Center"/>
+                               Foreground="{StaticResource PrimaryColor}" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" Content="✖ Закрыть" 
                             Width="80" Height="30"
-                            Background="#E74C3C" Foreground="White"
-                            BorderThickness="0" 
+                            Style="{StaticResource DeleteButtonStyle}"
                             Click="CloseDetailsPanel_Click"
                             Cursor="Hand"/>
                 </Grid>
@@ -143,7 +148,7 @@
 
                     <StackPanel Grid.Column="0" Margin="0,0,20,0">
                         <TextBlock x:Name="TbRequestNumber" FontWeight="Bold" FontSize="14" 
-                                   Foreground="#2980B9" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource PrimaryColor}" Margin="0,0,0,8"/>
                         <TextBlock x:Name="TbLessonInfo" FontSize="13" Margin="0,5,0,0"/>
                         <TextBlock x:Name="TbRequestDate" FontSize="13" Margin="0,5,0,0"/>
                     </StackPanel>
@@ -152,22 +157,22 @@
                         <TextBlock x:Name="TbGroupInfo" FontSize="13" Margin="0,0,0,8"/>
                         <TextBlock x:Name="TbStatus" FontSize="13" Margin="0,5,0,0"/>
                         <TextBlock x:Name="TbExpirationDate" FontSize="13" 
-                                   Foreground="#E74C3C" Margin="0,5,0,0"/>
+                                   Foreground="{StaticResource DangerColor}" Margin="0,5,0,0"/>
                     </StackPanel>
                 </Grid>
 
                 <TextBlock Text="Список книг:" FontWeight="SemiBold" FontSize="14" 
-                           Margin="0,0,0,8"/>
+                           Foreground="{StaticResource TextColor}" Margin="0,0,0,8"/>
                 <ScrollViewer MaxHeight="250" VerticalScrollBarVisibility="Auto">
                     <DataGrid x:Name="DgRequestItems" AutoGenerateColumns="False"
                               IsReadOnly="True" 
-                              RowHeight="35" AlternatingRowBackground="#F9F9F9"
-                              BorderBrush="#D0D0D0" BorderThickness="1"
+                              RowHeight="35" AlternatingRowBackground="{StaticResource LightGray}"
+                              BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
                               HeadersVisibility="Column">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="#ECF0F1"/>
-                                <Setter Property="Foreground" Value="#2C3E50"/>
+                                <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
                                 <Setter Property="FontWeight" Value="SemiBold"/>
                                 <Setter Property="Height" Value="35"/>
                             </Style>

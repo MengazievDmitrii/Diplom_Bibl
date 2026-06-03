@@ -73,22 +73,22 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-                    SELECT 
-                        r.ID_Request,
-                        r.RequestNumber,
-                        r.RequestDate,
-                        r.LessonName,
-                        r.LessonDate,
-                        rs.StatusName,
-                        rs.ID_Status AS StatusID,
-                        (SELECT SUM(Quantity) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks,
-                        r.ExpirationDate,
-                        g.GroupCode
-                    FROM BookRequests r
-                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                    LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
-                    WHERE r.UserID = @ReaderId
-                    ORDER BY r.RequestDate DESC";
+            SELECT 
+                r.ID_Request,
+                r.RequestNumber,
+                r.RequestDate,
+                r.LessonName,
+                r.LessonDate,
+                ISNULL(rs.StatusName, 'Неизвестно') AS StatusName,
+                r.StatusID,
+                (SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks,
+                r.ExpirationDate,
+                g.GroupCode
+            FROM BookRequests r
+            LEFT JOIN Groups g ON r.GroupID = g.GroupID
+            LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
+            WHERE r.UserID = @ReaderId
+            ORDER BY r.RequestDate DESC";
 
                 var requests = new ObservableCollection<RequestItem>();
 
@@ -102,18 +102,36 @@ namespace Diplom_Bibl.Pages
                         {
                             while (await reader.ReadAsync())
                             {
+                                // Безопасное чтение каждого поля с проверкой на DBNull
+                                int id_Request = reader["ID_Request"] != DBNull.Value ? Convert.ToInt32(reader["ID_Request"]) : 0;
+                                string requestNumber = reader["RequestNumber"] != DBNull.Value ? reader["RequestNumber"].ToString() : "";
+                                DateTime requestDate = reader["RequestDate"] != DBNull.Value ? Convert.ToDateTime(reader["RequestDate"]) : DateTime.Now;
+                                string lessonName = reader["LessonName"] != DBNull.Value ? reader["LessonName"].ToString() : "";
+                                DateTime lessonDate = reader["LessonDate"] != DBNull.Value ? Convert.ToDateTime(reader["LessonDate"]) : DateTime.Now;
+                                string statusName = reader["StatusName"] != DBNull.Value ? reader["StatusName"].ToString() : "Неизвестно";
+                                int statusID = reader["StatusID"] != DBNull.Value ? Convert.ToInt32(reader["StatusID"]) : 0;
+                                int totalBooks = reader["TotalBooks"] != DBNull.Value ? Convert.ToInt32(reader["TotalBooks"]) : 0;
+
+                                DateTime? expirationDate = reader["ExpirationDate"] != DBNull.Value
+                                    ? Convert.ToDateTime(reader["ExpirationDate"])
+                                    : (DateTime?)null;
+
+                                string groupCode = reader["GroupCode"] != DBNull.Value
+                                    ? reader["GroupCode"].ToString()
+                                    : "";
+
                                 requests.Add(new RequestItem
                                 {
-                                    ID_Request = Convert.ToInt32(reader["ID_Request"]),
-                                    RequestNumber = reader["RequestNumber"].ToString(),
-                                    RequestDate = Convert.ToDateTime(reader["RequestDate"]),
-                                    LessonName = reader["LessonName"].ToString(),
-                                    LessonDate = Convert.ToDateTime(reader["LessonDate"]),
-                                    StatusName = reader["StatusName"].ToString(),
-                                    StatusID = Convert.ToInt32(reader["StatusID"]),
-                                    TotalBooks = Convert.ToInt32(reader["TotalBooks"]),
-                                    ExpirationDate = reader["ExpirationDate"] != DBNull.Value ? Convert.ToDateTime(reader["ExpirationDate"]) : (DateTime?)null,
-                                    GroupCode = reader["GroupCode"]?.ToString() ?? ""
+                                    ID_Request = id_Request,
+                                    RequestNumber = requestNumber,
+                                    RequestDate = requestDate,
+                                    LessonName = lessonName,
+                                    LessonDate = lessonDate,
+                                    StatusName = statusName,
+                                    StatusID = statusID,
+                                    TotalBooks = totalBooks,
+                                    ExpirationDate = expirationDate,
+                                    GroupCode = groupCode
                                 });
                             }
                         }
@@ -203,26 +221,26 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-                    SELECT 
-                        r.RequestNumber,
-                        r.LessonName,
-                        r.LessonDate,
-                        r.RequestDate,
-                        g.GroupCode,
-                        rs.StatusName,
-                        r.ExpirationDate,
-                        b.TitleBook,
-                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                        ri.Quantity,
-                        ris.StatusName AS ItemStatusName
-                    FROM BookRequests r
-                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                    LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
-                    LEFT JOIN RequestItems ri ON r.ID_Request = ri.RequestID
-                    LEFT JOIN Books b ON ri.BookID = b.IDBook
-                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
-                    LEFT JOIN RequestItemStatuses ris ON ri.StatusID = ris.ID_Status
-                    WHERE r.ID_Request = @RequestId";
+            SELECT 
+                r.RequestNumber,
+                r.LessonName,
+                r.LessonDate,
+                r.RequestDate,
+                g.GroupCode,
+                rs.StatusName,
+                r.ExpirationDate,
+                b.TitleBook,
+                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                ri.Quantity,
+                ISNULL(ris.StatusName, 'Неизвестен') AS ItemStatusName
+            FROM BookRequests r
+            LEFT JOIN Groups g ON r.GroupID = g.GroupID
+            LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
+            LEFT JOIN RequestItems ri ON r.ID_Request = ri.RequestID
+            LEFT JOIN Books b ON ri.BookID = b.IDBook
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            LEFT JOIN RequestItemStatuses ris ON ri.StatusID = ris.ID_Status
+            WHERE r.ID_Request = @RequestId";
 
                 var items = new ObservableCollection<RequestBookDetail>();
 
@@ -242,11 +260,14 @@ namespace Diplom_Bibl.Pages
                                 {
                                     Dispatcher.Invoke(() =>
                                     {
-                                        TbRequestNumber.Text = $"Заявка №: {reader["RequestNumber"]}";
-                                        TbLessonInfo.Text = $"Занятие: {reader["LessonName"]}";
-                                        TbRequestDate.Text = $"Дата создания: {Convert.ToDateTime(reader["RequestDate"]):dd.MM.yyyy HH:mm}";
+                                        TbRequestNumber.Text = $"Заявка №: {reader["RequestNumber"]?.ToString() ?? ""}";
+                                        TbLessonInfo.Text = $"Занятие: {reader["LessonName"]?.ToString() ?? ""}";
+                                        TbRequestDate.Text = reader["RequestDate"] != DBNull.Value
+                                            ? $"Дата создания: {Convert.ToDateTime(reader["RequestDate"]):dd.MM.yyyy HH:mm}"
+                                            : "";
                                         TbGroupInfo.Text = $"Группа: {reader["GroupCode"]?.ToString() ?? "Не указана"}";
-                                        TbStatus.Text = $"Статус: {reader["StatusName"]}";
+                                        TbStatus.Text = $"Статус: {reader["StatusName"]?.ToString() ?? "Неизвестно"}";
+
                                         if (reader["ExpirationDate"] != DBNull.Value)
                                             TbExpirationDate.Text = $"Срок брони: {Convert.ToDateTime(reader["ExpirationDate"]):dd.MM.yyyy}";
                                         else
@@ -259,9 +280,9 @@ namespace Diplom_Bibl.Pages
                                 {
                                     items.Add(new RequestBookDetail
                                     {
-                                        BookTitle = reader["TitleBook"].ToString(),
-                                        AuthorName = reader["AuthorName"].ToString(),
-                                        Quantity = Convert.ToInt32(reader["Quantity"]),
+                                        BookTitle = reader["TitleBook"]?.ToString() ?? "",
+                                        AuthorName = reader["AuthorName"]?.ToString() ?? "",
+                                        Quantity = reader["Quantity"] != DBNull.Value ? Convert.ToInt32(reader["Quantity"]) : 0,
                                         StatusName = reader["ItemStatusName"]?.ToString() ?? "Неизвестен"
                                     });
                                 }
@@ -275,14 +296,16 @@ namespace Diplom_Bibl.Pages
 
                 if (items.Count == 0)
                 {
-                    var emptyList = new ObservableCollection<RequestBookDetail>();
-                    emptyList.Add(new RequestBookDetail
-                    {
-                        BookTitle = "Нет книг в заявке",
-                        AuthorName = "",
-                        Quantity = 0,
-                        StatusName = ""
-                    });
+                    var emptyList = new ObservableCollection<RequestBookDetail>
+            {
+                new RequestBookDetail
+                {
+                    BookTitle = "Нет книг в заявке",
+                    AuthorName = "",
+                    Quantity = 0,
+                    StatusName = ""
+                }
+            };
                     DgRequestItems.ItemsSource = emptyList;
                 }
             }

@@ -60,6 +60,14 @@
                     Width="180" 
                     Click="ImportReadersBtn_Click"
                     Margin="0,0,10,0"/>
+            <Button x:Name="ExportReadersBtn" 
+        Content="📥 Экспортировать читателей" 
+        Click="ExportReadersBtn_Click" 
+        Width="200" 
+        Height="35" 
+        Margin="10"
+        Style="{StaticResource SaveButtonStyle}"
+        HorizontalAlignment="Right"/>
         </StackPanel>
 
         <Border Grid.Row="2"

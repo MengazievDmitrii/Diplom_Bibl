@@ -5,6 +5,7 @@ using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.IO;
@@ -26,17 +27,13 @@ namespace Diplom_Bibl.Pages
         {
             InitializeComponent();
 
-            // Принудительная активация DatePicker'ов
-            StartDatePicker.IsEnabled = true;
-            EndDatePicker.IsEnabled = true;
-
             // Устанавливаем значения по умолчанию
             StartDatePicker.SelectedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
             EndDatePicker.SelectedDate = DateTime.Now.Date;
 
-            // Дополнительно устанавливаем формат
-            StartDatePicker.SelectedDateFormat = DatePickerFormat.Short;
-            EndDatePicker.SelectedDateFormat = DatePickerFormat.Short;
+            // Подписываемся на события изменения дат (если ещё не сделано)
+            StartDatePicker.SelectedDateChanged += StartDatePicker_SelectedDateChanged;
+            EndDatePicker.SelectedDateChanged += EndDatePicker_SelectedDateChanged;
         }
 
         // ========== ПРОВЕРКА ДАТ ==========
@@ -57,11 +54,15 @@ namespace Diplom_Bibl.Pages
             {
                 CustomMessageBox.Show("Дата 'с' не может быть позже даты 'по'.", "Ошибка ввода",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+
+                // Опционально: автоматически корректируем, если пользователь ошибся
+                EndDatePicker.SelectedDate = start;
                 return false;
             }
 
             return true;
         }
+
 
         // ========== ОТЧЁТ 1: ВЫДАЧА ЛИТЕРАТУРЫ ==========
 
@@ -106,34 +107,64 @@ namespace Diplom_Bibl.Pages
             var data = new ObservableCollection<BookIssuanceReport>();
 
             string query = @"
-                SELECT 
-                    i.IssuanceDate,
-                    b.TitleBook,
-                    b.InventaryNumber,
-                    CONCAT(r.LastName, ' ', r.FirstName, ' ', ISNULL(r.MiddleName, '')) AS ReaderName,
-                    CASE 
-                        WHEN rt.TypeName = 'Студент' THEN ISNULL(g.GroupCode, '')
-                        WHEN rt.TypeName = 'Сотрудник' THEN ISNULL(p.Post_Name, '')
-                        ELSE ''
-                    END AS GroupOrPost,
-                    i.PlannedReturnDate,
-                    i.ReturnDate,
-                    i.Status,
-                    CASE 
-                        WHEN i.ReturnDate IS NULL AND i.PlannedReturnDate < GETDATE() 
-                        THEN DATEDIFF(DAY, i.PlannedReturnDate, GETDATE())
-                        WHEN i.ReturnDate > i.PlannedReturnDate
-                        THEN DATEDIFF(DAY, i.PlannedReturnDate, i.ReturnDate)
-                        ELSE 0
-                    END AS DaysOverdue
-                FROM BookIssuance i
-                INNER JOIN Books b ON i.BookId = b.IDBook
-                INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
-                INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
-                LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                LEFT JOIN Post p ON r.Post = p.ID_Post
-                WHERE CAST(i.IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate
-                ORDER BY i.IssuanceDate DESC";
+        -- Индивидуальные выдачи
+        SELECT 
+            i.IssuanceDate,
+            b.TitleBook,
+            b.InventaryNumber,
+            CONCAT(r.LastName, ' ', r.FirstName, ' ', ISNULL(r.MiddleName, '')) AS ReaderName,
+            CASE 
+                WHEN rt.TypeName = 'Студент' THEN ISNULL(g.GroupCode, '')
+                WHEN rt.TypeName = 'Сотрудник' THEN ISNULL(p.Post_Name, '')
+                ELSE ''
+            END AS GroupOrPost,
+            i.PlannedReturnDate,
+            i.ReturnDate,
+            i.Status,
+            CASE 
+                WHEN i.ReturnDate IS NULL AND i.PlannedReturnDate < GETDATE() 
+                THEN DATEDIFF(DAY, i.PlannedReturnDate, GETDATE())
+                WHEN i.ReturnDate > i.PlannedReturnDate
+                THEN DATEDIFF(DAY, i.PlannedReturnDate, i.ReturnDate)
+                ELSE 0
+            END AS DaysOverdue,
+            'Индивидуальная' AS IssuanceType
+        FROM BookIssuance i
+        INNER JOIN Books b ON i.BookId = b.IDBook
+        INNER JOIN ReaderForm r ON i.ReaderId = r.ReaderID
+        INNER JOIN ReaderType rt ON r.TypeID = rt.TypeID
+        LEFT JOIN Groups g ON r.GroupID = g.GroupID
+        LEFT JOIN Post p ON r.Post = p.ID_Post
+        WHERE CAST(i.IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate
+        
+        UNION ALL
+        
+        -- Групповые выдачи (детализированные по книгам)
+        SELECT 
+            gi.IssuanceDate,
+            b.TitleBook,
+            b.InventaryNumber,
+            CONCAT(t.LastName, ' ', t.FirstName, ' ', ISNULL(t.MiddleName, '')) + ' (преподаватель)' AS ReaderName,
+            g.GroupCode AS GroupOrPost,
+            gi.PlannedReturnDate,
+            gi.ReturnDate,
+            gi.Status,
+            CASE 
+                WHEN gi.ReturnDate IS NULL AND gi.PlannedReturnDate < GETDATE() 
+                THEN DATEDIFF(DAY, gi.PlannedReturnDate, GETDATE())
+                WHEN gi.ReturnDate > gi.PlannedReturnDate
+                THEN DATEDIFF(DAY, gi.PlannedReturnDate, gi.ReturnDate)
+                ELSE 0
+            END AS DaysOverdue,
+            'Групповая' AS IssuanceType
+        FROM GroupBookIssuance gi
+        INNER JOIN Groups g ON gi.GroupId = g.GroupID
+        INNER JOIN GroupIssuanceItems gii ON gi.GroupIssuanceId = gii.GroupIssuanceId
+        INNER JOIN Books b ON gii.BookId = b.IDBook
+        LEFT JOIN ReaderForm t ON gi.TeacherId = t.ReaderID
+        WHERE CAST(gi.IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate
+        
+        ORDER BY IssuanceDate DESC";
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
@@ -157,7 +188,8 @@ namespace Diplom_Bibl.Pages
                                 PlannedReturnDate = reader.GetDateTime(5),
                                 ReturnDate = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
                                 Status = reader.GetString(7),
-                                DaysOverdue = reader.GetInt32(8)
+                                DaysOverdue = reader.GetInt32(8),
+                                IssuanceType = reader.GetString(9)  // Добавляем тип выдачи
                             };
                             data.Add(report);
                         }
@@ -301,21 +333,61 @@ namespace Diplom_Bibl.Pages
             var data = new ObservableCollection<BookFundGroupedReport>();
 
             string query = @"
-                SELECT 
-                    b.TitleBook,
-                    MAX(CONCAT(a.SurnameAuthor, ' ', a.NameAuthor, ' ', ISNULL(a.PatronymicAuthor, ''))) AS AuthorName,
-                    MAX(ISNULL(ph.TitlePublishingHouse, '')) AS Publisher,
-                    MAX(b.YearPublishing) AS Year,
-                    MAX(ISNULL(g.TitleGener, '')) AS Genre,
-                    SUM(b.TotalCopies) AS TotalCopies,
-                    SUM(b.AvailableCopies) AS AvailableCopies,
-                    SUM(b.CopiesInUse) AS CopiesInUse
-                FROM Books b
-                INNER JOIN Authors a ON b.Author = a.ID_Autor
-                LEFT JOIN PublishingHouse ph ON b.PublishingHouse = ph.IDPublishingHouse
-                LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
-                GROUP BY b.TitleBook
-                ORDER BY b.TitleBook";
+        WITH IssuanceStats AS (
+            -- Индивидуальные выдачи
+            SELECT 
+                b.TitleBook,
+                COUNT(*) AS IssuedCount
+            FROM BookIssuance bi
+            INNER JOIN Books b ON bi.BookId = b.IDBook
+            WHERE bi.ReturnDate IS NULL AND bi.Status = 'Выдана'
+            GROUP BY b.TitleBook
+            
+            UNION ALL
+            
+            -- Групповые выдачи
+            SELECT 
+                b.TitleBook,
+                SUM(gii.Quantity - gii.ReturnedQuantity) AS IssuedCount
+            FROM GroupBookIssuance gbi
+            INNER JOIN GroupIssuanceItems gii ON gbi.GroupIssuanceId = gii.GroupIssuanceId
+            INNER JOIN Books b ON gii.BookId = b.IDBook
+            WHERE gbi.ReturnDate IS NULL AND gbi.Status = 'Выдана'
+            GROUP BY b.TitleBook
+        ),
+        TotalIssued AS (
+            SELECT 
+                TitleBook,
+                SUM(IssuedCount) AS TotalIssued
+            FROM IssuanceStats
+            GROUP BY TitleBook
+        ),
+        DisposedStats AS (
+            SELECT 
+                TitleBook,
+                COUNT(*) AS DisposedCount
+            FROM Books
+            WHERE StatusBook = 5
+            GROUP BY TitleBook
+        )
+        SELECT 
+            b.TitleBook,
+            MAX(CONCAT(a.SurnameAuthor, ' ', a.NameAuthor, ' ', ISNULL(a.PatronymicAuthor, ''))) AS AuthorName,
+            MAX(ISNULL(ph.TitlePublishingHouse, '')) AS Publisher,
+            MAX(b.YearPublishing) AS Year,
+            MAX(ISNULL(g.TitleGener, '')) AS Genre,
+            COUNT(*) AS TotalCopies,
+            COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) AS AvailableCopies,
+            ISNULL(MAX(ti.TotalIssued), 0) AS CopiesInUse,
+            ISNULL(MAX(ds.DisposedCount), 0) AS DisposedCopies
+        FROM Books b
+        INNER JOIN Authors a ON b.Author = a.ID_Autor
+        LEFT JOIN PublishingHouse ph ON b.PublishingHouse = ph.IDPublishingHouse
+        LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
+        LEFT JOIN TotalIssued ti ON b.TitleBook = ti.TitleBook
+        LEFT JOIN DisposedStats ds ON b.TitleBook = ds.TitleBook
+        GROUP BY b.TitleBook
+        ORDER BY b.TitleBook";
 
             using (SqlConnection conn = new SqlConnection(_connectionString))
             {
@@ -334,7 +406,8 @@ namespace Diplom_Bibl.Pages
                             Genre = reader.GetString(4),
                             TotalCopies = reader.GetInt32(5),
                             AvailableCopies = reader.GetInt32(6),
-                            CopiesInUse = reader.GetInt32(7)
+                            CopiesInUse = reader.GetInt32(7),
+                            DisposedCopies = reader.GetInt32(8)
                         };
                         data.Add(report);
                     }
@@ -386,36 +459,108 @@ namespace Diplom_Bibl.Pages
             var data = new ObservableCollection<InfoServiceReport>();
 
             string query = @"
-                SELECT 
-                    CAST(IssuanceDate AS DATE) AS OperationDate,
-                    COUNT(CASE WHEN Status = 'Выдана' AND CAST(IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate THEN 1 END) AS BooksIssued,
-                    COUNT(CASE WHEN Status = 'Возвращена' AND CAST(ReturnDate AS DATE) BETWEEN @StartDate AND @EndDate THEN 1 END) AS BooksReturned
-                FROM BookIssuance
-                WHERE (Status = 'Выдана' OR Status = 'Возвращена')
-                GROUP BY CAST(IssuanceDate AS DATE)
-                ORDER BY OperationDate";
+        -- Выдачи за период (индивидуальные)
+        SELECT 
+            CAST(IssuanceDate AS DATE) AS OperationDate,
+            'Выдача' AS OperationType,
+            COUNT(*) AS Count
+        FROM BookIssuance
+        WHERE Status = 'Выдана' 
+            AND CAST(IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate
+        GROUP BY CAST(IssuanceDate AS DATE)
+        
+        UNION ALL
+        
+        -- Выдачи за период (групповые) - каждая книга отдельно
+        SELECT 
+            CAST(gi.IssuanceDate AS DATE) AS OperationDate,
+            'Выдача' AS OperationType,
+            COUNT(*) AS Count
+        FROM GroupBookIssuance gi
+        INNER JOIN GroupIssuanceItems gii ON gi.GroupIssuanceId = gii.GroupIssuanceId
+        WHERE gi.Status = 'Выдана'
+            AND CAST(gi.IssuanceDate AS DATE) BETWEEN @StartDate AND @EndDate
+        GROUP BY CAST(gi.IssuanceDate AS DATE)
+        
+        UNION ALL
+        
+        -- Возвраты за период (индивидуальные)
+        SELECT 
+            CAST(ReturnDate AS DATE) AS OperationDate,
+            'Возврат' AS OperationType,
+            COUNT(*) AS Count
+        FROM BookIssuance
+        WHERE ReturnDate IS NOT NULL 
+            AND Status = 'Возвращена'
+            AND CAST(ReturnDate AS DATE) BETWEEN @StartDate AND @EndDate
+        GROUP BY CAST(ReturnDate AS DATE)
+        
+        UNION ALL
+        
+        -- Возвраты за период (групповые) - каждая книга отдельно
+        SELECT 
+            CAST(gi.ReturnDate AS DATE) AS OperationDate,
+            'Возврат' AS OperationType,
+            COUNT(*) AS Count
+        FROM GroupBookIssuance gi
+        INNER JOIN GroupIssuanceItems gii ON gi.GroupIssuanceId = gii.GroupIssuanceId
+        WHERE gi.ReturnDate IS NOT NULL 
+            AND gi.Status = 'Возвращена'
+            AND CAST(gi.ReturnDate AS DATE) BETWEEN @StartDate AND @EndDate
+        GROUP BY CAST(gi.ReturnDate AS DATE)
+    ";
 
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
-                using (SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@StartDate", start.Date);
-                    command.Parameters.AddWithValue("@EndDate", end.Date);
 
-                    using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                // Получаем все даты в диапазоне
+                var allDates = new List<DateTime>();
+                for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
+                {
+                    allDates.Add(date);
+                }
+
+                // Группируем результаты по датам
+                var resultDict = allDates.ToDictionary(d => d, d => new { Issued = 0, Returned = 0 });
+
+                using (SqlCommand cmd = new SqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@StartDate", start.Date);
+                    cmd.Parameters.AddWithValue("@EndDate", end.Date);
+
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                     {
                         while (await reader.ReadAsync())
                         {
-                            var report = new InfoServiceReport
+                            DateTime opDate = reader.GetDateTime(0);
+                            string opType = reader.GetString(1);
+                            int count = reader.GetInt32(2);
+
+                            if (resultDict.ContainsKey(opDate))
                             {
-                                OperationDate = reader.GetDateTime(0),
-                                BooksIssued = reader.GetInt32(1),
-                                BooksReturned = reader.GetInt32(2)
-                            };
-                            data.Add(report);
+                                if (opType == "Выдача")
+                                {
+                                    resultDict[opDate] = new { Issued = resultDict[opDate].Issued + count, Returned = resultDict[opDate].Returned };
+                                }
+                                else if (opType == "Возврат")
+                                {
+                                    resultDict[opDate] = new { Issued = resultDict[opDate].Issued, Returned = resultDict[opDate].Returned + count };
+                                }
+                            }
                         }
                     }
+                }
+
+                // Формируем результат
+                foreach (var date in allDates)
+                {
+                    data.Add(new InfoServiceReport
+                    {
+                        OperationDate = date,
+                        BooksIssued = resultDict[date].Issued,
+                        BooksReturned = resultDict[date].Returned
+                    });
                 }
             }
 
@@ -505,6 +650,7 @@ namespace Diplom_Bibl.Pages
                         break;
                     case "Status": e.Column.Header = "Статус"; break;
                     case "DaysOverdue": e.Column.Header = "Дней просрочки"; break;
+                    case "IssuanceType": e.Column.Header = "Тип выдачи"; break;
                     case "CardNumber": e.Column.Header = "№ билета"; break;
                     case "FullName": e.Column.Header = "ФИО"; break;
                     case "TypeName": e.Column.Header = "Тип"; break;
@@ -523,6 +669,7 @@ namespace Diplom_Bibl.Pages
                     case "TotalCopies": e.Column.Header = "Всего"; break;
                     case "AvailableCopies": e.Column.Header = "Доступно"; break;
                     case "CopiesInUse": e.Column.Header = "В использовании"; break;
+                    case "DisposedCopies": e.Column.Header = "Списано"; break;  // 👈 ДОБАВЛЕННАЯ СТРОКА
                     case "Title": e.Column.Header = "Название книги"; break;
                     case "OperationDate":
                         e.Column.Header = "Дата";
@@ -536,10 +683,66 @@ namespace Diplom_Bibl.Pages
             };
 
             mainPanel.Children.Add(dataGrid);
+
+            // 👇 ДОБАВЛЕННАЯ ИТОГОВАЯ СТРОКА ДЛЯ ОТЧЁТА О ФОНДЕ
+            if (title == "Состояние библиотечного фонда" && enumerableData is ObservableCollection<BookFundGroupedReport> fundData && fundData.Any())
+            {
+                var totalPanel = new Border
+                {
+                    Background = System.Windows.Media.Brushes.LightGray,
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(15, 10, 15, 10),
+                    Margin = new Thickness(10, 0, 10, 10)
+                };
+
+                int totalAll = fundData.Sum(x => x.TotalCopies);
+                int totalAvailable = fundData.Sum(x => x.AvailableCopies);
+                int totalInUse = fundData.Sum(x => x.CopiesInUse);
+                int totalDisposed = fundData.Sum(x => x.DisposedCopies);
+
+                var totalStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"ИТОГО: ",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Margin = new Thickness(0, 0, 20, 0)
+                });
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"📚 Всего: {totalAll}",
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 20, 0),
+                    Foreground = System.Windows.Media.Brushes.Blue
+                });
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"✅ Доступно: {totalAvailable}",
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 20, 0),
+                    Foreground = System.Windows.Media.Brushes.Green
+                });
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"📤 В использовании: {totalInUse}",
+                    FontSize = 13,
+                    Margin = new Thickness(0, 0, 20, 0),
+                    Foreground = System.Windows.Media.Brushes.Orange
+                });
+                totalStack.Children.Add(new TextBlock
+                {
+                    Text = $"❌ Списано: {totalDisposed}",
+                    FontSize = 13,
+                    Foreground = System.Windows.Media.Brushes.Red
+                });
+
+                totalPanel.Child = totalStack;
+                mainPanel.Children.Add(totalPanel);
+            }
+
             reportWindow.Content = mainPanel;
             reportWindow.ShowDialog();
         }
-
         private void ShowInfoServiceReportWindow(ObservableCollection<InfoServiceReport> data, DateTime startDate, DateTime endDate)
         {
             int totalIssued = data.Sum(x => x.BooksIssued);
@@ -625,7 +828,7 @@ namespace Diplom_Bibl.Pages
             var totalStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
             totalStack.Children.Add(new TextBlock
             {
-                Text = $"Итого за период: ",
+                Text = $"ИТОГО ЗА ПЕРИОД: ",
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
                 Margin = new Thickness(0, 0, 20, 0)
@@ -649,6 +852,13 @@ namespace Diplom_Bibl.Pages
 
             reportWindow.Content = mainPanel;
             reportWindow.ShowDialog();
+        }
+        // Дополнительный класс для отображения с накопленными итогами
+        public class InfoServiceReportWithCumulative : InfoServiceReport
+        {
+            public int CumulativeIssued { get; set; }
+            public int CumulativeReturned { get; set; }
+            public int CurrentlyOnHand { get; set; }
         }
 
         // ========== ЭКСПОРТ В EXCEL ==========
@@ -828,6 +1038,9 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Экспорт отчета "Выдача литературы" в PDF (печать)
         /// </summary>
+        /// <summary>
+        /// Экспорт отчета "Выдача литературы" в PDF (печать)
+        /// </summary>
         private async void PrintReport_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateDates()) return;
@@ -849,12 +1062,20 @@ namespace Diplom_Bibl.Pages
                     return;
                 }
 
-                await Task.Run(() => CreateAndShowPDF(data, "Отчёт_Выдача_литературы",
-                    StartDatePicker.SelectedDate.Value, EndDatePicker.SelectedDate.Value, new[]
+                // Создаём копию данных для фонового потока
+                var dataCopy = data.ToList();
+
+                await Task.Run(() => CreateAndShowPDFFromCopy(
+                    dataCopy,
+                    "Отчёт_Выдача_литературы",
+                    StartDatePicker.SelectedDate.Value,
+                    EndDatePicker.SelectedDate.Value,
+                    new[]
                     {
                 "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
                 "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки"
-                    }, item => new string[]
+                    },
+                    item => new string[]
                     {
                 ((BookIssuanceReport)item).IssuanceDate.ToString("dd.MM.yyyy HH:mm"),
                 ((BookIssuanceReport)item).BookTitle,
@@ -865,7 +1086,16 @@ namespace Diplom_Bibl.Pages
                 ((BookIssuanceReport)item).ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена",
                 ((BookIssuanceReport)item).Status,
                 ((BookIssuanceReport)item).DaysOverdue.ToString()
-                    }));
+                    }
+                ));
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex.InnerException is InvalidOperationException)
+            {
+                CustomMessageBox.Show(
+                    "Ошибка при создании PDF: невозможно работать с UI‑элементами в фоновом потоке. Попробуйте ещё раз.",
+                    "Ошибка печати",
+                    CustomMessageBoxButton.OK,
+                    CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
@@ -878,6 +1108,112 @@ namespace Diplom_Bibl.Pages
                 Mouse.OverrideCursor = null;
             }
         }
+        private void CreateAndShowPDFFromCopy<T>(List<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
+        {
+            string tempFile = Path.GetTempFileName() + ".pdf";
+
+            try
+            {
+                using (PdfDocument document = new PdfDocument())
+                {
+                    document.Info.Title = reportName;
+                    document.Info.Author = "Библиотечная система";
+                    document.Info.CreationDate = DateTime.Now;
+
+                    PdfPage page = document.AddPage();
+                    page.Orientation = PdfSharp.PageOrientation.Landscape;
+
+                    using (XGraphics gfx = XGraphics.FromPdfPage(page))
+                    {
+                        XFont titleFont = new XFont("Arial", 16, XFontStyle.Bold);
+                        XFont headerFont = new XFont("Arial", 10, XFontStyle.Bold);
+                        XFont dataFont = new XFont("Arial", 9, XFontStyle.Regular);
+                        XFont italicFont = new XFont("Arial", 9, XFontStyle.Italic);
+
+                        double yPoint = 40;
+                        double leftMargin = 30;
+                        double rowHeight = 25;
+
+                        double[] columnWidths = new double[headers.Length];
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            columnWidths[i] = 80;
+                        }
+
+                        gfx.DrawString(reportName, titleFont, XBrushes.Black, new XRect(0, yPoint, page.Width.Point, 30), XStringFormats.TopCenter);
+                        yPoint += 35;
+
+                        if (startDate.HasValue && endDate.HasValue)
+                        {
+                            string periodText = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}";
+                            gfx.DrawString(periodText, italicFont, XBrushes.Gray,
+                                new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
+                            yPoint += 18;
+                        }
+
+                        string dateGenerated = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                        gfx.DrawString(dateGenerated, italicFont, XBrushes.Gray,
+                            new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
+                        yPoint += 25;
+
+                        double currentX = leftMargin;
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            gfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
+                            gfx.DrawString(headers[i], headerFont, XBrushes.Black,
+                                new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
+                            currentX += columnWidths[i];
+                        }
+                        yPoint += rowHeight;
+
+                        foreach (var item in data)
+                        {
+                            string[] values = getValues(item);
+                            currentX = leftMargin;
+
+                            for (int i = 0; i < values.Length; i++)
+                            {
+                                gfx.DrawRectangle(XBrushes.White, currentX, yPoint, columnWidths[i], rowHeight);
+                                string displayText = values[i];
+                                if (displayText.Length > 20) displayText = displayText.Substring(0, 17) + "...";
+                                gfx.DrawString(displayText, dataFont, XBrushes.Black,
+                                    new XRect(currentX + 3, yPoint, columnWidths[i] - 6, rowHeight), XStringFormats.TopLeft);
+                                currentX += columnWidths[i];
+                            }
+                            yPoint += rowHeight;
+
+                            if (yPoint > page.Height.Point - 50)
+                            {
+                                page = document.AddPage();
+                                page.Orientation = PdfSharp.PageOrientation.Landscape;
+                                using (XGraphics newGfx = XGraphics.FromPdfPage(page))
+                                {
+                                    yPoint = 40;
+                                    currentX = leftMargin;
+                                    for (int i = 0; i < headers.Length; i++)
+                                    {
+                                        newGfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
+                                        newGfx.DrawString(headers[i], headerFont, XBrushes.Black,
+                                            new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
+                                        currentX += columnWidths[i];
+                                    }
+                                    yPoint += rowHeight;
+                                }
+                            }
+                        }
+                    }
+
+                    document.Save(tempFile);
+                }
+
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempFile) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Ошибка создания PDF: {ex.Message}", ex);
+            }
+        }
+
 
         /// <summary>
         /// Экспорт отчета "Выдача литературы" в Excel (вспомогательный метод)
@@ -1311,6 +1647,23 @@ namespace Diplom_Bibl.Pages
                 throw new Exception($"Ошибка создания PDF: {ex.Message}", ex);
             }
         }
+        private void StartDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (StartDatePicker.SelectedDate.HasValue && EndDatePicker.SelectedDate.HasValue)
+            {
+                // Автоматически проверяем корректность дат при изменении
+                ValidateDates();
+            }
+        }
+
+        private void EndDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (StartDatePicker.SelectedDate.HasValue && EndDatePicker.SelectedDate.HasValue)
+            {
+                ValidateDates();
+            }
+        }
+
     }
 
     // ========== МОДЕЛИ ДАННЫХ ==========
@@ -1326,6 +1679,7 @@ namespace Diplom_Bibl.Pages
         public DateTime? ReturnDate { get; set; }
         public string Status { get; set; } = "";
         public int DaysOverdue { get; set; }
+        public string IssuanceType { get; set; } = ""; 
     }
 
     public class ReaderActivityReport
@@ -1352,6 +1706,8 @@ namespace Diplom_Bibl.Pages
         public int TotalCopies { get; set; }
         public int AvailableCopies { get; set; }
         public int CopiesInUse { get; set; }
+        public int DisposedCopies { get; set; }
+
     }
 
     public class InfoServiceReport

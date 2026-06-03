@@ -1,10 +1,12 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Media;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -13,7 +15,7 @@ namespace Diplom_Bibl.Pages
 {
     public partial class BookRequestsManagement : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;Encrypt=False;";
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<RequestItem> _allRequests;
         private int _librarianId;
         private System.Timers.Timer _notificationTimer;
@@ -93,10 +95,9 @@ namespace Diplom_Bibl.Pages
             public int Quantity { get; set; }
             public int StatusID { get; set; }
             public string StatusName { get; set; } = "";
+            public Visibility CancelVisible => (StatusName == "Зарезервирована" || StatusName == "Ожидает") ? Visibility.Visible : Visibility.Collapsed;
+            public Visibility IssueVisible => (StatusName == "Зарезервирована" || StatusName == "Ожидает") ? Visibility.Visible : Visibility.Collapsed;
         }
-
-        #endregion
-
         #region Конструктор и загрузка
 
         public BookRequestsManagement(int librarianId)
@@ -337,18 +338,26 @@ namespace Diplom_Bibl.Pages
             await System.Threading.Tasks.Task.Run(() =>
             {
                 string query = @"
-                    SELECT 
-                        r.ID_Request, r.RequestNumber, r.RequestDate,
-                        r.UserID,
-                        CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
-                        r.GroupID, g.GroupCode, r.LessonName, r.LessonDate,
-                        r.StatusID, rs.StatusName, r.ExpirationDate, r.UserTypeID,
-                        (SELECT SUM(Quantity) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks
-                    FROM BookRequests r
-                    LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
-                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                    LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
-                    ORDER BY r.RequestDate DESC";
+            SELECT 
+                r.ID_Request, 
+                r.RequestNumber, 
+                r.RequestDate,
+                r.UserID,
+                CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
+                r.GroupID, 
+                g.GroupCode, 
+                r.LessonName, 
+                r.LessonDate,
+                r.StatusID, 
+                rs.StatusName, 
+                r.ExpirationDate, 
+                r.UserTypeID,
+                (SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks
+            FROM BookRequests r
+            LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
+            LEFT JOIN Groups g ON r.GroupID = g.GroupID
+            LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
+            ORDER BY r.RequestDate DESC";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -357,26 +366,29 @@ namespace Diplom_Bibl.Pages
                     using (var reader = cmd.ExecuteReader())
                     {
                         var items = new ObservableCollection<RequestItem>();
+
                         while (reader.Read())
                         {
-                            items.Add(new RequestItem
+                            var item = new RequestItem
                             {
                                 ID_Request = Convert.ToInt32(reader["ID_Request"]),
-                                RequestNumber = reader["RequestNumber"].ToString(),
+                                RequestNumber = reader["RequestNumber"]?.ToString() ?? "",
                                 RequestDate = Convert.ToDateTime(reader["RequestDate"]),
                                 UserID = Convert.ToInt32(reader["UserID"]),
-                                UserName = reader["UserName"].ToString(),
+                                UserName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "Неизвестный пользователь",
                                 GroupID = reader["GroupID"] != DBNull.Value ? Convert.ToInt32(reader["GroupID"]) : (int?)null,
                                 GroupCode = reader["GroupCode"]?.ToString() ?? "",
                                 LessonName = reader["LessonName"]?.ToString() ?? "",
                                 LessonDate = Convert.ToDateTime(reader["LessonDate"]),
                                 StatusID = Convert.ToInt32(reader["StatusID"]),
-                                StatusName = reader["StatusName"].ToString(),
+                                StatusName = reader["StatusName"]?.ToString() ?? "",
                                 ExpirationDate = reader["ExpirationDate"] != DBNull.Value ? Convert.ToDateTime(reader["ExpirationDate"]) : (DateTime?)null,
                                 TotalBooks = Convert.ToInt32(reader["TotalBooks"]),
-                                UserTypeID = Convert.ToInt32(reader["UserTypeID"])
-                            });
+                                UserTypeID = reader["UserTypeID"] != DBNull.Value ? Convert.ToInt32(reader["UserTypeID"]) : 1
+                            };
+                            items.Add(item);
                         }
+
                         Dispatcher.Invoke(() =>
                         {
                             _allRequests = items;
@@ -385,6 +397,123 @@ namespace Diplom_Bibl.Pages
                     }
                 }
             });
+        }
+        /// <summary>
+        /// Выдача отдельной книги из заявки
+        /// </summary>
+        /// <summary>
+        /// Выдача отдельной книги из заявки (открывает форму выдачи)
+        /// </summary>
+        private async void IssueSingleBook_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button btn) || btn.Tag == null) return;
+            int requestItemId = (int)btn.Tag;
+
+            // Находим книгу в текущем списке
+            var bookItem = _currentRequestBooks.FirstOrDefault(b => b.ID_RequestItem == requestItemId);
+            if (bookItem == null) return;
+
+            var request = _allRequests?.FirstOrDefault(r => r.ID_Request == _currentRequestId);
+            if (request == null) return;
+
+            // Проверяем статус заявки
+            int processingStatusId = GetRequestStatusId("В обработке");
+            if (processingStatusId > 0 && request.StatusID != processingStatusId)
+            {
+                CustomMessageBox.Show($"Книги по заявке еще не готовы к выдаче. Сначала подтвердите заявку.\nТекущий статус: {request.StatusName}",
+                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return;
+            }
+
+            var confirmResult = CustomMessageBox.Show(
+                $"Выдать книгу \"{bookItem.BookTitle}\" (кол-во: {bookItem.Quantity} шт.) по заявке №{request.RequestNumber}?",
+                "Подтверждение выдачи",
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
+
+            if (confirmResult != CustomMessageBoxResult.Yes) return;
+
+            // Создаем список книг для передачи (только выбранная книга)
+            var booksForPage = new List<InformationServicePage.RequestBookItem>
+    {
+        new InformationServicePage.RequestBookItem
+        {
+            ID_RequestItem = bookItem.ID_RequestItem,
+            BookID = bookItem.BookID,
+            BookTitle = bookItem.BookTitle,
+            AuthorName = bookItem.AuthorName,
+            Quantity = bookItem.Quantity,
+            StatusID = bookItem.StatusID,
+            StatusName = bookItem.StatusName
+        }
+    };
+
+            // Переходим на страницу информационного обслуживания для выдачи
+            var infoServicePage = new InformationServicePage(
+                requestId: _currentRequestId,
+                userId: request.UserID,
+                groupId: request.GroupID,
+                userName: request.UserName,
+                groupCode: request.GroupCode,
+                lessonName: request.LessonName,
+                lessonDate: request.LessonDate,
+                userTypeId: request.UserTypeID,
+                quantity: bookItem.Quantity,
+                requestBooks: booksForPage
+            );
+
+            NavigationService?.Navigate(infoServicePage);
+        }
+
+        /// <summary>
+        /// Получение доступных ID книг для выдачи
+        /// </summary>
+        private async Task<List<int>> GetAvailableBookIdsForIssuance(int bookId, int quantity, int requestId)
+        {
+            var bookIds = new List<int>();
+            try
+            {
+                string sql = @"
+            SELECT TOP (@Qty) b.IDBook
+            FROM Books b
+            WHERE b.TitleBook = (SELECT TitleBook FROM Books WHERE IDBook = @BookId)
+              AND (
+                  b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%')
+                  OR (
+                      b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Зарезервирована%')
+                      AND EXISTS (
+                          SELECT 1 FROM RequestItems ri 
+                          WHERE ri.BookID = b.IDBook 
+                            AND ri.RequestID = @RequestId 
+                            AND ri.StatusID = 2
+                      )
+                  )
+              )
+              AND b.AvailableCopies > 0
+            ORDER BY b.IDBook";
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@BookId", bookId);
+                        cmd.Parameters.AddWithValue("@Qty", quantity);
+                        cmd.Parameters.AddWithValue("@RequestId", requestId);
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                                bookIds.Add(reader.GetInt32(0));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения ID книг: {ex.Message}");
+            }
+            return bookIds;
         }
 
         #endregion
@@ -436,29 +565,33 @@ namespace Diplom_Bibl.Pages
 
         private async System.Threading.Tasks.Task ShowRequestDetails(int requestId)
         {
+            _currentRequestId = requestId;
+            _currentRequestBooks.Clear();
+
             try
             {
                 string query = @"
-                    SELECT 
-                        r.RequestNumber,
-                        CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
-                        rd.TypeID AS UserTypeID,
-                        r.LessonName, r.LessonDate, r.RequestDate,
-                        g.GroupCode, rs.StatusName, r.ExpirationDate,
-                        ri.ID_RequestItem, ri.BookID,
-                        b.TitleBook,
-                        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                        ri.Quantity,
-                        ris.StatusName AS ItemStatusName
-                    FROM BookRequests r
-                    LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
-                    LEFT JOIN Groups g ON r.GroupID = g.GroupID
-                    LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
-                    LEFT JOIN RequestItems ri ON r.ID_Request = ri.RequestID
-                    LEFT JOIN Books b ON ri.BookID = b.IDBook
-                    LEFT JOIN Authors a ON b.Author = a.ID_Autor
-                    LEFT JOIN RequestItemStatuses ris ON ri.StatusID = ris.ID_Status
-                    WHERE r.ID_Request = @RequestId";
+            SELECT 
+                r.RequestNumber,
+                CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
+                rd.TypeID AS UserTypeID,
+                r.LessonName, r.LessonDate, r.RequestDate,
+                g.GroupCode, rs.StatusName, r.ExpirationDate,
+                ri.ID_RequestItem, ri.BookID,
+                b.TitleBook,
+                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                ri.Quantity,
+                ris.StatusName AS ItemStatusName,
+                ri.StatusID
+            FROM BookRequests r
+            LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
+            LEFT JOIN Groups g ON r.GroupID = g.GroupID
+            LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
+            LEFT JOIN RequestItems ri ON r.ID_Request = ri.RequestID
+            LEFT JOIN Books b ON ri.BookID = b.IDBook
+            LEFT JOIN Authors a ON b.Author = a.ID_Autor
+            LEFT JOIN RequestItemStatuses ris ON ri.StatusID = ris.ID_Status
+            WHERE r.ID_Request = @RequestId";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -470,7 +603,7 @@ namespace Diplom_Bibl.Pages
                         {
                             bool hasData = false;
                             int userTypeID = 0;
-                            var items = new ObservableCollection<RequestBookItem>();
+                            string statusName = "";
 
                             while (await reader.ReadAsync())
                             {
@@ -478,6 +611,7 @@ namespace Diplom_Bibl.Pages
                                 {
                                     userTypeID = reader["UserTypeID"] != DBNull.Value ? Convert.ToInt32(reader["UserTypeID"]) : 0;
                                     string userTypeName = userTypeID == 1 ? "Студент" : (userTypeID == 3 ? "Сотрудник" : "Неизвестно");
+                                    statusName = reader["StatusName"]?.ToString() ?? "";
 
                                     Dispatcher.Invoke(() =>
                                     {
@@ -487,7 +621,7 @@ namespace Diplom_Bibl.Pages
                                         TbLessonInfo.Text = $"Занятие: {reader["LessonName"]}";
                                         TbRequestDate.Text = $"Дата создания: {Convert.ToDateTime(reader["RequestDate"]):dd.MM.yyyy HH:mm}";
                                         TbGroupInfo.Text = $"Группа: {reader["GroupCode"]?.ToString() ?? "Не указана"}";
-                                        TbStatus.Text = $"Статус: {reader["StatusName"]}";
+                                        TbStatus.Text = $"Статус: {statusName}";
                                         TbExpirationDate.Text = reader["ExpirationDate"] != DBNull.Value
                                             ? $"Срок брони: {Convert.ToDateTime(reader["ExpirationDate"]):dd.MM.yyyy}"
                                             : "";
@@ -497,29 +631,32 @@ namespace Diplom_Bibl.Pages
 
                                 if (reader["ID_RequestItem"] != DBNull.Value)
                                 {
-                                    items.Add(new RequestBookItem
+                                    var bookItem = new RequestBookItem
                                     {
                                         ID_RequestItem = Convert.ToInt32(reader["ID_RequestItem"]),
                                         BookID = Convert.ToInt32(reader["BookID"]),
                                         BookTitle = reader["TitleBook"]?.ToString() ?? "Не указано",
                                         AuthorName = reader["AuthorName"]?.ToString() ?? "Не указан",
                                         Quantity = Convert.ToInt32(reader["Quantity"]),
-                                        StatusName = reader["ItemStatusName"]?.ToString() ?? "Неизвестен"
-                                    });
+                                        StatusName = reader["ItemStatusName"]?.ToString() ?? "Неизвестен",
+                                        StatusID = Convert.ToInt32(reader["StatusID"])
+                                    };
+                                    _currentRequestBooks.Add(bookItem);
                                 }
                             }
 
                             Dispatcher.Invoke(() =>
                             {
-                                DgRequestItems.ItemsSource = items;
+                                // Используем непосредственно список _currentRequestBooks
+                                DgRequestItems.ItemsSource = _currentRequestBooks;
                                 DetailsPanel.Visibility = Visibility.Visible;
 
-                                if (items.Count == 0)
+                                if (_currentRequestBooks.Count == 0)
                                 {
                                     var emptyList = new ObservableCollection<RequestBookItem>
-                                    {
-                                        new RequestBookItem { BookTitle = "Нет книг в заявке", AuthorName = "", Quantity = 0, StatusName = "" }
-                                    };
+                            {
+                                new RequestBookItem { BookTitle = "Нет книг в заявке", AuthorName = "", Quantity = 0, StatusName = "" }
+                            };
                                     DgRequestItems.ItemsSource = emptyList;
                                 }
                             });
@@ -533,10 +670,12 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
         #endregion
 
+
         #region Действия с заявками
+        private int _currentRequestId = 0;
+        private ObservableCollection<RequestBookItem> _currentRequestBooks = new ObservableCollection<RequestBookItem>();
 
         private async void ConfirmRequest_Click(object sender, RoutedEventArgs e)
         {
@@ -591,6 +730,7 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+      
 
         private void IssueBooks_Click(object sender, RoutedEventArgs e)
         {
@@ -737,6 +877,102 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+        /// <summary>
+        /// Отмена отдельной позиции книги в заявке
+        /// </summary>
+        private async void CancelBookItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button btn) || btn.Tag == null) return;
+            int requestItemId = (int)btn.Tag;
+
+            // Находим книгу в текущем списке
+            var bookItem = _currentRequestBooks.FirstOrDefault(b => b.ID_RequestItem == requestItemId);
+            if (bookItem == null) return;
+
+            var result = CustomMessageBox.Show(
+                $"Отменить книгу \"{bookItem.BookTitle}\" (кол-во: {bookItem.Quantity} шт.) из заявки?",
+                "Подтверждение отмены",
+                CustomMessageBoxButton.YesNo,
+                CustomMessageBoxImage.Question);
+
+            if (result != CustomMessageBoxResult.Yes) return;
+
+            try
+            {
+                // Получаем ID статуса "Отменена" для позиции заявки
+                int cancelledItemStatusId = _itemStatuses
+                    .FirstOrDefault(s => s.Value == "Отменена").Key;
+                if (cancelledItemStatusId <= 0) cancelledItemStatusId = 4;
+
+                // Получаем ID статуса книги "В наличии"
+                int availableBookStatusId;
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = new SqlCommand(
+                        "SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%'", conn))
+                    {
+                        availableBookStatusId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                    }
+                }
+
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Снимаем резерв с книг
+                            using (var cmd = new SqlCommand(@"
+                        UPDATE b
+                        SET b.StatusBook = @AvailableStatus
+                        FROM Books b
+                        WHERE b.IDBook IN (
+                            SELECT BookID FROM RequestItems WHERE ID_RequestItem = @RequestItemId
+                        )
+                        AND b.StatusBook = (
+                            SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Зарезервирована%'
+                        )", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@AvailableStatus", availableBookStatusId);
+                                cmd.Parameters.AddWithValue("@RequestItemId", requestItemId);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            // 2. Отменяем позицию заявки
+                            using (var cmd = new SqlCommand(
+                                "UPDATE RequestItems SET StatusID = @StatusId WHERE ID_RequestItem = @RequestItemId",
+                                conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@StatusId", cancelledItemStatusId);
+                                cmd.Parameters.AddWithValue("@RequestItemId", requestItemId);
+                                await cmd.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+
+                CustomMessageBox.Show($"Книга \"{bookItem.BookTitle}\" отменена.", "Успешно",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
+                // Обновляем детали заявки
+                await ShowRequestDetails(_currentRequestId);
+                await LoadRequests();
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка отмены: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
+        }
 
         #endregion
 
@@ -751,3 +987,4 @@ namespace Diplom_Bibl.Pages
         #endregion
     }
 }
+#endregion

@@ -196,32 +196,76 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string sql = @"
+            WITH IssuanceStats AS (
+                -- Индивидуальные выдачи
+                SELECT 
+                    b.TitleBook,
+                    COUNT(*) AS IssuedCount
+                FROM BookIssuance bi
+                INNER JOIN Books b ON bi.BookId = b.IDBook
+                WHERE bi.ReturnDate IS NULL AND bi.Status = 'Выдана'
+                GROUP BY b.TitleBook
+                
+                UNION ALL
+                
+                -- Групповые выдачи
+                SELECT 
+                    b.TitleBook,
+                    SUM(gii.Quantity - gii.ReturnedQuantity) AS IssuedCount
+                FROM GroupBookIssuance gbi
+                INNER JOIN GroupIssuanceItems gii ON gbi.GroupIssuanceId = gii.GroupIssuanceId
+                INNER JOIN Books b ON gii.BookId = b.IDBook
+                WHERE gbi.ReturnDate IS NULL AND gbi.Status = 'Выдана'
+                GROUP BY b.TitleBook
+            ),
+            TotalIssued AS (
+                SELECT 
+                    TitleBook,
+                    SUM(IssuedCount) AS TotalIssued
+                FROM IssuanceStats
+                GROUP BY TitleBook
+            ),
+            DisposedStats AS (
+                SELECT 
+                    TitleBook,
+                    COUNT(*) AS DisposedCount
+                FROM Books
+                WHERE StatusBook = 5
+                GROUP BY TitleBook
+            )
             SELECT 
                 MIN(b.IDBook) AS GroupId,
                 b.TitleBook,
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + ISNULL(a.PatronymicAuthor, ''), '') AS AuthorName,
                 MIN(b.Author) AS AuthorID,
                 MIN(b.YearPublishing) AS YearPublishing,
-                MIN(ph.TitlePublishingHouse) AS PublishingHouseName,
+                MIN(ISNULL(ph.TitlePublishingHouse, '')) AS PublishingHouseName,
                 MIN(b.PublishingHouse) AS PublisherID,
-                MIN(g.TitleGener) AS GenreName,
+                MIN(ISNULL(g.TitleGener, '')) AS GenreName,
                 MIN(b.Gener) AS GenreID,
                 COUNT(*) AS TotalCopies,
-                SUM(CASE WHEN b.StatusBook = 1 THEN 1 ELSE 0 END) AS AvailableCopies,
-                SUM(CASE WHEN b.StatusBook = 3 THEN 1 ELSE 0 END) AS IssuedCopies,
-                SUM(CASE WHEN b.StatusBook = 5 THEN 1 ELSE 0 END) AS DisposedCopies,
-                MAX(s.Title_Status) AS StatusName,
-                MAX(b.StatusBook) AS StatusID
+                -- Доступно = Всего - Выдано - Списано
+                COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) AS AvailableCopies,
+                ISNULL(MAX(ti.TotalIssued), 0) AS IssuedCopies,
+                ISNULL(MAX(ds.DisposedCount), 0) AS DisposedCopies,
+                -- Статус определяется по приоритету
+                CASE 
+                    WHEN ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'Списана'
+                    WHEN COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'В наличии'
+                    WHEN ISNULL(MAX(ti.TotalIssued), 0) > 0 THEN 'Выдана'
+                    ELSE 'Неизвестно'
+                END AS StatusName,
+                NULL AS StatusID
             FROM Books b
             LEFT JOIN Authors a ON b.Author = a.ID_Autor
             LEFT JOIN PublishingHouse ph ON b.PublishingHouse = ph.IDPublishingHouse
             LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
-            LEFT JOIN StatusBook s ON b.StatusBook = s.ID_Status
+            LEFT JOIN TotalIssued ti ON b.TitleBook = ti.TitleBook
+            LEFT JOIN DisposedStats ds ON b.TitleBook = ds.TitleBook
             GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
             ORDER BY b.TitleBook";
 
                 var yearsSet = new HashSet<int>();
-                var booksDictionary = new Dictionary<string, BookGroupItem>();
                 _allBooks.Clear();
 
                 using (var conn = new SqlConnection(_conn))
@@ -234,7 +278,6 @@ namespace Diplom_Bibl.Pages
                         {
                             string title = reader["TitleBook"]?.ToString() ?? "";
                             string author = reader["AuthorName"]?.ToString() ?? "";
-                            string key = $"{title}_{author}";
 
                             int totalCopies = Convert.ToInt32(reader["TotalCopies"]);
                             int availableCopies = Convert.ToInt32(reader["AvailableCopies"]);

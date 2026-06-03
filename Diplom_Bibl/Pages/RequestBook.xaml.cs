@@ -117,6 +117,7 @@ namespace Diplom_Bibl.Pages
 
             // Инициализируем интерфейс в зависимости от типа пользователя
             SetupUIForUserType();
+            LoadUserData();
 
             DpLessonDateSimple.SelectedDate = DateTime.Today;
             LoadAvailableBooks();
@@ -393,8 +394,10 @@ namespace Diplom_Bibl.Pages
 
                         while (reader.Read())
                         {
-                            // Безопасное чтение данных с проверкой на DBNull
-                            int groupId = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            // Для smallint используем GetInt16
+                            short groupId = reader.IsDBNull(0) ? (short)0 : reader.GetInt16(0);
+
+                            // Для nvarchar оставляем GetString
                             string groupCode = reader.IsDBNull(1) ? "Неизвестно" : reader.GetString(1);
 
                             groups.Add(new GroupItem
@@ -403,6 +406,7 @@ namespace Diplom_Bibl.Pages
                                 GroupCode = groupCode
                             });
                         }
+
 
                         // Привязка данных
                         CbGroup.ItemsSource = groups;

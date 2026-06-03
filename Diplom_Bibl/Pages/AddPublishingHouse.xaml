@@ -88,7 +88,7 @@
                     <ListView Grid.Row="1" 
                x:Name="LvPublishingHouse"
                BorderThickness="0,1,0,0" BorderBrush="Gray"
-               ScrollViewer.HorizontalScrollBarVisibility="Disabled"  MouseDoubleClick="LvSpecialities_MouseDoubleClick">
+               ScrollViewer.HorizontalScrollBarVisibility="Disabled"  MouseDoubleClick="LvPublishingHouse_MouseDoubleClick">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Header="Название издательства" 

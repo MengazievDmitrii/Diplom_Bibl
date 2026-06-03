@@ -254,13 +254,14 @@ namespace Diplom_Bibl.Windows
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
+
                     string query = @"
-                        SELECT bi.ID_Issuance, bi.ReaderID, bi.PlannedReturnDate, br.RequestNumber, b.TitleBook
-                        FROM BookIssuance bi
-                        INNER JOIN Books b ON bi.BookID = b.IDBook
-                        LEFT JOIN BookRequests br ON bi.RequestID = br.ID_Request
-                        WHERE bi.PlannedReturnDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 3, CAST(GETDATE() AS DATE))
-                        AND bi.ReturnDate IS NULL AND (bi.IsNotified IS NULL OR bi.IsNotified = 0)";
+                SELECT bi.IssuanceId, bi.ReaderID, bi.PlannedReturnDate, b.TitleBook
+                FROM BookIssuance bi
+                INNER JOIN Books b ON bi.BookID = b.IDBook
+                WHERE bi.PlannedReturnDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(DAY, 3, CAST(GETDATE() AS DATE))
+                AND bi.ReturnDate IS NULL
+                AND (bi.IsNotified IS NULL OR bi.IsNotified = 0)";
 
                     using (var cmd = new SqlCommand(query, conn))
                     using (var reader = cmd.ExecuteReader())
@@ -269,22 +270,24 @@ namespace Diplom_Bibl.Windows
                         {
                             int issuanceId = reader.GetInt32(0);
                             DateTime returnDate = reader.GetDateTime(2);
-                            string requestNumber = reader.IsDBNull(3) ? "не указан" : reader.GetString(3);
-                            string bookTitle = reader.GetString(4);
+                            string bookTitle = reader.GetString(3);
 
+                            // Вставляем уведомление без RequestID (используем IssuanceId как идентификатор)
                             string insertSql = @"
-                                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
-                                VALUES (ISNULL((SELECT ID_Request FROM BookIssuance WHERE ID_Issuance = @IssuanceId), 0),
-                                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Скоро возврат'),
-                                    @Message, 0, GETDATE())";
+                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
+                VALUES (@IssuanceId,
+                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Скоро возврат'),
+            @Message, 0, GETDATE())";
+
                             using (var insertCmd = new SqlCommand(insertSql, conn))
                             {
                                 insertCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
-                                insertCmd.Parameters.AddWithValue("@Message", $"⏰ Книга '{bookTitle}' по заявке №{requestNumber} должна быть возвращена до {returnDate:dd.MM.yyyy}");
+                                insertCmd.Parameters.AddWithValue("@Message", $"⏰ Книга '{bookTitle}' должна быть возвращена до {returnDate:dd.MM.yyyy}");
                                 insertCmd.ExecuteNonQuery();
                             }
 
-                            string updateSql = "UPDATE BookIssuance SET IsNotified = 1 WHERE ID_Issuance = @IssuanceId";
+                            // Отмечаем, что уведомление отправлено
+                            string updateSql = "UPDATE BookIssuance SET IsNotified = 1 WHERE IssuanceId = @IssuanceId";
                             using (var updateCmd = new SqlCommand(updateSql, conn))
                             {
                                 updateCmd.Parameters.AddWithValue("@IssuanceId", issuanceId);
@@ -294,11 +297,18 @@ namespace Diplom_Bibl.Windows
                     }
                 }
             }
+            catch (SqlException sqlEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ SQL ошибка проверки сроков возврата: {sqlEx.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Код ошибки: {sqlEx.Number}");
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Ошибка проверки сроков возврата: {ex.Message}");
             }
         }
+
+
 
         /// <summary>
         /// Отображение индикатора загрузки

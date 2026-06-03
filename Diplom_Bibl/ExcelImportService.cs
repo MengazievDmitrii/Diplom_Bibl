@@ -21,26 +21,24 @@ namespace Diplom_Bibl.Services
             public int ErrorRows { get; set; }
             public List<string> Errors { get; set; } = new List<string>();
             public List<string> Warnings { get; set; } = new List<string>();
+            public List<string> UserCredentials { get; set; } = new List<string>(); // Уже есть
             public bool HasErrors => Errors.Count > 0;
         }
-
         // Модель данных из Excel
         public class ExcelReaderRow
         {
-            public string CardNumber { get; set; }          // Номер читательского билета
-            public string LastName { get; set; }            // Фамилия
-            public string FirstName { get; set; }           // Имя
-            public string MiddleName { get; set; }          // Отчество
-            public string TypeName { get; set; }            // Тип читателя (Студент/Сотрудник)
-            public string GroupCode { get; set; }           // Код группы (для студентов)
-            public string PostName { get; set; }            // Должность (для сотрудников)
-            public string Speciality { get; set; }          // Специальность
-            public string PhoneNumber { get; set; }         // Телефон
-            public string HomeAddress { get; set; }         // Адрес
-            public string MembershipStartDate { get; set; } // Дата начала членства
-            public string FormFillDate { get; set; }        // Дата оформления
-
-            // Для валидации
+            public string CardNumber { get; set; }
+            public string LastName { get; set; }
+            public string FirstName { get; set; }
+            public string MiddleName { get; set; }
+            public string TypeName { get; set; }
+            public string GroupCode { get; set; }
+            public string PostName { get; set; }
+            public string Speciality { get; set; }
+            public string PhoneNumber { get; set; }
+            public string HomeAddress { get; set; }
+            public string MembershipStartDate { get; set; }
+            public string FormFillDate { get; set; }
             public int RowNumber { get; set; }
         }
 
@@ -59,7 +57,6 @@ namespace Diplom_Bibl.Services
 
                 using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
                 {
-                    // Автоматическое определение формата Excel
                     IExcelDataReader reader;
 
                     try
@@ -68,7 +65,6 @@ namespace Diplom_Bibl.Services
                     }
                     catch
                     {
-                        // Если не удалось прочитать как Excel, пробуем как CSV
                         return ImportFromCsv(filePath);
                     }
 
@@ -82,7 +78,6 @@ namespace Diplom_Bibl.Services
                             }
                         });
 
-                        // Берем первый лист
                         System.Data.DataTable dt = dataSet.Tables[0];
 
                         if (dt.Rows.Count == 0)
@@ -208,7 +203,6 @@ namespace Diplom_Bibl.Services
         {
             bool isValid = true;
 
-            // Проверка обязательных полей
             if (string.IsNullOrWhiteSpace(row.CardNumber))
             {
                 result.Errors.Add($"Строка {row.RowNumber}: Не указан номер читательского билета");
@@ -233,13 +227,12 @@ namespace Diplom_Bibl.Services
                 isValid = false;
             }
 
-            // Проверка на дубликат номера билета
             if (!string.IsNullOrWhiteSpace(row.CardNumber))
             {
                 if (CheckCardNumberExists(row.CardNumber))
                 {
                     result.Warnings.Add($"Строка {row.RowNumber}: Читатель с номером {row.CardNumber} уже существует в базе. Будет пропущен.");
-                    isValid = false; // Пропускаем дубликаты
+                    isValid = false;
                 }
             }
 
@@ -260,96 +253,180 @@ namespace Diplom_Bibl.Services
             }
         }
 
-        private void ImportReader(ExcelReaderRow row, ImportResult result)
+        private bool CheckLoginExists(string login)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                using (var cmd = new SqlCommand("SELECT COUNT(*) FROM Users WHERE Login = @Login", conn))
+                {
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    int count = (int)cmd.ExecuteScalar();
+                    return count > 0;
+                }
+            }
+        }
+
+        private string GenerateLogin(string lastName, string firstName)
+        {
+            // Логин = Фамилия + Имя (например: ИвановИван)
+            string login = lastName + firstName;
+
+            // Убираем пробелы и лишние символы
+            login = login.Replace(" ", "").Replace("-", "");
+
+            // Проверяем уникальность
+            string uniqueLogin = login;
+            int counter = 1;
+
+            while (CheckLoginExists(uniqueLogin))
+            {
+                uniqueLogin = login + counter.ToString();
+                counter++;
+            }
+
+            return uniqueLogin;
+        }
+
+        private string GeneratePassword(string cardNumber)
+        {
+            string password = cardNumber.Trim();
+
+            // Если пароль короче 4 символов, добавляем "lib" в начало
+            if (password.Length < 4)
+            {
+                password = "lib" + password;
+            }
+
+            return password;
+        }
+
+        private void CreateUserForReader(SqlConnection conn, SqlTransaction transaction, int readerId, string surname, string name, string patronymic, string cardNumber, ExcelReaderRow row, ImportResult result)
         {
             try
             {
-                using (var conn = new SqlConnection(_connectionString))
+                string login = GenerateLogin(surname, name);
+                string plainPassword = GeneratePassword(cardNumber);
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
+
+                string query = @"
+            INSERT INTO Users (Surname, Name, Patronymic, Login, PasswordHash, ReaderID)
+            VALUES (@Surname, @Name, @Patronymic, @Login, @PasswordHash, @ReaderID)";
+
+                using (var cmd = new SqlCommand(query, conn, transaction)) // Добавлен transaction
                 {
-                    conn.Open();
-
-                    // Определяем тип читателя
-                    bool isStudent = row.TypeName.ToLower().Contains("студент");
-                    bool isEmployee = row.TypeName.ToLower().Contains("сотрудник");
-
-                    // Получаем ID типа читателя
-                    int typeId = GetReaderTypeId(conn, row.TypeName);
-
-                    // Получаем ID группы (для студентов)
-                    int? groupId = null;
-                    if (isStudent && !string.IsNullOrWhiteSpace(row.GroupCode))
-                    {
-                        groupId = GetGroupId(conn, row.GroupCode);
-                        if (groupId == null)
-                        {
-                            result.Warnings.Add($"Строка {row.RowNumber}: Группа '{row.GroupCode}' не найдена. Поле будет пустым.");
-                        }
-                    }
-
-                    // Получаем ID должности (для сотрудников)
-                    int? postId = null;
-                    if (isEmployee && !string.IsNullOrWhiteSpace(row.PostName))
-                    {
-                        postId = GetPostId(conn, row.PostName);
-                        if (postId == null)
-                        {
-                            result.Warnings.Add($"Строка {row.RowNumber}: Должность '{row.PostName}' не найдена. Поле будет пустым.");
-                        }
-                    }
-
-                    // Парсим даты
-                    DateTime membershipStartDate = ParseDate(row.MembershipStartDate, DateTime.Today);
-                    DateTime formFillDate = ParseDate(row.FormFillDate, DateTime.Today);
-
-                    // Вставка читателя
-                    string query = @"
-                        INSERT INTO ReaderForm (
-                            CardNumber, LastName, FirstName, MiddleName,
-                            TypeID, GroupID, Post, Speciality,
-                            PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
-                        ) VALUES (
-                            @CardNumber, @LastName, @FirstName, @MiddleName,
-                            @TypeID, @GroupID, @Post, @Speciality,
-                            @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
-                        )";
-
-                    using (var cmd = new SqlCommand(query, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@CardNumber", row.CardNumber);
-                        cmd.Parameters.AddWithValue("@LastName", row.LastName);
-                        cmd.Parameters.AddWithValue("@FirstName", row.FirstName);
-                        cmd.Parameters.AddWithValue("@MiddleName", string.IsNullOrEmpty(row.MiddleName) ? DBNull.Value : (object)row.MiddleName);
-                        cmd.Parameters.AddWithValue("@TypeID", typeId);
-                        cmd.Parameters.AddWithValue("@GroupID", groupId ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Post", postId ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Speciality", string.IsNullOrEmpty(row.Speciality) ? DBNull.Value : (object)row.Speciality);
-                        cmd.Parameters.AddWithValue("@PhoneNumber", string.IsNullOrEmpty(row.PhoneNumber) ? DBNull.Value : (object)row.PhoneNumber);
-                        cmd.Parameters.AddWithValue("@HomeAddress", string.IsNullOrEmpty(row.HomeAddress) ? DBNull.Value : (object)row.HomeAddress);
-                        cmd.Parameters.AddWithValue("@MembershipStartDate", membershipStartDate);
-                        cmd.Parameters.AddWithValue("@FormFillDate", formFillDate);
-
-                        cmd.ExecuteNonQuery();
-                    }
+                    cmd.Parameters.AddWithValue("@Surname", surname);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(patronymic) ? (object)DBNull.Value : patronymic);
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    cmd.Parameters.AddWithValue("@ReaderID", readerId);
+                    cmd.ExecuteNonQuery();
                 }
+
+                // Сохраняем данные для входа в результат
+                string loginByName = GenerateLogin(surname, name);
+                result.UserCredentials.Add($"Читатель {surname} {name} (билет №{cardNumber}): Логин = {loginByName}, Пароль = {plainPassword}");
             }
-            catch (SqlException ex)
+            catch (Exception ex)
             {
-                if (ex.Number == 2627) // Нарушение уникальности
+                result.Warnings.Add($"Строка {row.RowNumber}: Читатель добавлен, но ошибка создания учётной записи: {ex.Message}");
+            }
+        }
+
+        private void ImportReader(ExcelReaderRow row, ImportResult result)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+
+                // Начинаем транзакцию
+                using (var transaction = conn.BeginTransaction())
                 {
-                    result.Warnings.Add($"Строка {row.RowNumber}: Читатель с номером {row.CardNumber} уже существует в базе");
-                }
-                else
-                {
-                    throw;
+                    try
+                    {
+                        bool isStudent = row.TypeName.ToLower().Contains("студент");
+                        bool isEmployee = row.TypeName.ToLower().Contains("сотрудник");
+
+                        int typeId = GetReaderTypeId(conn, row.TypeName, transaction);
+
+                        int? groupId = null;
+                        if (isStudent && !string.IsNullOrWhiteSpace(row.GroupCode))
+                        {
+                            groupId = GetGroupId(conn, row.GroupCode, transaction);
+                            if (groupId == null)
+                            {
+                                result.Warnings.Add($"Строка {row.RowNumber}: Группа '{row.GroupCode}' не найдена. Поле будет пустым.");
+                            }
+                        }
+
+                        int? postId = null;
+                        if (isEmployee && !string.IsNullOrWhiteSpace(row.PostName))
+                        {
+                            postId = GetPostId(conn, row.PostName, transaction);
+                            if (postId == null)
+                            {
+                                result.Warnings.Add($"Строка {row.RowNumber}: Должность '{row.PostName}' не найдена. Поле будет пустым.");
+                            }
+                        }
+
+                        DateTime membershipStartDate = ParseDate(row.MembershipStartDate, DateTime.Today);
+                        DateTime formFillDate = ParseDate(row.FormFillDate, DateTime.Today);
+
+                        // Вставка читателя
+                        string query = @"
+                    INSERT INTO ReaderForm (
+                        CardNumber, LastName, FirstName, MiddleName,
+                        TypeID, GroupID, Post, Speciality,
+                        PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
+                    ) VALUES (
+                        @CardNumber, @LastName, @FirstName, @MiddleName,
+                        @TypeID, @GroupID, @Post, @Speciality,
+                        @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
+                    );
+                    SELECT SCOPE_IDENTITY();";
+
+                        int newReaderId = 0;
+
+                        using (var cmd = new SqlCommand(query, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@CardNumber", row.CardNumber);
+                            cmd.Parameters.AddWithValue("@LastName", row.LastName);
+                            cmd.Parameters.AddWithValue("@FirstName", row.FirstName);
+                            cmd.Parameters.AddWithValue("@MiddleName", string.IsNullOrEmpty(row.MiddleName) ? DBNull.Value : (object)row.MiddleName);
+                            cmd.Parameters.AddWithValue("@TypeID", typeId);
+                            cmd.Parameters.AddWithValue("@GroupID", groupId ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Post", postId ?? (object)DBNull.Value);
+                            cmd.Parameters.AddWithValue("@Speciality", string.IsNullOrEmpty(row.Speciality) ? DBNull.Value : (object)row.Speciality);
+                            cmd.Parameters.AddWithValue("@PhoneNumber", string.IsNullOrEmpty(row.PhoneNumber) ? DBNull.Value : (object)row.PhoneNumber);
+                            cmd.Parameters.AddWithValue("@HomeAddress", string.IsNullOrEmpty(row.HomeAddress) ? DBNull.Value : (object)row.HomeAddress);
+                            cmd.Parameters.AddWithValue("@MembershipStartDate", membershipStartDate);
+                            cmd.Parameters.AddWithValue("@FormFillDate", formFillDate);
+
+                            newReaderId = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        if (newReaderId > 0)
+                        {
+                            // Создаём учётную запись пользователя - передаём transaction
+                            CreateUserForReader(conn, transaction, newReaderId, row.LastName, row.FirstName, row.MiddleName, row.CardNumber, row, result);
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
                 }
             }
         }
 
-        private int GetReaderTypeId(SqlConnection conn, string typeName)
+        private int GetReaderTypeId(SqlConnection conn, string typeName, SqlTransaction transaction)
         {
-            // Сначала пытаемся найти точное совпадение
             string query = "SELECT TypeID FROM ReaderType WHERE TypeName = @TypeName";
-            using (var cmd = new SqlCommand(query, conn))
+            using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@TypeName", typeName);
                 var result = cmd.ExecuteScalar();
@@ -357,9 +434,8 @@ namespace Diplom_Bibl.Services
                     return Convert.ToInt32(result);
             }
 
-            // Если не нашли, ищем по частичному совпадению
             query = "SELECT TOP 1 TypeID FROM ReaderType WHERE @TypeName LIKE '%' + TypeName + '%' OR TypeName LIKE '%' + @TypeName + '%'";
-            using (var cmd = new SqlCommand(query, conn))
+            using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@TypeName", typeName);
                 var result = cmd.ExecuteScalar();
@@ -367,14 +443,13 @@ namespace Diplom_Bibl.Services
                     return Convert.ToInt32(result);
             }
 
-            // Если ничего не нашли, возвращаем тип по умолчанию (1 - обычно Студент)
             return 1;
         }
 
-        private int? GetGroupId(SqlConnection conn, string groupCode)
+        private int? GetGroupId(SqlConnection conn, string groupCode, SqlTransaction transaction)
         {
             string query = "SELECT GroupID FROM Groups WHERE GroupCode = @GroupCode";
-            using (var cmd = new SqlCommand(query, conn))
+            using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@GroupCode", groupCode);
                 var result = cmd.ExecuteScalar();
@@ -382,10 +457,10 @@ namespace Diplom_Bibl.Services
             }
         }
 
-        private int? GetPostId(SqlConnection conn, string postName)
+        private int? GetPostId(SqlConnection conn, string postName, SqlTransaction transaction)
         {
             string query = "SELECT ID_Post FROM Post WHERE Post_Name = @PostName";
-            using (var cmd = new SqlCommand(query, conn))
+            using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@PostName", postName);
                 var result = cmd.ExecuteScalar();
@@ -398,7 +473,6 @@ namespace Diplom_Bibl.Services
             if (string.IsNullOrWhiteSpace(dateString))
                 return defaultValue;
 
-            // Попробуем разные форматы дат
             string[] formats = {
                 "dd.MM.yyyy", "dd/MM/yyyy", "dd-MM-yyyy",
                 "yyyy-MM-dd", "yyyy/MM/dd", "yyyy.MM.dd",
@@ -412,12 +486,12 @@ namespace Diplom_Bibl.Services
                     return result;
             }
 
-            // Если ничего не подошло, пробуем стандартный парсинг
             if (DateTime.TryParse(dateString, out DateTime standardResult))
                 return standardResult;
 
             return defaultValue;
         }
+
         public ImportResult ImportFromCsv(string filePath)
         {
             var result = new ImportResult();
@@ -428,7 +502,6 @@ namespace Diplom_Bibl.Services
 
                 using (var reader = new StreamReader(filePath, Encoding.UTF8))
                 {
-                    // Читаем заголовки
                     string headerLine = reader.ReadLine();
                     if (string.IsNullOrEmpty(headerLine))
                     {
@@ -439,7 +512,6 @@ namespace Diplom_Bibl.Services
                     var headers = headerLine.Split(',');
                     var rows = new List<string[]>();
 
-                    // Читаем все строки
                     string line;
                     while ((line = reader.ReadLine()) != null)
                     {
@@ -451,7 +523,6 @@ namespace Diplom_Bibl.Services
 
                     result.TotalRows = rows.Count;
 
-                    // Создаем DataTable в памяти
                     var dt = new System.Data.DataTable();
                     foreach (var header in headers)
                     {
@@ -476,7 +547,6 @@ namespace Diplom_Bibl.Services
                         }
                     }
 
-                    // Обрабатываем как обычный DataTable
                     ProcessDataTable(dt, result);
                 }
             }
@@ -502,7 +572,6 @@ namespace Diplom_Bibl.Services
                 {
                     if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
                     {
-                        // Экранированная кавычка
                         current.Append('"');
                         i++;
                     }
@@ -526,14 +595,11 @@ namespace Diplom_Bibl.Services
             return result.ToArray();
         }
 
-        // Вынесите логику обработки DataTable в отдельный метод
         private void ProcessDataTable(System.Data.DataTable dt, ImportResult result)
         {
-            // Проверяем наличие необходимых колонок
             ValidateColumns(dt, result);
-            if (result.HasErrors) return;
+            if (result.HasErrors && result.Errors.Count > 0 && dt.Rows.Count == 0) return;
 
-            // Обрабатываем каждую строку
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 try

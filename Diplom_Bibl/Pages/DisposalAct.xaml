@@ -30,7 +30,7 @@
 
                 <TextBlock Grid.Column="2" Text="Дата:" Style="{StaticResource LabelStyle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <DatePicker Grid.Column="3" x:Name="DpDate" Style="{StaticResource DatePickerStyle}" 
-                            Width="150"/>
+                            Width="150" />
             </Grid>
         </StackPanel>
 
@@ -71,7 +71,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- === 1. Поиск книги === -->
+            <!-- === 1. Поиск книги с выпадающим списком === -->
             <Border Grid.Row="0" 
                     Background="White" 
                     CornerRadius="8" 
@@ -81,17 +81,54 @@
                     Margin="0,0,0,15"
                     Effect="{StaticResource DropShadowEffect}">
                 <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Поиск по инвентарному номеру:" 
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Поиск книги:" 
                                Style="{StaticResource LabelStyle}" VerticalAlignment="Center"/>
-                    <TextBox Grid.Column="1" x:Name="TbSearchInv" 
-                             Style="{StaticResource InputFieldStyle}" Margin="10,0"/>
-                    <Button Grid.Column="2" Content="🔍 Найти" Click="BtnFindBook_Click" 
+                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="TbSearchBook" 
+                             Style="{StaticResource InputFieldStyle}" Margin="10,0"
+                             TextChanged="TbSearchBook_TextChanged"
+                             LostFocus="TbSearchBook_LostFocus"
+                             GotFocus="TbSearchBook_GotFocus"/>
+                    <Button Grid.Row="0" Grid.Column="2" Content="🔍 Найти" Click="BtnFindBook_Click" 
                             Style="{StaticResource PrimaryButtonStyle}" Width="100" Margin="10,0,0,0" Height="36"/>
+
+                    <!-- Выпадающий список результатов поиска -->
+                    <ListBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                             x:Name="LbSearchResults" 
+                             Visibility="Collapsed"
+                             MaxHeight="200"
+                             Margin="0,5,0,0"
+                             Background="White"
+                             BorderBrush="{StaticResource BorderColor}"
+                             BorderThickness="1"
+                             SelectionChanged="LbSearchResults_SelectionChanged"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="8,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding InventoryNumber}" 
+                                                   FontWeight="Bold" Foreground="{StaticResource PrimaryColor}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" 
+                                                   TextWrapping="Wrap" Margin="10,0,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 
@@ -202,11 +239,27 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="№ п/п" Binding="{Binding RowNum}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Инв. номер" Binding="{Binding InventoryNumber}" Width="100"/>
                     <DataGridTextColumn Header="Автор, заглавие" Binding="{Binding Title}" Width="300"/>
                     <DataGridTextColumn Header="Цена (руб.)" Binding="{Binding PriceRub}" Width="90"/>
                     <DataGridTextColumn Header="коп." Binding="{Binding PriceKop}" Width="70"/>
                     <DataGridTextColumn Header="Кол-во" Binding="{Binding Quantity}" Width="70"/>
                     <DataGridTextColumn Header="Сумма" Binding="{Binding TotalPrice, StringFormat=N2}" Width="100"/>
+                    <DataGridTemplateColumn Header="Действие" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="🗑️" 
+                                        Width="30" Height="25"
+                                        Background="{StaticResource DangerColor}"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Click="RemoveItem_Click"
+                                        Tag="{Binding}"
+                                        Cursor="Hand"
+                                        ToolTip="Удалить"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
 

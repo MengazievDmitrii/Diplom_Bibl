@@ -127,15 +127,24 @@ namespace Diplom_Bibl.Pages
                 WarningsListBox.Visibility = Visibility.Collapsed;
             }
 
+            // Показываем данные для входа
+            if (result.UserCredentials.Count > 0)
+            {
+                string credentialsMessage = "Созданы учётные записи для следующих читателей:\n\n" +
+                                            string.Join("\n", result.UserCredentials);
+
+                CustomMessageBox.Show(credentialsMessage, "Данные для входа",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+            }
+
             string message = result.HasErrors
                 ? $"Импорт завершен с ошибками.\nУспешно: {result.SuccessRows}, Ошибок: {result.ErrorRows}"
                 : $"Импорт успешно завершен!\nДобавлено читателей: {result.SuccessRows}";
 
-             CustomMessageBox.Show(message, "Результат импорта",
+            CustomMessageBox.Show(message, "Результат импорта",
                 CustomMessageBoxButton.OK,
                 result.HasErrors ? CustomMessageBoxImage.Warning : CustomMessageBoxImage.Information);
         }
-
         private void ClearResults()
         {
             TotalRowsText.Text = "0";
@@ -196,5 +205,6 @@ namespace Diplom_Bibl.Pages
         {
             ClearResults();
         }
+
     }
 }
