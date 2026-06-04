@@ -90,15 +90,19 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                await Task.Run(() => LoadAuthors());
-                await Task.Run(() => LoadPublishers());
-                await Task.Run(() => LoadGenres());
-                await Task.Run(() => LoadStatusesFiltered());
-                await Task.Run(() => LoadReceipts());
-                await Task.Run(() => LoadEditionTypes());
-                await Task.Run(() => LoadCategories());
-                await Task.Run(() => LoadFormats());
-
+            
+                var loadTasks = new[]
+                {
+                   Task.Run(() => LoadAuthors()),           
+                   Task.Run(() => LoadPublishers()),       
+                   Task.Run(() => LoadGenres()),            
+                    Task.Run(() => LoadStatusesFiltered()),  
+                    Task.Run(() => LoadReceipts()),          
+                    Task.Run(() => LoadEditionTypes()),     
+                   Task.Run(() => LoadCategories()),       
+                   Task.Run(() => LoadFormats())            
+               };
+                await Task.WhenAll(loadTasks);
                 _cancellationTokenSource = new CancellationTokenSource();
                 await LoadBooksToListAsync(_cancellationTokenSource.Token);
 

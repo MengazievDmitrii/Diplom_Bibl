@@ -103,6 +103,8 @@ namespace Diplom_Bibl.Pages
 
         #region Конструктор и инициализация
 
+        private bool _isInitialized = false;
+
         /// <summary>
         /// Конструктор страницы оформления заявки
         /// </summary>
@@ -117,11 +119,18 @@ namespace Diplom_Bibl.Pages
 
             // Инициализируем интерфейс в зависимости от типа пользователя
             SetupUIForUserType();
-            LoadUserData();
-
             DpLessonDateSimple.SelectedDate = DateTime.Today;
-            LoadAvailableBooks();
             this.Loaded += RequestBook_Loaded;
+        }
+
+       
+
+        private async Task InitializeAsync()
+        {
+            await Task.Yield();
+            await LoadUserDataAsync();
+            await LoadAvailableBooksAsync();
+            await LoadScheduleForDate(DateTime.Today);
         }
 
         private void SetupUIForUserType()
@@ -153,6 +162,11 @@ namespace Diplom_Bibl.Pages
         {
             // Загружаем расписание звонков для сегодняшней даты
             await LoadScheduleForDate(DateTime.Today);
+            this.Loaded -= RequestBook_Loaded;
+            if (_isInitialized) return;
+            _isInitialized = true;
+
+            await InitializeAsync();
         }
 
         #endregion
@@ -343,18 +357,18 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Загрузка данных пользователя и определение видимости панели группы
         /// </summary>
-        private void LoadUserData()
+        private async Task LoadUserDataAsync()
         {
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     string typeQuery = "SELECT TypeName FROM ReaderType WHERE TypeID = @TypeID";
                     using (var cmd = new SqlCommand(typeQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@TypeID", _currentUserTypeId);
-                        var result = cmd.ExecuteScalar();
+                        var result = await cmd.ExecuteScalarAsync();
                         TbUserType.Text = result?.ToString() ?? "";
                     }
                 }
@@ -363,7 +377,7 @@ namespace Diplom_Bibl.Pages
                 if (_currentUserTypeId == 3)
                 {
                     GroupPanel.Visibility = Visibility.Visible;
-                    LoadGroups();
+                    await LoadGroupsAsync();
                 }
                 else
                 {
@@ -377,7 +391,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadGroups()
+        private async Task LoadGroupsAsync()
         {
             try
             {
@@ -385,19 +399,16 @@ namespace Diplom_Bibl.Pages
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
 
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
                         var groups = new ObservableCollection<GroupItem>();
 
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            // Для smallint используем GetInt16
                             short groupId = reader.IsDBNull(0) ? (short)0 : reader.GetInt16(0);
-
-                            // Для nvarchar оставляем GetString
                             string groupCode = reader.IsDBNull(1) ? "Неизвестно" : reader.GetString(1);
 
                             groups.Add(new GroupItem
@@ -407,8 +418,6 @@ namespace Diplom_Bibl.Pages
                             });
                         }
 
-
-                        // Привязка данных
                         CbGroup.ItemsSource = groups;
                         CbGroup.DisplayMemberPath = "GroupCode";
                         CbGroup.SelectedValuePath = "GroupID";
@@ -433,30 +442,22 @@ namespace Diplom_Bibl.Pages
         #region Работа с книгами
 
         /// <summary>
-        /// Загрузка доступных книг (сгруппированных по названию и автору)
+        /// Загрузка доступных книг (группировка по названию - только книги в наличии)
         /// </summary>
-        /// <param name="searchTerm">Поисковый запрос</param>
-        /// <summary>
-        /// Загрузка доступных книг (сгруппированных по названию и автору)
-        /// </summary>
-        /// <param name="searchTerm">Поисковый запрос</param>
-        private void LoadAvailableBooks(string searchTerm = "")
+        private async Task LoadAvailableBooksAsync(string searchTerm = "")
         {
             try
             {
                 string query = @"
-            SELECT
+            SELECT 
                 MIN(b.IDBook) AS IDBook,
                 b.TitleBook,
                 ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                SUM(dbo.fn_GetActuallyAvailableForRequest(b.IDBook)) AS AvailableCopies
+                SUM(b.AvailableCopies) AS AvailableCopies
             FROM Books b
             LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE dbo.fn_GetActuallyAvailableForRequest(b.IDBook) > 0
-              AND b.StatusBook IN (
-                  SELECT ID_Status FROM StatusBook
-                  WHERE Title_Status IN ('В наличии')
-              )";
+            WHERE b.StatusBook = 1
+              AND b.AvailableCopies > 0";
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
@@ -464,11 +465,11 @@ namespace Diplom_Bibl.Pages
                 }
 
                 query += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-            ORDER BY b.TitleBook";
+                    ORDER BY b.TitleBook";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -476,18 +477,17 @@ namespace Diplom_Bibl.Pages
                             cmd.Parameters.AddWithValue("@Search", $"%{searchTerm}%");
                         }
 
-                        using (var reader = cmd.ExecuteReader())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             _availableBooks = new ObservableCollection<BookItem>();
-                            while (reader.Read())
+                            while (await reader.ReadAsync())
                             {
-                                int available = reader.GetInt32(3);
                                 _availableBooks.Add(new BookItem
                                 {
                                     IDBook = reader.GetInt32(0),
                                     TitleBook = reader.GetString(1),
                                     AuthorName = reader.GetString(2),
-                                    AvailableCopies = available
+                                    AvailableCopies = reader.GetInt32(3)
                                 });
                             }
                         }
@@ -498,10 +498,12 @@ namespace Diplom_Bibl.Pages
             catch (Exception ex)
             {
                 CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
-                CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
+        /// <summary>
+        /// Добавление книги в заявку
+        /// </summary>
         /// <summary>
         /// Добавление книги в заявку
         /// </summary>
@@ -510,21 +512,19 @@ namespace Diplom_Bibl.Pages
             if (_selectedBooks == null)
                 _selectedBooks = new ObservableCollection<SelectedBookItem>();
 
-            int actualAvailable = book.AvailableCopies;
-
-            if (actualAvailable <= 0)
+            // Проверка: есть ли доступные экземпляры
+            if (book.AvailableCopies <= 0)
             {
                 CustomMessageBox.Show($"Книга '{book.TitleBook}' временно недоступна.",
                     "Книга недоступна", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b =>
-                b.IDBook == book.IDBook);
+            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b => b.IDBook == book.IDBook);
 
             if (existing != null)
             {
-                // Для читателя — только 1 экземпляр
+                // Проверка лимита (для читателя - 1 экземпляр)
                 if (_currentUserTypeId != 3 && existing.Quantity >= 1)
                 {
                     CustomMessageBox.Show("Для индивидуальной выдачи можно взять только 1 экземпляр книги.",
@@ -532,15 +532,16 @@ namespace Diplom_Bibl.Pages
                     return;
                 }
 
-                if (existing.Quantity + 1 <= actualAvailable)
+                // Проверка доступного количества
+                if (existing.Quantity + 1 <= book.AvailableCopies)
                     existing.Quantity++;
                 else
-                    CustomMessageBox.Show($"Доступно только {actualAvailable} экземпляров этой книги.",
+                    CustomMessageBox.Show($"Доступно только {book.AvailableCopies} экземпляров этой книги.",
                         "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
             else
             {
-                int maxQuantity = (_currentUserTypeId == 3) ? actualAvailable : 1;
+                int maxQuantity = (_currentUserTypeId == 3) ? book.AvailableCopies : 1;
 
                 _selectedBooks.Add(new SelectedBookItem
                 {
@@ -624,26 +625,26 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Поиск книг при изменении текста
         /// </summary>
-        private void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
+        private async void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            LoadAvailableBooks(TbBookSearch.Text.Trim());
+            await LoadAvailableBooksAsync(TbBookSearch.Text.Trim());
         }
 
         /// <summary>
         /// Кнопка поиска книг
         /// </summary>
-        private void BtnSearchBook_Click(object sender, RoutedEventArgs e)
+        private async void BtnSearchBook_Click(object sender, RoutedEventArgs e)
         {
-            LoadAvailableBooks(TbBookSearch.Text.Trim());
+            await LoadAvailableBooksAsync(TbBookSearch.Text.Trim());
         }
 
         /// <summary>
         /// Кнопка очистки поиска
         /// </summary>
-        private void BtnClearSearch_Click(object sender, RoutedEventArgs e)
+        private async void BtnClearSearch_Click(object sender, RoutedEventArgs e)
         {
             TbBookSearch.Clear();
-            LoadAvailableBooks();
+            await LoadAvailableBooksAsync();
         }
 
         /// <summary>
@@ -931,7 +932,7 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Очистка формы после успешного создания заявки
         /// </summary>
-        private void ClearForm()
+        private async Task ClearForm()
         {
             TbLessonName.Clear();
             DpLessonDateSimple.SelectedDate = DateTime.Today;
@@ -941,7 +942,7 @@ namespace Diplom_Bibl.Pages
                 _selectedBooks.Clear();
             DgSelectedBooks.ItemsSource = null;
             UpdateTotalCount();
-            LoadAvailableBooks();
+            await LoadAvailableBooksAsync();
         }
 
         #endregion

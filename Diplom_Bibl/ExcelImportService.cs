@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Text;
 using System.Windows;
+using Diplom_Bibl.Controls;
 using ExcelDataReader;
 
 namespace Diplom_Bibl.Services
@@ -416,6 +417,7 @@ namespace Diplom_Bibl.Services
                     }
                     catch (Exception ex)
                     {
+                        CustomMessageBox.Show("Ошибка при импорте данных: " + ex.Message);
                         transaction.Rollback();
                         throw;
                     }

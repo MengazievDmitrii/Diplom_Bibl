@@ -94,6 +94,15 @@ namespace Diplom_Bibl.Pages
 
             private SolidColorBrush _statusColor;
             private string _statusText;
+            public int GetStatusIdForFilter()
+            {
+                if (AvailableCopies > 0) return 1;      // В наличии
+                if (IssuedCopies > 0) return 3;         // Выдана
+                if (DisposedCopies > 0) return 5;       // Списана
+                if (StatusID.HasValue && StatusID.Value == 4) return 4;  // Утрачена
+                if (StatusID.HasValue && StatusID.Value == 6) return 6;  // Зарезервирована
+                return 1;
+            }
 
             // Используем полное имя для Color, чтобы избежать конфликта
             public SolidColorBrush StatusColor
@@ -138,29 +147,37 @@ namespace Diplom_Bibl.Pages
 
             private int GetPriorityStatusId()
             {
-                if (StatusID.HasValue)
-                {
-                    int id = StatusID.Value;
-                    if (id == 5) return 5;
-                    if (id == 4) return 4;
-                    if (id == 3) return 3;
-                    if (id == 6) return 6;
-                    if (id == 1) return 1;
-                }
+                // Приоритет: В наличии > Выдана > Зарезервирована > Утрачена > Списана
 
-                if (DisposedCopies > 0) return 5;
-                if (AvailableCopies == 0 && IssuedCopies == 0 && DisposedCopies == 0) return 4;
-                if (IssuedCopies > 0) return 3;
-                if (AvailableCopies > 0 && IssuedCopies == 0 && DisposedCopies == 0) return 1;
-                return 6;
+                // Если есть хоть один доступный экземпляр — статус "В наличии"
+                if (AvailableCopies > 0)
+                    return 1;
+
+                // Если есть выданные экземпляры (и нет доступных)
+                if (IssuedCopies > 0)
+                    return 3;
+
+                // Если есть зарезервированные
+                if (StatusID.HasValue && StatusID.Value == 6)
+                    return 6;
+
+                // Если есть утраченные
+                if (StatusID.HasValue && StatusID.Value == 4)
+                    return 4;
+
+                // Если есть списанные (и нет других статусов)
+                if (DisposedCopies > 0)
+                    return 5;
+
+                return 1;
             }
         }
 
-        #endregion
+            #endregion
 
-        #region Конструктор
+            #region Конструктор
 
-        public LibraryFundPage()
+            public LibraryFundPage()
         {
             InitializeComponent();
 
@@ -175,6 +192,7 @@ namespace Diplom_Bibl.Pages
 
             SetSearchPlaceholder();
             this.Loaded += LibraryFundPage_Loaded;
+            AddBook.Visibility = Visibility.Collapsed;
         }
 
         #endregion
@@ -754,9 +772,11 @@ namespace Diplom_Bibl.Pages
 
             if (selectedAuthorId > 0)
                 filtered = filtered.Where(b => b.AuthorID == selectedAuthorId);
-
+            
             if (selectedStatusId > 0)
-                filtered = filtered.Where(b => b.StatusID == selectedStatusId);
+            {
+                filtered = filtered.Where(b => b.GetStatusIdForFilter() == selectedStatusId);
+            }
 
             if (selectedGenreId > 0)
                 filtered = filtered.Where(b => b.GenreID == selectedGenreId);

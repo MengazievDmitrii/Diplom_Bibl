@@ -239,9 +239,6 @@
     <Compile Include="Pages\AddEditionType.xaml.cs">
       <DependentUpon>AddEditionType.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Pages\AddFundingSource.xaml.cs">
-      <DependentUpon>AddFundingSource.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Pages\AddGener.xaml.cs">
       <DependentUpon>AddGener.xaml</DependentUpon>
     </Compile>
@@ -259,9 +256,6 @@
     </Compile>
     <Compile Include="Pages\AddReader.xaml.cs">
       <DependentUpon>AddReader.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\AddSourceType.xaml.cs">
-      <DependentUpon>AddSourceType.xaml</DependentUpon>
     </Compile>
     <Compile Include="Pages\AddSpeciality.xaml.cs">
       <DependentUpon>AddSpeciality.xaml</DependentUpon>
@@ -416,10 +410,6 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Pages\AddFundingSource.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="Pages\AddGener.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -441,10 +431,6 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Pages\AddReader.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Pages\AddSourceType.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -1,22 +1,28 @@
-﻿using Diplom_Bibl.Services;
+﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
+using Diplom_Bibl.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
+    /// <summary>
+    /// Страница возврата книг (индивидуальных и групповых выдач)
+    /// </summary>
     public partial class ReturnBooksPage : Page
     {
-        private readonly string _connectionString = "Server=DMITRIJ;Database=DiplomBibl;Integrated Security=True;";
+        #region Поля и свойства
+
+        private readonly string _connectionString = DatabaseHelper.ConnectionString; // Исправлено на DatabaseHelper
         private readonly BookIssuanceService _issuanceService;
         private ObservableCollection<BookIssuanceService.ReaderInfo> _readers;
         private ObservableCollection<object> _allIssuances;
@@ -24,7 +30,13 @@ namespace Diplom_Bibl.Pages
         private BookIssuanceService.ReaderInfo _selectedReader;
         private bool _isPlaceholderActive = true;
 
-        // Класс для отображения групповых выдач с деталями
+        #endregion
+
+        #region Вспомогательные классы
+
+        /// <summary>
+        /// Модель для отображения групповой выдачи
+        /// </summary>
         public class GroupIssuanceDisplayItem
         {
             public int GroupIssuanceId { get; set; }
@@ -56,6 +68,9 @@ namespace Diplom_Bibl.Pages
             public bool ReturnAllButtonVisible => RemainingBooks > 0;
         }
 
+        /// <summary>
+        /// Модель отдельной книги в групповой выдаче
+        /// </summary>
         public class GroupBookItem
         {
             public int ItemId { get; set; }
@@ -69,6 +84,9 @@ namespace Diplom_Bibl.Pages
             public bool IsFullyReturned => RemainingQuantity == 0;
         }
 
+        /// <summary>
+        /// Модель группы книг (сгруппированных по названию) в групповой выдаче
+        /// </summary>
         public class GroupBookGroup
         {
             public string BookTitle { get; set; }
@@ -80,6 +98,10 @@ namespace Diplom_Bibl.Pages
             public string DisplayName => $"{BookTitle} - {AuthorName}";
         }
 
+        #endregion
+
+        #region Конструктор
+
         public ReturnBooksPage()
         {
             InitializeComponent();
@@ -90,6 +112,13 @@ namespace Diplom_Bibl.Pages
             LoadReaders();
         }
 
+        #endregion
+
+        #region Загрузка данных
+
+        /// <summary>
+        /// Загрузка списка всех читателей
+        /// </summary>
         private void LoadReaders()
         {
             try
@@ -103,6 +132,11 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        /// <summary>
+        /// Загрузка активных выдач для выбранного читателя
+        /// </summary>
+        /// <param name="readerId">ID читателя</param>
+        /// <param name="readerType">Тип читателя</param>
         private async void LoadActiveIssuances(int readerId, string readerType)
         {
             try
@@ -161,7 +195,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private async System.Threading.Tasks.Task LoadGroupIssuancesForDisplay(int teacherId)
+        /// <summary>
+        /// Загрузка групповых выдач для отображения
+        /// </summary>
+        private async Task LoadGroupIssuancesForDisplay(int teacherId)
         {
             try
             {
@@ -262,7 +299,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private async System.Threading.Tasks.Task LoadGroupBooks(GroupIssuanceDisplayItem group)
+        /// <summary>
+        /// Загрузка книг для групповой выдачи
+        /// </summary>
+        private async Task LoadGroupBooks(GroupIssuanceDisplayItem group)
         {
             try
             {
@@ -315,7 +355,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private async System.Threading.Tasks.Task LoadGroupBookItems(GroupIssuanceDisplayItem group)
+        /// <summary>
+        /// Загрузка отдельных экземпляров книг для групповой выдачи
+        /// </summary>
+        private async Task LoadGroupBookItems(GroupIssuanceDisplayItem group)
         {
             try
             {
@@ -367,6 +410,10 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"Ошибка загрузки экземпляров: {ex.Message}");
             }
         }
+
+        #endregion
+
+        #region Поиск и выбор читателя
 
         private void ReaderSearchBox_GotFocus(object sender, RoutedEventArgs e)
         {
@@ -451,10 +498,68 @@ namespace Diplom_Bibl.Pages
             _allIssuances.Clear();
         }
 
-        private void ReturnIndividualBook(int issuanceId)
+        #endregion
+
+        #region Возврат книг
+
+        /// <summary>
+        /// Проверка, активна ли выдача (не возвращена)
+        /// </summary>
+        private async Task<bool> IsIssuanceActiveAsync(int issuanceId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+                    string sql = "SELECT COUNT(*) FROM BookIssuance WHERE IssuanceId = @Id AND ReturnDate IS NULL";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", issuanceId);
+                        int count = (int)await cmd.ExecuteScalarAsync();
+                        return count > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка проверки активности выдачи: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Получение ID книги по ID выдачи
+        /// </summary>
+        private int GetBookIdFromIssuance(int issuanceId)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = "SELECT BookId FROM BookIssuance WHERE IssuanceId = @Id";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Id", issuanceId);
+                        var result = cmd.ExecuteScalar();
+                        return result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Возврат индивидуальной книги
+        /// </summary>
+        private async void ReturnIndividualBook(int issuanceId)
         {
             // Проверка, что выдача ещё активна
-            if (!IsIssuanceActive(issuanceId))
+            if (!await IsIssuanceActiveAsync(issuanceId))
             {
                 CustomMessageBox.Show("Эта книга уже возвращена!", "Предупреждение",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
@@ -468,38 +573,55 @@ namespace Diplom_Bibl.Pages
 
             if (result == CustomMessageBoxResult.Yes)
             {
-                _issuanceService.ReturnBook("individual", issuanceId);
-                // Обновляем список выдач после возврата
-                if (_selectedReader != null)
+                try
                 {
-                    LoadActiveIssuances(_selectedReader.ReaderID, _selectedReader.TypeName);
-                }
-            }
-        }
-        private bool IsIssuanceActive(int issuanceId)
-        {
-            try
-            {
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-                    string sql = "SELECT COUNT(*) FROM BookIssuance WHERE IssuanceId = @Id AND ReturnDate IS NULL";
-                    using (var cmd = new SqlCommand(sql, conn))
+                    // Получаем BookId перед возвратом для проверки
+                    int bookId = GetBookIdFromIssuance(issuanceId);
+
+                    using (var conn = new SqlConnection(_connectionString))
                     {
-                        cmd.Parameters.AddWithValue("@Id", issuanceId);
-                        return (int)cmd.ExecuteScalar() > 0;
+                        await conn.OpenAsync();
+
+                        // Проверяем, что книга действительно выдана
+                        string checkSql = "SELECT CopiesInUse FROM Books WHERE IDBook = @BookId";
+                        using (var checkCmd = new SqlCommand(checkSql, conn))
+                        {
+                            checkCmd.Parameters.AddWithValue("@BookId", bookId);
+                            int copiesInUse = (int)await checkCmd.ExecuteScalarAsync();
+
+                            if (copiesInUse <= 0)
+                            {
+                                CustomMessageBox.Show("Эта книга уже была возвращена ранее.", "Предупреждение",
+                                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                                return;
+                            }
+                        }
+
+                        // Выполняем возврат
+                        _issuanceService.ReturnBook("individual", issuanceId);
+
+                        // Обновляем список выдач после возврата
+                        if (_selectedReader != null)
+                        {
+                            LoadActiveIssuances(_selectedReader.ReaderID, _selectedReader.TypeName);
+                        }
+
+                        CustomMessageBox.Show("Книга успешно возвращена!", "Успех",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                     }
                 }
-            }
-            catch (SqlException sqlEx)
-            {
-                CustomMessageBox.Show($"Ошибка при проверки на активную выдачу: {sqlEx.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-                return false; // <-- Добавляем возврат значения при ошибке
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при возврате: {ex.Message}");
+                    CustomMessageBox.Show($"Ошибка при возврате книги: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                }
             }
         }
 
-
+        /// <summary>
+        /// Возврат групповых книг
+        /// </summary>
         private async void ReturnGroupBooks(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups, bool returnAll = false)
         {
             try
@@ -527,13 +649,12 @@ namespace Diplom_Bibl.Pages
                                     foreach (var book in bookGroup.Items.Where(i => i.RemainingQuantity > 0))
                                     {
                                         string updateBooksSql = @"
-    UPDATE Books 
-    SET 
-        CopiesInUse = CopiesInUse - @Quantity,
-        AvailableCopies = AvailableCopies + @Quantity,
-        StatusBook = 1
-    WHERE IDBook = @IDBook
-      AND CopiesInUse >= @Quantity";   
+                                            UPDATE Books 
+                                            SET 
+                                                CopiesInUse = CASE WHEN CopiesInUse >= @Quantity THEN CopiesInUse - @Quantity ELSE 0 END,
+                                                AvailableCopies = AvailableCopies + @Quantity,
+                                                StatusBook = 1
+                                            WHERE IDBook = @IDBook";
 
                                         using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                         {
@@ -596,7 +717,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private async System.Threading.Tasks.Task ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
+        /// <summary>
+        /// Отображение диалога частичного возврата книг группы
+        /// </summary>
+        private async Task ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
         {
             try
             {
@@ -684,13 +808,12 @@ namespace Diplom_Bibl.Pages
                                         if (checkBox.IsChecked == true && checkBox.Tag is GroupBookItem book)
                                         {
                                             string updateBooksSql = @"
-    UPDATE Books 
-    SET 
-        CopiesInUse = CopiesInUse - 1,
-        AvailableCopies = AvailableCopies + 1,
-        StatusBook = 1
-    WHERE IDBook = @IDBook
-      AND CopiesInUse > 0";   
+                                                UPDATE Books 
+                                                SET 
+                                                    CopiesInUse = CASE WHEN CopiesInUse > 0 THEN CopiesInUse - 1 ELSE 0 END,
+                                                    AvailableCopies = AvailableCopies + 1,
+                                                    StatusBook = 1
+                                                WHERE IDBook = @IDBook";
 
                                             using (var cmd = new SqlCommand(updateBooksSql, conn, transaction))
                                             {
@@ -782,6 +905,10 @@ namespace Diplom_Bibl.Pages
             }
         }
 
+        #endregion
+
+        #region Обработчики событий UI
+
         private void ReturnButton_Click(object sender, RoutedEventArgs e)
         {
             var button = sender as Button;
@@ -833,8 +960,15 @@ namespace Diplom_Bibl.Pages
         {
             LoadReaders();
         }
+
+        #endregion
     }
 
+    #region Конвертеры
+
+    /// <summary>
+    /// Конвертер видимости для групповых выдач
+    /// </summary>
     public class GroupTypeVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -849,4 +983,6 @@ namespace Diplom_Bibl.Pages
             throw new NotImplementedException();
         }
     }
+
+    #endregion
 }

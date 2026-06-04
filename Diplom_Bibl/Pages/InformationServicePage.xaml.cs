@@ -52,6 +52,7 @@ namespace Diplom_Bibl.Pages
         private int _pendingQuantity = 1;
 
         private DateTime _selectedReturnDate;
+        private bool _isInitialDataLoaded = false;
 
         #endregion
 
@@ -87,7 +88,7 @@ namespace Diplom_Bibl.Pages
             InitializePlaceholders();
             InitializeReturnDatePicker();
 
-            LoadInitialData();
+            this.Loaded += Page_Loaded;
         }
 
         public InformationServicePage(
@@ -142,9 +143,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            LoadInitialData();
-
-            this.Loaded += Page_Loaded_FinalInit;
+            this.Loaded += Page_Loaded;
         }
         #endregion
 
@@ -193,56 +192,67 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadInitialData()
+        private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadStatusIds();
-            LoadTodayIssues();
-            LoadReaders();
-            LoadGroups();
-            LoadTeachers();
-            LoadBooks();
-            UpdateStatistics();
-            this.Loaded += (s, e) => UpdateInventoryPreview();
+            this.Loaded -= Page_Loaded;
+            if (_isInitialDataLoaded) return;
+            _isInitialDataLoaded = true;
+
+            try
+            {
+                await LoadInitialDataAsync();
+
+                if (_pendingRequestId.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Запуск автозаполнения для заявки {_pendingRequestId}");
+                    AutoFillFromRequest();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в Page_Loaded: {ex.Message}");
+                ShowError("Ошибка загрузки страницы", ex);
+            }
         }
 
-        private void Page_Loaded_FinalInit(object sender, RoutedEventArgs e)
+        private async Task LoadInitialDataAsync()
         {
-            System.Diagnostics.Debug.WriteLine($"=== Page_Loaded_FinalInit ===");
-            UpdateStatistics();
-            LoadTeachers();
-            LoadTodayIssues();
-
-            if (_pendingRequestId.HasValue)
-            {
-                System.Diagnostics.Debug.WriteLine($"Запуск автозаполнения для заявки {_pendingRequestId}");
-                AutoFillFromRequest();
-            }
+            await Task.Yield();
+            await LoadStatusIdsAsync();
+            await LoadReadersAsync();
+            await LoadGroupsAsync();
+            await LoadTeachersAsync();
+            await LoadBooksAsync();
+            await LoadTodayIssuesAsync();
+            await UpdateStatisticsAsync();
+            UpdateInventoryPreview();
         }
 
         #endregion
 
         #region Загрузка справочных данных
 
-        private void LoadStatusIds()
+        private async Task LoadStatusIdsAsync()
         {
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     var statuses = new Dictionary<string, int>();
                     string query = @"
                         SELECT Title_Status, ID_Status 
                         FROM StatusBook 
                         WHERE Title_Status IN ('В наличии', 'Зарезервирована', 'Выдан')";
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
                             statuses[reader.GetString(0)] = reader.GetInt32(1);
                         }
                     }
+
                     _statusAvailableId = statuses.ContainsKey("В наличии") ? statuses["В наличии"] : 1;
                     _statusReservedId = statuses.ContainsKey("Зарезервирована") ? statuses["Зарезервирована"] : 6;
                     _statusIssuedId = statuses.ContainsKey("Выдан") ? statuses["Выдан"] : 3;
@@ -257,23 +267,35 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadReaders()
-        {
-            try { _readers = _issuanceService.GetReaders(); }
-            catch (Exception ex) { ShowError("Ошибка загрузки читателей", ex); }
-        }
-
-        private void LoadGroups()
-        {
-            try { _groups = _issuanceService.GetGroups(); }
-            catch (Exception ex) { ShowError("Ошибка загрузки групп", ex); }
-        }
-
-        private void LoadTeachers()
+        private async Task LoadReadersAsync()
         {
             try
             {
-                _teachers = _issuanceService.GetTeachers();
+                _readers = await Task.Run(() => _issuanceService.GetReaders());
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки читателей", ex);
+            }
+        }
+
+        private async Task LoadGroupsAsync()
+        {
+            try
+            {
+                _groups = await Task.Run(() => _issuanceService.GetGroups());
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки групп", ex);
+            }
+        }
+
+        private async Task LoadTeachersAsync()
+        {
+            try
+            {
+                _teachers = await Task.Run(() => _issuanceService.GetTeachers());
             }
             catch (Exception ex)
             {
@@ -282,7 +304,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadBooks()
+        private async Task LoadBooksAsync()
         {
             try
             {
@@ -304,17 +326,17 @@ namespace Diplom_Bibl.Pages
                     HAVING ISNULL(SUM(b.AvailableCopies), 0) > 0
                     ORDER BY b.TitleBook";
 
-                _books = new ObservableCollection<BookIssuanceService.BookInfo>();
+                var books = new ObservableCollection<BookIssuanceService.BookInfo>();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            _books.Add(new BookIssuanceService.BookInfo
+                            books.Add(new BookIssuanceService.BookInfo
                             {
                                 IDBook = reader.GetInt32(0),
                                 TitleBook = reader.GetString(1),
@@ -324,31 +346,41 @@ namespace Diplom_Bibl.Pages
                         }
                     }
                 }
+
+                _books = books;
             }
-            catch (Exception ex) { ShowError("Ошибка загрузки книг", ex); }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки книг", ex);
+            }
         }
 
-        private void LoadTodayIssues()
+        private async Task LoadTodayIssuesAsync()
         {
             try
             {
-                _todayIssues = _issuanceService.GetIssuancesByDate(DateTime.Today);
-                foreach (var item in _todayIssues)
+                var issues = await Task.Run(() => _issuanceService.GetIssuancesByDate(DateTime.Today));
+                foreach (var item in issues)
                 {
                     item.OverdueColor = item.IsOverdue
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"))
                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
                 }
+
+                _todayIssues = issues;
                 IssuesDataGrid.ItemsSource = _todayIssues;
             }
-            catch (Exception ex) { ShowError("Ошибка загрузки выдач", ex); }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки выдач", ex);
+            }
         }
 
         #endregion
 
         #region Автоматическая статистика
 
-        private async void UpdateStatistics()
+        private async Task UpdateStatisticsAsync()
         {
             try
             {
@@ -946,12 +978,9 @@ namespace Diplom_Bibl.Pages
 
                 // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СТАТИСТИКИ И СПИСКА ВЫДАЧ
                 await Task.Delay(100); // Небольшая задержка для синхронизации БД
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    UpdateStatistics();           // Обновляем статистику
-                    LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today); // Обновляем список выдач
-                    LoadBooks();                  // Перезагружаем список книг
-                });
+                await UpdateStatisticsAsync();           // Обновляем статистику
+                await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today); // Обновляем список выдач
+                await LoadBooksAsync();                  // Перезагружаем список книг
 
                 ShowSuccess($"Индивидуальная выдача успешно создана!\nВыдано книг: {quantity}");
             }
@@ -1050,8 +1079,8 @@ namespace Diplom_Bibl.Pages
 
                             UpdateRequestStatusIfNeeded(conn, transaction);
                             transaction.Commit();
-                            UpdateStatistics();
-                            LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today);
+                            await UpdateStatisticsAsync();
+                            await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today);
                         }
                         catch
                         {
@@ -1212,23 +1241,24 @@ namespace Diplom_Bibl.Pages
             ResetQuantity();
         }
 
-        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        private async void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
-            UpdateStatistics();
-            LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today);
+            await UpdateStatisticsAsync();
+            await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today);
         }
 
-        private void LoadIssuancesByDate(DateTime date)
+        private async Task LoadIssuancesByDateAsync(DateTime date)
         {
             try
             {
-                _todayIssues = _issuanceService.GetIssuancesByDate(date);
-                foreach (var item in _todayIssues)
+                var issues = await Task.Run(() => _issuanceService.GetIssuancesByDate(date));
+                foreach (var item in issues)
                 {
                     item.OverdueColor = item.IsOverdue
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"))
                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
                 }
+                _todayIssues = issues;
                 IssuesDataGrid.ItemsSource = _todayIssues;
             }
             catch (Exception ex)

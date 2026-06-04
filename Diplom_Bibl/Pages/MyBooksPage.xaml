@@ -47,6 +47,10 @@
                     <TextBlock Text="Просрочено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
                     <TextBlock x:Name="OverdueCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
                 </StackPanel>
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <TextBlock Text="Просрочено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
+                    <TextBlock x:Name="ReturnedCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -86,6 +90,7 @@
                 <DataGridTextColumn Header="Автор" 
                         Binding="{Binding BookAuthor}" 
                         Width="200"/>
+                <DataGridTextColumn Header="Количество" Binding="{Binding Quantity}" Width="80"/>
                 <DataGridTextColumn Header="Дата выдачи" 
                         Binding="{Binding IssuanceDate, StringFormat=dd.MM.yyyy}" 
                         Width="120"/>

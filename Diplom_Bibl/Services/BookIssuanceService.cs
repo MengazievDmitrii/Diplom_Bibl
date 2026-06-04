@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -520,12 +521,19 @@ namespace Diplom_Bibl.Services
                     }
                 }
             }
+            catch (SqlException sqlEx)
+            {
+                CustomMessageBox.Show($"Ошибка при возврате книги: {sqlEx.Message}", "Ошибка SQL", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка в ReturnBook: {ex.Message}");
                 throw;
             }
         }
+            
+
+            
 
         /// <summary>
         /// Получает список выдач за указанную дату
