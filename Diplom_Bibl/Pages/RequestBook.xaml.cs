@@ -1,5 +1,7 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
+using Diplom_Bibl.Services;
+using Diplom_Bibl.Windows;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -387,7 +389,7 @@ namespace Diplom_Bibl.Pages
             catch (Exception ex)
             {
                 CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBoxButton.OK,  CustomMessageBoxImage.Error);
             }
         }
 
@@ -449,23 +451,29 @@ namespace Diplom_Bibl.Pages
             try
             {
                 string query = @"
-            SELECT 
-                MIN(b.IDBook) AS IDBook,
-                b.TitleBook,
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                SUM(b.AvailableCopies) AS AvailableCopies
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.StatusBook = 1
-              AND b.AvailableCopies > 0";
+    SELECT
+        MIN(b.IDBook) AS IDBook,
+        b.TitleBook,
+        ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+        COUNT(*) AS AvailableCopies
+    FROM Books b
+    LEFT JOIN Authors a ON b.Author = a.ID_Autor
+    INNER JOIN StatusBook sb ON b.StatusBook = sb.ID_Status
+    WHERE sb.ID_Status = 1
+      AND b.AvailableCopies = 1";
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
                     query += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
                 }
 
-                query += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-                    ORDER BY b.TitleBook";
+                query += @"
+    GROUP BY
+        b.TitleBook,
+        a.SurnameAuthor,
+        a.NameAuthor,
+        a.PatronymicAuthor
+    ORDER BY b.TitleBook";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
@@ -497,7 +505,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                    CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
@@ -900,13 +908,15 @@ namespace Diplom_Bibl.Pages
 
                             // Фиксируем транзакцию
                             transaction.Commit();
+                            
+                            await ForceUpdateNotificationsForLibrarians();
 
                             // Сообщаем об успехе
-                            CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
+                                CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
                                 "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             // Очищаем форму
-                            ClearForm();
+                            await ClearForm();
                         }
                         catch
                         {
@@ -926,6 +936,42 @@ namespace Diplom_Bibl.Pages
             {
                 // Разблокируем кнопку
                 BtnSubmitRequest.IsEnabled = true;
+            }
+        }
+        // МЕТОД: ForceUpdateNotificationsForLibrarians
+        // НАЗНАЧЕНИЕ: Принудительно обновляет уведомления у всех онлайн-библиотекарей
+        private async Task ForceUpdateNotificationsForLibrarians()
+        {
+            try
+            {
+                // Находим все открытые окна MainWindow (библиотекари)
+                var mainWindows = Application.Current.Windows.OfType<MainWindow>();
+
+                foreach (var mainWindow in mainWindows)
+                {
+                    // Получаем роли пользователя в этом окне
+                    var rolesField = typeof(MainWindow).GetField("_userRoles",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var roles = rolesField?.GetValue(mainWindow) as List<string>;
+
+                    // Если это библиотекарь или админ - обновляем уведомления
+                    if (roles != null && (roles.Contains("LIBRARIAN") || roles.Contains("ADMIN")))
+                    {
+                        var notificationServiceField = typeof(MainWindow).GetField("_notificationService",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        var notificationService = notificationServiceField?.GetValue(mainWindow) as NotificationService;
+
+                        if (notificationService != null)
+                        {
+                            await notificationService.CheckNewNotifications();
+                            System.Diagnostics.Debug.WriteLine("✅ Уведомления библиотекаря обновлены");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка принудительного обновления уведомлений: {ex.Message}");
             }
         }
 

@@ -222,29 +222,26 @@ namespace Diplom_Bibl.Controls
             {
                 Content = text,
                 MinWidth = 80,
-                Height = 36,
+                Height = 32,
                 Margin = new Thickness(5, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 Tag = result,
-                IsDefault = isDefault
+                IsDefault = isDefault,
+                // Используем стили из ресурсов
+                Style = (Style)FindResource("MessageBoxButtonStyle")
             };
 
-            // Пытаемся найти стиль
-            if (Application.Current.TryFindResource("SaveButtonStyle") is Style btnStyle)
+            // Для кнопок "Нет" и "Отмена" используем другой стиль
+            if (result == CustomMessageBoxResult.Cancel || result == CustomMessageBoxResult.No)
             {
-                button.Style = btnStyle;
-            }
-            else
-            {
-                button.Background = Brushes.LightGray;
-                button.Foreground = Brushes.Black;
-                button.BorderBrush = Brushes.Gray;
-                button.BorderThickness = new Thickness(1);
+                button.Style = (Style)FindResource("MessageBoxSecondaryButtonStyle");
             }
 
             if (isDefault)
             {
                 button.Focus();
+                // Делаем кнопку подсвеченной
+                button.Background = (Brush)FindResource("PrimaryColor");
             }
 
             button.Click += (sender, e) =>

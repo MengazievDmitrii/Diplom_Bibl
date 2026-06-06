@@ -119,23 +119,21 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-          
-
             try
             {
                 const string query = @"
-                    INSERT INTO EditionTypes (EditionTypeName, Description)
-                    VALUES (@Name, @Description)";
+            INSERT INTO EditionTypes (EditionTypeName, Description)
+            VALUES (@Name, @Description)";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Name", name);
                         cmd.Parameters.AddWithValue("@Description", TbDescription.Text?.Trim() ?? (object)DBNull.Value);
-                      
-                        cmd.ExecuteNonQuery();
+
+                        await cmd.ExecuteNonQueryAsync();
                         CustomMessageBox.Show("Тип пособия добавлен.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();
@@ -162,31 +160,29 @@ namespace Diplom_Bibl.Pages
             if (!ValidateForm()) return;
 
             string name = TbEditionTypeName.Text.Trim();
-            if (!IsNameUnique(name,_currentEditionTypeId))
+            if (!IsNameUnique(name, _currentEditionTypeId))
             {
                 CustomMessageBox.Show("Тип пособия с таким названием уже существует.", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-        
-
             try
             {
                 const string query = @"
-                    UPDATE EditionTypes 
-                    SET EditionTypeName = @Name, Description = @Description
-                    WHERE ID_EditionType = @Id";
+            UPDATE EditionTypes 
+            SET EditionTypeName = @Name, Description = @Description
+            WHERE ID_EditionType = @Id";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Name", name);
                         cmd.Parameters.AddWithValue("@Description", TbDescription.Text?.Trim() ?? (object)DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Id",_currentEditionTypeId.Value);
-                        cmd.ExecuteNonQuery();
+                        cmd.Parameters.AddWithValue("@Id", _currentEditionTypeId.Value);
+                        await cmd.ExecuteNonQueryAsync();
                         CustomMessageBox.Show("Тип пособия обновлен.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();
@@ -214,11 +210,11 @@ namespace Diplom_Bibl.Pages
             bool isUsed = false;
             using (var conn = new SqlConnection(_connectionString))
             {
-                conn.Open();
+                await conn.OpenAsync();
                 using (var cmd = new SqlCommand("SELECT COUNT(*) FROM Books WHERE EditionTypeID = @Id", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Id",_currentEditionTypeId.Value);
-                    int count = (int)cmd.ExecuteScalar();
+                    cmd.Parameters.AddWithValue("@Id", _currentEditionTypeId.Value);
+                    int count = (int)await cmd.ExecuteScalarAsync();
                     isUsed = count > 0;
                 }
             }
@@ -240,11 +236,11 @@ namespace Diplom_Bibl.Pages
                 const string query = "DELETE FROM EditionTypes WHERE ID_EditionType = @Id";
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@Id",_currentEditionTypeId.Value);
-                        cmd.ExecuteNonQuery();
+                        cmd.Parameters.AddWithValue("@Id", _currentEditionTypeId.Value);
+                        await cmd.ExecuteNonQueryAsync();
                         CustomMessageBox.Show("Тип пособия удален.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();

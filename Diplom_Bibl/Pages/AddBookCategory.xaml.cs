@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Diplom_Bibl.Helpers;
+using System.Threading.Tasks;
 
 
 namespace Diplom_Bibl.Pages
@@ -29,26 +30,26 @@ namespace Diplom_Bibl.Pages
         public AddBookCategory()
         {
             InitializeComponent();
-            LoadCategories();
+            Loaded += async (sender, e) => await LoadCategories();
         }
 
-        private void LoadCategories()
+        private async Task LoadCategories()
         {
             try
             {
                 const string query = @"
-                    SELECT ID_Category, CategoryName, ISNULL(Description, '') AS Description
-                    FROM BookCategories
-                    ORDER BY CategoryName";
+            SELECT ID_Category, CategoryName, ISNULL(Description, '') AS Description
+            FROM BookCategories
+            ORDER BY CategoryName";
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
                         var items = new ObservableCollection<CategoryItem>();
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
                             items.Add(new CategoryItem
                             {
@@ -68,6 +69,7 @@ namespace Diplom_Bibl.Pages
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
+
 
         private void ClearForm()
         {
@@ -130,7 +132,7 @@ namespace Diplom_Bibl.Pages
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Name", name);
@@ -139,7 +141,7 @@ namespace Diplom_Bibl.Pages
                         CustomMessageBox.Show("Категория добавлена.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();
-                        LoadCategories();
+                        await LoadCategories();
                     }
                 }
             }
@@ -178,7 +180,7 @@ namespace Diplom_Bibl.Pages
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Name", name);
@@ -188,7 +190,7 @@ namespace Diplom_Bibl.Pages
                         CustomMessageBox.Show("Категория обновлена.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();
-                        LoadCategories();
+                        await LoadCategories();
                     }
                 }
             }
@@ -212,11 +214,11 @@ namespace Diplom_Bibl.Pages
             bool isUsed = false;
             using (var conn = new SqlConnection(_connectionString))
             {
-                conn.Open();
+                await conn.OpenAsync();
                 using (var cmd = new SqlCommand("SELECT COUNT(*) FROM Books WHERE CategoryID = @Id", conn))
                 {
                     cmd.Parameters.AddWithValue("@Id", _currentCategoryId.Value);
-                    int count = (int)cmd.ExecuteScalar();
+int count = (int)await cmd.ExecuteScalarAsync();
                     isUsed = count > 0;
                 }
             }
@@ -238,7 +240,7 @@ namespace Diplom_Bibl.Pages
                 const string query = "DELETE FROM BookCategories WHERE ID_Category = @Id";
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@Id", _currentCategoryId.Value);
@@ -246,7 +248,7 @@ namespace Diplom_Bibl.Pages
                         CustomMessageBox.Show("Категория удалена.", "Успешно",
                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                         ClearForm();
-                        LoadCategories();
+                        await LoadCategories();
                     }
                 }
             }
@@ -280,9 +282,9 @@ namespace Diplom_Bibl.Pages
             NavigationService?.GoBack();
         }
 
-        private void Page_Loaded(object sender, RoutedEventArgs e)
+        private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadCategories();
+            await LoadCategories();
         }
     }
 }

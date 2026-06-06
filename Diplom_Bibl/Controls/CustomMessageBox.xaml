@@ -11,10 +11,83 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
-         WindowStyle="None"
+        WindowStyle="None"
         Background="{StaticResource MenuBgColor}"
         FontFamily="Segoe UI">
-    
+
+    <Window.Resources>
+        <!-- Стиль для кнопок сообщения -->
+        <Style x:Key="MessageBoxButtonStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="5,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                Padding="12,6">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для кнопки "Отмена" и "Нет" -->
+        <Style x:Key="MessageBoxSecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource MessageBoxButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource LightGray}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource BorderColor}"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="12,6">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E0E0E0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#D0D0D0"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Window.Style>
         <Style TargetType="Window">
             <Setter Property="Template">
@@ -33,7 +106,7 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
-                                
+
                                 <!-- Заголовок -->
                                 <Border Grid.Row="0" 
                                         Background="{StaticResource PrimaryColor}"
@@ -46,7 +119,8 @@
                                                    FontWeight="SemiBold"
                                                    FontSize="14"
                                                    VerticalAlignment="Center"/>
-                                        <Button Content="✕"
+                                        <Button x:Name="CloseButton"
+                                                Content="✕"
                                                 HorizontalAlignment="Right"
                                                 VerticalAlignment="Center"
                                                 Background="Transparent"
@@ -55,15 +129,14 @@
                                                 FontSize="16"
                                                 FontWeight="Bold"
                                                 Cursor="Hand"
-                                                Padding="8,4"
-                                                Click="CloseButtonClick">
+                                                Padding="8,4">
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Template">
                                                         <Setter.Value>
                                                             <ControlTemplate TargetType="Button">
                                                                 <Border Background="{TemplateBinding Background}"
-                                                                       >
+                                                                        CornerRadius="3">
                                                                     <ContentPresenter HorizontalAlignment="Center" 
                                                                                     VerticalAlignment="Center"/>
                                                                 </Border>
@@ -72,7 +145,7 @@
                                                     </Setter>
                                                     <Style.Triggers>
                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Background" Value="{StaticResource DangerColor}"/>
+                                                            <Setter Property="Background" Value="#E74C3C"/>
                                                         </Trigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -80,22 +153,23 @@
                                         </Button>
                                     </Grid>
                                 </Border>
-                                
+
                                 <!-- Контент -->
                                 <Grid Grid.Row="1" Margin="20,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    
+
                                     <!-- Иконка -->
                                     <Image x:Name="MessageIcon"
                                            Grid.Column="0"
                                            Width="48"
                                            Height="48"
                                            Margin="0,0,16,0"
-                                           VerticalAlignment="Top"/>
-                                    
+                                           VerticalAlignment="Top"
+                                           Visibility="Visible"/>
+
                                     <!-- Текст сообщения -->
                                     <TextBlock x:Name="MessageText"
                                                Grid.Column="1"
@@ -104,15 +178,15 @@
                                                Foreground="{StaticResource TextColor}"
                                                VerticalAlignment="Center"/>
                                 </Grid>
-                                
+
                                 <!-- Кнопки -->
                                 <Border Grid.Row="2"
                                         Padding="16"
-                                        Background="{StaticResource LightGray}">
+                                        Background="{StaticResource LightGray}"
+                                        CornerRadius="0,0,8,8">
                                     <StackPanel x:Name="ButtonsPanel"
                                                 Orientation="Horizontal"
-                                                HorizontalAlignment="Right"
-                                                />
+                                                HorizontalAlignment="Right"/>
                                 </Border>
                             </Grid>
                         </Border>

@@ -720,7 +720,7 @@ namespace Diplom_Bibl.Pages
         /// <summary>
         /// Отображение диалога частичного возврата книг группы
         /// </summary>
-        private async Task ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
+        private Task ShowPartialReturnDialog(int groupIssuanceId, ObservableCollection<GroupBookGroup> bookGroups)
         {
             try
             {
@@ -903,6 +903,8 @@ namespace Diplom_Bibl.Pages
                 CustomMessageBox.Show($"Ошибка при открытии диалога возврата: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
+
+            return Task.CompletedTask;
         }
 
         #endregion

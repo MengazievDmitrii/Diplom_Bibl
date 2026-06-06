@@ -3,6 +3,7 @@ using Diplom_Bibl.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -99,7 +100,20 @@ namespace Diplom_Bibl.Pages
                 NavigationService?.Navigate(new BookRequestsManagement(notification.RequestID));
             }
         }
+        private void Page_Loaded(object sender, RoutedEventArgs e)
+        {
+            _ = RefreshNotifications();
+        }
+        private async Task RefreshNotifications()
+        {
+            if (_notificationService != null)
+            {
+                await _notificationService.CheckNewNotifications();
+                System.Diagnostics.Debug.WriteLine("📱 Страница уведомлений принудительно обновлена");
+            }
+        }
     }
+
 
     /// <summary>
     /// Класс для отображения уведомления с дополнительными свойствами

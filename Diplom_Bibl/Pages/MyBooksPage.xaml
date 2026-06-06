@@ -34,6 +34,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" HorizontalAlignment="Center">
                     <TextBlock Text="Всего выдано" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
@@ -43,13 +44,13 @@
                     <TextBlock Text="В наличии" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
                     <TextBlock x:Name="CurrentlyHeldCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
                 </StackPanel>
-                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
                     <TextBlock Text="Просрочено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
                     <TextBlock x:Name="OverdueCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                    <TextBlock Text="Просрочено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
-                    <TextBlock x:Name="ReturnedCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource DangerColor}"/>
+                    <TextBlock Text="Возвращено" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextColor}"/>
+                    <TextBlock x:Name="ReturnedCount" Text="0" FontSize="24" FontWeight="Bold" Foreground="{StaticResource SuccessColor}"/>
                 </StackPanel>
             </Grid>
         </Border>

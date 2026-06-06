@@ -85,24 +85,32 @@
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="Действия" Width="170">
+                    <DataGridTemplateColumn Header="Действия" Width="260">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <Button Content="📖 Просмотр" Width="75" Height="30"
-                                            Background="#3498DB" Foreground="White"
-                                            BorderThickness="0" 
-                                            Click="ViewRequest_Click"
-                                            Tag="{Binding ID_Request}"
-                                            Margin="0,0,5,0"
-                                            Cursor="Hand"/>
+                        Background="#3498DB" Foreground="White"
+                        BorderThickness="0" 
+                        Click="ViewRequest_Click"
+                        Tag="{Binding ID_Request}"
+                        Margin="0,0,5,0"
+                        Cursor="Hand"/>
                                     <Button Content="✅ Подтвердить" Width="85" Height="30"
-                                            Background="#27AE60" Foreground="White"
-                                            BorderThickness="0" 
-                                            Click="ConfirmRequest_Click"
-                                            Tag="{Binding ID_Request}"
-                                            Visibility="{Binding ConfirmVisible}"
-                                            Cursor="Hand"/>
+                        Background="#27AE60" Foreground="White"
+                        BorderThickness="0" 
+                        Click="ConfirmRequest_Click"
+                        Tag="{Binding ID_Request}"
+                        Visibility="{Binding ConfirmVisible}"
+                        Margin="0,0,5,0"
+                        Cursor="Hand"/>
+                                    <Button Content="❌ Отменить заявку" Width="100" Height="30"
+                        Background="#E74C3C" Foreground="White"
+                        BorderThickness="0" 
+                        Click="CancelRequest_Click"
+                        Tag="{Binding ID_Request}"
+                        Visibility="{Binding CancelVisible}"
+                        Cursor="Hand"/>
                                 </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
