@@ -8,347 +8,343 @@
       d:DesignHeight="700" d:DesignWidth="1200"
       Title="Библиотечный фонд" 
       Background="#F5F5F5"
-    
       ScrollViewer.VerticalScrollBarVisibility="Auto">
 
-    <Grid>
-        <!-- ИНДИКАТОР ЗАГРУЗКИ (поверх всего) -->
-        <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed">
-            <Border Background="White" 
-                    CornerRadius="10" 
-                    Width="300" 
-                    Height="120" 
-                    HorizontalAlignment="Center" 
-                    VerticalAlignment="Center"
-                    Effect="{StaticResource DropShadowEffect}">
-                <StackPanel Margin="20" VerticalAlignment="Center">
-                    <ProgressBar IsIndeterminate="True" 
-                                 Width="260" 
-                                 Height="20" 
-                                 Margin="0,0,0,15"/>
-                    <TextBlock x:Name="LoadingText" 
-                               Text="Загрузка библиотечного фонда..." 
-                               FontSize="14" 
-                               Foreground="#2C3E50" 
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
-            </Border>
-        </Grid>
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        <!-- ОСНОВНОЙ КОНТЕНТ -->
-        <Grid x:Name="MainContentGrid" Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+        <!-- Заголовок -->
+        <TextBlock Grid.Row="0" 
+                   Text="Библиотечный фонд" 
+                   FontSize="24"
+                   FontWeight="Bold"
+                   Foreground="{StaticResource PrimaryColor}"
+                   Margin="0,0,0,15"/>
 
-            <!-- Заголовок -->
-            <TextBlock Grid.Row="0" 
-                       Text="Библиотечный фонд" 
-                       FontSize="24"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource PrimaryColor}"
-                       Margin="0,0,0,15"/>
+        <!-- Кнопки операций -->
+        <WrapPanel Grid.Row="1" 
+                   Orientation="Horizontal" 
+                   Margin="0,0,0,20">
+            <Button Content="📥 Поступление" 
+                    Name="AdmissionBook" 
+                    Style="{StaticResource SaveButtonStyle}" 
+                    Height="36" 
+                    Width="140" 
+                    Click="AdmissionBook_Click" 
+                    Margin="0,0,10,0"/>
+            <Button Content="📚 Добавить книгу" 
+                    Name="AddBook" 
+                    Style="{StaticResource SaveButtonStyle}" 
+                    Height="36" 
+                    Width="140" 
+                    Click="AddBook_Click" 
+                    Margin="0,0,10,0"/>
+            <Button Content="📦 Массовое добавление" 
+                    Name="BulkAddBook" 
+                    Style="{StaticResource SaveButtonStyle}" 
+                    Height="36" 
+                    Width="160" 
+                    Click="BulkAddBook_Click" 
+                    Margin="0,0,10,0"/>
+            <Button Content="🗑️ Списание" 
+                    Name="DisposalBook" 
+                    Style="{StaticResource SaveButtonStyle}" 
+                    Height="36" 
+                    Width="140" 
+                    Click="DisposalBook_Click" 
+                    Margin="0,0,10,0"/>
+            <Button x:Name="FundMovementBtn" 
+                    Content="📊 Движение фонда" 
+                    Style="{StaticResource SaveButtonStyle}"
+                    Click="FundMovementBtn_Click"
+                    Width="160"
+                    Height="36"/>
+        </WrapPanel>
 
-            <!-- Кнопки операций -->
-            <WrapPanel Grid.Row="1" 
-                       Orientation="Horizontal" 
-                       Margin="0,0,0,20">
-                <Button Content="📥 Поступление" 
-                        Name="AdmissionBook" 
-                        Style="{StaticResource SaveButtonStyle}" 
-                        Height="36" 
-                        Width="140" 
-                        Click="AdmissionBook_Click" 
-                        Margin="0,0,10,0"/>
-                <Button Content="📚 Добавить книгу" 
-                        Name="AddBook" 
-                        Style="{StaticResource SaveButtonStyle}" 
-                        Height="36" 
-                        Width="140" 
-                        Click="AddBook_Click" 
-                        Margin="0,0,10,0"/>
-                <Button Content="📦 Массовое добавление" 
-                        Name="BulkAddBook" 
-                        Style="{StaticResource SaveButtonStyle}" 
-                        Height="36" 
-                        Width="160" 
-                        Click="BulkAddBook_Click" 
-                        Margin="0,0,10,0"/>
-                <Button Content="🗑️ Списание" 
-                        Name="DisposalBook" 
-                        Style="{StaticResource SaveButtonStyle}" 
-                        Height="36" 
-                        Width="140" 
-                        Click="DisposalBook_Click" 
-                        Margin="0,0,10,0"/>
-                <Button x:Name="FundMovementBtn" 
-                        Content="📊 Движение фонда" 
-                        Style="{StaticResource SaveButtonStyle}"
-                        Click="FundMovementBtn_Click"
-                        Width="160"
-                        Height="36"/>
-            </WrapPanel>
+        <!-- Блок поиска и фильтров -->
+        <Border Grid.Row="2"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                Padding="15"
+                Margin="0,0,0,15"
+                Effect="{StaticResource DropShadowEffect}">
 
-            <!-- Блок поиска и фильтров -->
-            <Border Grid.Row="2"
-                    Background="White"
-                    CornerRadius="8"
-                    BorderBrush="{StaticResource BorderColor}"
-                    BorderThickness="1"
-                    Padding="15"
-                    Margin="0,0,0,15"
-                    Effect="{StaticResource DropShadowEffect}">
+            <StackPanel>
+                <!-- Строка поиска книги -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel>
-                    <!-- Строка поиска книги -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" 
+                               Text="🔍" 
+                               FontSize="16" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,10,0"/>
 
-                        <TextBlock Grid.Column="0" 
-                                   Text="🔍" 
-                                   FontSize="16" 
-                                   VerticalAlignment="Center" 
-                                   Margin="0,0,10,0"/>
+                    <TextBox x:Name="BookSearchBox"
+                             Grid.Column="1"
+                             Height="36"
+                             Style="{StaticResource InputFieldStyle}"
+                             TextChanged="BookSearchBox_TextChanged"
+                             GotFocus="BookSearchBox_GotFocus"
+                             LostFocus="BookSearchBox_LostFocus"
+                             Text="Введите название книги или автора..."
+                             Foreground="{StaticResource TextColor}"
+                             VerticalContentAlignment="Center"/>
 
-                        <TextBox x:Name="BookSearchBox"
-                                 Grid.Column="1"
-                                 Height="36"
-                                 Style="{StaticResource InputFieldStyle}"
-                                 TextChanged="BookSearchBox_TextChanged"
-                                 GotFocus="BookSearchBox_GotFocus"
-                                 LostFocus="BookSearchBox_LostFocus"
-                                 Text="Введите название книги или автора..."
-                                 Foreground="{StaticResource TextColor}"
-                                 VerticalContentAlignment="Center"/>
+                    <Button x:Name="ClearSearchBtn"
+                            Grid.Column="2"
+                            Content="✕"
+                            Width="30"
+                            Height="30"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            Foreground="{StaticResource DangerColor}"
+                            FontWeight="Bold"
+                            FontSize="14"
+                            Visibility="Collapsed"
+                            Click="ClearSearchBtn_Click"
+                            Margin="10,0,0,0"/>
+                </Grid>
 
-                        <Button x:Name="ClearSearchBtn"
-                                Grid.Column="2"
-                                Content="✕"
-                                Width="30"
-                                Height="30"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                Foreground="{StaticResource DangerColor}"
-                                FontWeight="Bold"
-                                FontSize="14"
-                                Visibility="Collapsed"
-                                Click="ClearSearchBtn_Click"
-                                Margin="10,0,0,0"/>
-                    </Grid>
+                <!-- Результаты поиска -->
+                <ListBox x:Name="SearchResultsList"
+                         Visibility="Collapsed"
+                         MaxHeight="200"
+                         Margin="0,5,0,10"
+                         SelectionChanged="SearchResultsList_SelectionChanged"
+                         BorderBrush="{StaticResource BorderColor}"
+                         BorderThickness="1"
+                         Background="White"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="White"
+                                   BorderBrush="{StaticResource BorderColor}"
+                                   BorderThickness="0,0,0,1"
+                                   Padding="10,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding TitleBook}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource PrimaryColor}"
+                                               FontSize="14"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding AuthorName}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource TextColor}"
+                                               Margin="0,4,0,0"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
-                    <!-- Результаты поиска -->
-                    <ListBox x:Name="SearchResultsList"
-                             Visibility="Collapsed"
-                             MaxHeight="200"
-                             Margin="0,5,0,10"
-                             SelectionChanged="SearchResultsList_SelectionChanged"
-                             BorderBrush="{StaticResource BorderColor}"
-                             BorderThickness="1"
-                             Background="White"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="White"
-                                       BorderBrush="{StaticResource BorderColor}"
-                                       BorderThickness="0,0,0,1"
-                                       Padding="10,8">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding TitleBook}"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{StaticResource PrimaryColor}"
-                                                   FontSize="14"
-                                                   TextWrapping="Wrap"/>
-                                        <TextBlock Text="{Binding AuthorName}"
-                                                   FontSize="12"
-                                                   Foreground="{StaticResource TextColor}"
-                                                   Margin="0,4,0,0"
-                                                   TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                <!-- Фильтры -->
+                <WrapPanel Orientation="Horizontal">
+                    <TextBlock Text="🔍 Фильтры:" 
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource PrimaryColor}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
 
-                    <!-- Фильтры -->
-                    <WrapPanel Orientation="Horizontal">
-                        <TextBlock Text="🔍 Фильтры:" 
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource PrimaryColor}"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,12,0"/>
+                    <ComboBox x:Name="FilterAuthorCombo"
+                              ToolTip="Выберите автора"
+                              Width="200"
+                              Height="32"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayAuthors"
+                              SelectedValuePath="ID_Author"
+                              Margin="0,0,10,5"/>
 
-                        <ComboBox x:Name="FilterAuthorCombo"
-                                  ToolTip="Выберите автора"
-                                  Width="200"
-                                  Height="32"
-                                  Style="{StaticResource InputFieldStyleCb}"
-                                  SelectionChanged="FilterCombo_SelectionChanged"
-                                  DisplayMemberPath="DisplayAuthors"
-                                  SelectedValuePath="ID_Author"
-                                  Margin="0,0,10,5"/>
+                    <ComboBox x:Name="FilterStatusCombo"
+                              ToolTip="Выберите статус"
+                              Width="130"
+                              Height="32"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Status"
+                              Margin="0,0,10,5"/>
 
-                        <ComboBox x:Name="FilterStatusCombo"
-                                  ToolTip="Выберите статус"
-                                  Width="130"
-                                  Height="32"
-                                  Style="{StaticResource InputFieldStyleCb}"
-                                  SelectionChanged="FilterCombo_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"
-                                  SelectedValuePath="ID_Status"
-                                  Margin="0,0,10,5"/>
+                    <ComboBox x:Name="FilterGenreCombo"
+                              ToolTip="Выберите жанр"
+                              Width="130"
+                              Height="32"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Gener"
+                              Margin="0,0,10,5"/>
 
-                        <ComboBox x:Name="FilterGenreCombo"
-                                  ToolTip="Выберите жанр"
-                                  Width="130"
-                                  Height="32"
-                                  Style="{StaticResource InputFieldStyleCb}"
-                                  SelectionChanged="FilterCombo_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"
-                                  SelectedValuePath="ID_Gener"
-                                  Margin="0,0,10,5"/>
+                    <ComboBox x:Name="FilterYearCombo"
+                              ToolTip="Выберите год"
+                              Width="100"
+                              Height="32"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              Margin="0,0,10,5">
+                        <ComboBoxItem Content="Все годы" IsSelected="True"/>
+                    </ComboBox>
 
-                        <ComboBox x:Name="FilterYearCombo"
-                                  ToolTip="Выберите год"
-                                  Width="100"
-                                  Height="32"
-                                  Style="{StaticResource InputFieldStyleCb}"
-                                  SelectionChanged="FilterCombo_SelectionChanged"
-                                  Margin="0,0,10,5">
-                            <ComboBoxItem Content="Все годы" IsSelected="True"/>
-                        </ComboBox>
+                    <ComboBox x:Name="FilterPublisherCombo"
+                              ToolTip="Выберите издательство"
+                              Width="180"
+                              Height="32"
+                              Style="{StaticResource InputFieldStyleCb}"
+                              SelectionChanged="FilterCombo_SelectionChanged"
+                              DisplayMemberPath="DisplayName"
+                              SelectedValuePath="ID_Publisher"
+                              Margin="0,0,10,5"/>
 
-                        <ComboBox x:Name="FilterPublisherCombo"
-                                  ToolTip="Выберите издательство"
-                                  Width="180"
-                                  Height="32"
-                                  Style="{StaticResource InputFieldStyleCb}"
-                                  SelectionChanged="FilterCombo_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"
-                                  SelectedValuePath="ID_Publisher"
-                                  Margin="0,0,10,5"/>
+                    <Button Content="🔄 Сбросить фильтры"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Background="{StaticResource LightGray}"
+                            Foreground="{StaticResource TextColor}"
+                            Height="32"
+                            Width="130"
+                            Click="ClearFiltersBtn_Click"
+                            Margin="0,0,0,5"
+                            ToolTip="Сбросить все фильтры"/>
+                </WrapPanel>
+            </StackPanel>
+        </Border>
 
-                        <Button Content="🔄 Сбросить фильтры"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Background="{StaticResource LightGray}"
-                                Foreground="{StaticResource TextColor}"
-                                Height="32"
-                                Width="130"
-                                Click="ClearFiltersBtn_Click"
-                                Margin="0,0,0,5"
-                                ToolTip="Сбросить все фильтры"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
+        <!-- Счётчик найденных записей -->
+        <TextBlock Grid.Row="3"
+                   x:Name="SearchCountLabel"
+                   Text="Найдено: 0 из 0 наименований"
+                   FontSize="12"
+                   Foreground="{StaticResource TextColor}"
+                   Opacity="0.7"
+                   Margin="0,0,0,10"
+                   HorizontalAlignment="Left"/>
 
-            <!-- Счётчик найденных записей -->
-            <TextBlock Grid.Row="3"
-                       x:Name="SearchCountLabel"
-                       Text="Найдено: 0 из 0 наименований"
-                       FontSize="12"
-                       Foreground="{StaticResource TextColor}"
-                       Opacity="0.7"
-                       Margin="0,0,0,10"
-                       HorizontalAlignment="Left"/>
+        <!-- ОБЛАСТЬ ТАБЛИЦЫ С ИНДИКАТОРОМ ЗАГРУЗКИ -->
+        <Grid Grid.Row="4" MaxHeight="400">
+            <!-- ИНДИКАТОР ЗАГРУЗКИ (только над таблицей) -->
+            <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed" ZIndex="100">
+                <Border Background="White" 
+                        CornerRadius="10" 
+                        Width="300" 
+                        Height="120" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"
+                        Effect="{StaticResource DropShadowEffect}">
+                    <StackPanel Margin="20" VerticalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" 
+                                     Width="260" 
+                                     Height="20" 
+                                     Margin="0,0,0,15"/>
+                        <TextBlock x:Name="LoadingText" 
+                                   Text="Загрузка библиотечного фонда..." 
+                                   FontSize="14" 
+                                   Foreground="#2C3E50" 
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- Таблица книг -->
-            <ScrollViewer Grid.Row="4" 
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Auto"
-                          MaxHeight="400">
-                <DataGrid x:Name="DgBooks"
-                          AutoGenerateColumns="False"
-                          CanUserAddRows="False"
-                          IsReadOnly="True"
-                          SelectionMode="Single"
-                          RowHeight="40"
-                          AlternatingRowBackground="{StaticResource LightGray}"
-                          Background="White"
-                          BorderBrush="{StaticResource BorderColor}"
-                          BorderThickness="1"
-                          MouseDoubleClick="DgBooks_MouseDoubleClick"
-                          HorizontalAlignment="Stretch">
+            <DataGrid x:Name="DgBooks"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      RowHeight="40"
+                      AlternatingRowBackground="{StaticResource LightGray}"
+                      Background="White"
+                      BorderBrush="{StaticResource BorderColor}"
+                      BorderThickness="1"
+                      MouseDoubleClick="DgBooks_MouseDoubleClick"
+                      HorizontalAlignment="Stretch"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
 
-                    <DataGrid.Resources>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
-                            <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="Height" Value="40"/>
-                            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                        </Style>
-                        <Style TargetType="DataGridCell">
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="Padding" Value="8,0"/>
-                            <Setter Property="BorderThickness" Value="0"/>
-                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                        </Style>
-                    </DataGrid.Resources>
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PrimaryLightColor}"/>
+                        <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Height" Value="40"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Padding" Value="8,0"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    </Style>
+                </DataGrid.Resources>
 
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Название книги" Binding="{Binding TitleBook}" Width="300" MinWidth="200"/>
-                        <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="200" MinWidth="150"/>
-                        <DataGridTextColumn Header="Год" Binding="{Binding YearPublishing}" Width="70"/>
-                        <DataGridTextColumn Header="Издательство" Binding="{Binding PublishingHouseName}" Width="180" MinWidth="120"/>
-                        <DataGridTextColumn Header="Жанр" Binding="{Binding GenreName}" Width="120" MinWidth="100"/>
-                        <DataGridTextColumn Header="Всего" Binding="{Binding TotalCopies}" Width="70"/>
-                        <DataGridTextColumn Header="В наличии" Binding="{Binding AvailableCopies}" Width="85"/>
-                        <DataGridTextColumn Header="Выдано" Binding="{Binding IssuedCopies}" Width="70"/>
-                        <DataGridTemplateColumn Header="Статус" Width="110">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border CornerRadius="12"
-                                            Background="{Binding StatusColor}"
-                                            Padding="8,3">
-                                        <TextBlock Text="{Binding StatusText}" 
-                                                   Foreground="White"
-                                                   FontSize="11"
-                                                   FontWeight="SemiBold"
-                                                   HorizontalAlignment="Center"/>
-                                    </Border>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </ScrollViewer>
-
-            <!-- Панель статистики -->
-            <Border Grid.Row="5"
-                    Background="White"
-                    CornerRadius="8"
-                    BorderBrush="{StaticResource BorderColor}"
-                    BorderThickness="1"
-                    Padding="12"
-                    Margin="0,15,0,0"
-                    Effect="{StaticResource DropShadowEffect}">
-                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock Text="Всего наименований: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                    <TextBlock x:Name="TotalBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
-
-                    <TextBlock Text="Всего экземпляров: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                    <TextBlock x:Name="TotalCopiesCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
-
-                    <TextBlock Text="В наличии: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                    <TextBlock x:Name="AvailableBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource SuccessColor}" FontWeight="Bold" FontSize="13"/>
-
-                    <TextBlock Text="Выдано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                    <TextBlock x:Name="IssuedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource WarningColor}" FontWeight="Bold" FontSize="13"/>
-
-                    <TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                    <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>
-                </WrapPanel>
-            </Border>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Название книги" Binding="{Binding TitleBook}" Width="300" MinWidth="200"/>
+                    <DataGridTextColumn Header="Автор" Binding="{Binding AuthorName}" Width="200" MinWidth="150"/>
+                    <DataGridTextColumn Header="Год" Binding="{Binding YearPublishing}" Width="70"/>
+                    <DataGridTextColumn Header="Издательство" Binding="{Binding PublishingHouseName}" Width="180" MinWidth="120"/>
+                    <DataGridTextColumn Header="Жанр" Binding="{Binding GenreName}" Width="120" MinWidth="100"/>
+                    <DataGridTextColumn Header="Всего" Binding="{Binding TotalCopies}" Width="70"/>
+                    <DataGridTextColumn Header="В наличии" Binding="{Binding AvailableCopies}" Width="85"/>
+                    <DataGridTextColumn Header="Выдано" Binding="{Binding IssuedCopies}" Width="70"/>
+                    <DataGridTemplateColumn Header="Статус" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="12"
+                                        Background="{Binding StatusColor}"
+                                        Padding="8,3">
+                                    <TextBlock Text="{Binding StatusText}" 
+                                               Foreground="White"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
         </Grid>
+
+        <!-- Панель статистики -->
+        <Border Grid.Row="5"
+                Background="White"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                Padding="12"
+                Margin="0,15,0,0"
+                Effect="{StaticResource DropShadowEffect}">
+            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Всего наименований: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="TotalBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
+
+                <TextBlock Text="Всего экземпляров: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="TotalCopiesCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
+
+                <TextBlock Text="В наличии: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="AvailableBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource SuccessColor}" FontWeight="Bold" FontSize="13"/>
+
+                <TextBlock Text="Выдано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="IssuedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource WarningColor}" FontWeight="Bold" FontSize="13"/>
+
+                <TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>
+            </WrapPanel>
+        </Border>
     </Grid>
 </Page>

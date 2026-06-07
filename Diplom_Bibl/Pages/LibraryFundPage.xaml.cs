@@ -35,6 +35,8 @@ namespace Diplom_Bibl.Pages
         private bool _isSearchPlaceholderActive = true;
         private bool _isSearchProgrammatic = false;
         private bool _isLoading = false;
+        private bool _isDataLoaded = false; 
+
 
 
         #endregion
@@ -194,8 +196,12 @@ namespace Diplom_Bibl.Pages
 
             SetSearchPlaceholder();
             AddBook.Visibility = Visibility.Collapsed;
+
+            // Скрываем локальный индикатор загрузки при старте
             if (LoadingOverlay != null)
                 LoadingOverlay.Visibility = Visibility.Collapsed;
+
+           
 
             this.Loaded += async (s, e) => await LibraryFundPage_LoadedAsync();
         }
@@ -206,15 +212,26 @@ namespace Diplom_Bibl.Pages
 
         private async Task LibraryFundPage_LoadedAsync()
         {
+            if (_isDataLoaded) return; // Не грузим дважды
             await LoadDataAsync();
         }
-        // Асинхронная загрузка всех данных
+
+        #endregion
+
+        #region Загрузка данных
+
+       
         private async Task LoadDataAsync()
         {
             if (_isLoading) return;
             _isLoading = true;
 
-            await Dispatcher.InvokeAsync(() => ShowLoading(true));
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (LoadingOverlay != null)
+                    LoadingOverlay.Visibility = Visibility.Visible;
+               
+            });
 
             try
             {
@@ -232,6 +249,7 @@ namespace Diplom_Bibl.Pages
                 {
                     ApplyAllFilters();
                     UpdateStatistics();
+                    _isDataLoaded = true;
                 });
             }
             catch (Exception ex)
@@ -244,7 +262,13 @@ namespace Diplom_Bibl.Pages
             }
             finally
             {
-                await Dispatcher.InvokeAsync(() => ShowLoading(false));
+                // Скрываем ТОЛЬКО локальный индикатор загрузки
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (LoadingOverlay != null)
+                        LoadingOverlay.Visibility = Visibility.Collapsed;
+                    
+                });
                 _isLoading = false;
             }
         }
@@ -253,8 +277,6 @@ namespace Diplom_Bibl.Pages
             if (LoadingOverlay != null)
                 LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
 
-            if (MainContentGrid != null)
-                MainContentGrid.IsEnabled = !show;
         }
 
 
