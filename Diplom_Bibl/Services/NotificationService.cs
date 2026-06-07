@@ -106,7 +106,12 @@ namespace Diplom_Bibl.Services
         public void StartPolling(int intervalSeconds = 5)
         {
             LoadInitialNotifications();
-            _pollingTimer = new Timer(async _ => await PollNotificationsAsync(), null, 0, intervalSeconds * 1000);
+            _pollingTimer = new Timer(async _ =>
+            {
+                System.Diagnostics.Debug.WriteLine($"🕐 Таймер сработал в {DateTime.Now:HH:mm:ss.fff}");
+                await PollNotificationsAsync();
+            }, null, 0, intervalSeconds * 1000);
+            System.Diagnostics.Debug.WriteLine($"✅ Таймер запущен с интервалом {intervalSeconds} секунд");
         }
 
         /// <summary>
@@ -238,7 +243,7 @@ namespace Diplom_Bibl.Services
         /// <returns>Количество непрочитанных уведомлений</returns>
         public int GetUnreadCount()
         {
-            return _notifications.Count;
+            return _notifications.Count(n => !n.IsRead);
         }
 
         /// <summary>
@@ -418,72 +423,63 @@ namespace Diplom_Bibl.Services
 
                     if (isLibrarian)
                     {
-                        // =========================================
-                        // ИСПРАВЛЕНИЕ ДЛЯ БИБЛИОТЕКАРЯ:
-                        // Используем LEFT JOIN вместо INNER JOIN,
-                        // чтобы уведомления с RequestID = NULL тоже выбирались
-                        // =========================================
                         query = @"
-            SELECT 
-                n.ID_Notification, 
-                n.RequestID, 
-                n.Message, 
-                nt.TypeName AS NotificationType,
-                n.CreatedDate, 
-                n.IsRead,
-                ISNULL(br.RequestNumber, '') AS RequestNumber,
-                br.ExpirationDate,
-                ISNULL(rf.LastName + ' ' + rf.FirstName + ' ' + rf.MiddleName, 'Системное уведомление') AS UserName,
-                ISNULL(g.GroupCode, '') AS GroupName,
-                ISNULL(br.LessonName, '') AS LessonName,
-                FORMAT(br.LessonDate, 'dd.MM.yyyy') AS LessonDate,
-                ISNULL(LEFT(CONVERT(NVARCHAR(8), br.LessonTime, 8), 5), '') AS LessonTime,
-                ISNULL((SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = br.ID_Request), 0) AS BooksCount,
-                ISNULL(STUFF((
-                    SELECT ', ' + b.TitleBook 
-                    FROM RequestItems ri
-                    INNER JOIN Books b ON ri.BookID = b.IDBook
-                    WHERE ri.RequestID = br.ID_Request
-                    FOR XML PATH('')
-                ), 1, 2, ''), '') AS BookTitles
-            FROM RequestNotifications n
-            INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
-            LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request  -- ← LEFT JOIN вместо INNER JOIN!
-            LEFT JOIN ReaderForm rf ON br.UserID = rf.ReaderID
-            LEFT JOIN Groups g ON rf.GroupID = g.GroupID
-            WHERE n.ID_Notification > @LastId AND n.IsRead = 0
-            ORDER BY n.CreatedDate DESC";
+                    SELECT 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        ISNULL(br.RequestNumber, '') AS RequestNumber,
+                        br.ExpirationDate,
+                        ISNULL(rf.LastName + ' ' + rf.FirstName + ' ' + rf.MiddleName, 'Системное уведомление') AS UserName,
+                        ISNULL(g.GroupCode, '') AS GroupName,
+                        ISNULL(br.LessonName, '') AS LessonName,
+                        FORMAT(br.LessonDate, 'dd.MM.yyyy') AS LessonDate,
+                        ISNULL(LEFT(CONVERT(NVARCHAR(8), br.LessonTime, 8), 5), '') AS LessonTime,
+                        ISNULL((SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = br.ID_Request), 0) AS BooksCount,
+                        ISNULL(STUFF((
+                            SELECT ', ' + b.TitleBook 
+                            FROM RequestItems ri
+                            INNER JOIN Books b ON ri.BookID = b.IDBook
+                            WHERE ri.RequestID = br.ID_Request
+                            FOR XML PATH('')
+                        ), 1, 2, ''), '') AS BookTitles
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    LEFT JOIN ReaderForm rf ON br.UserID = rf.ReaderID
+                    LEFT JOIN Groups g ON rf.GroupID = g.GroupID
+                    WHERE n.IsRead = 0
+                    ORDER BY n.CreatedDate DESC";
                     }
                     else
                     {
-                        // =========================================
-                        // ДЛЯ ЧИТАТЕЛЯ - тоже LEFT JOIN
-                        // =========================================
                         query = @"
-            SELECT 
-                n.ID_Notification, 
-                n.RequestID, 
-                n.Message, 
-                nt.TypeName AS NotificationType,
-                n.CreatedDate, 
-                n.IsRead,
-                ISNULL(br.RequestNumber, '') AS RequestNumber,
-                br.ExpirationDate,
-                '' AS UserName,
-                '' AS GroupName,
-                '' AS LessonName,
-                '' AS LessonDate,
-                '' AS LessonTime,
-                0 AS BooksCount,
-                '' AS BookTitles
-            FROM RequestNotifications n
-            INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
-            LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request  -- ← LEFT JOIN вместо INNER JOIN!
-            WHERE (br.UserID = @UserId OR n.RequestID IS NULL)  -- ← Добавляем условие для уведомлений без заявки
-              AND n.ID_Notification > @LastId 
-              AND n.IsRead = 0 
-              AND nt.TypeName <> 'Новая заявка'
-            ORDER BY n.CreatedDate DESC";
+                    SELECT 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        ISNULL(br.RequestNumber, '') AS RequestNumber,
+                        br.ExpirationDate,
+                        '' AS UserName,
+                        '' AS GroupName,
+                        '' AS LessonName,
+                        '' AS LessonDate,
+                        '' AS LessonTime,
+                        0 AS BooksCount,
+                        '' AS BookTitles
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    WHERE (br.UserID = @UserId OR n.RequestID IS NULL)
+                      AND n.IsRead = 0 
+                      AND nt.TypeName <> 'Новая заявка'
+                    ORDER BY n.CreatedDate DESC";
                     }
 
                     using (var cmd = new SqlCommand(query, conn))
@@ -492,61 +488,82 @@ namespace Diplom_Bibl.Services
                         {
                             cmd.Parameters.AddWithValue("@UserId", _currentUserId);
                         }
-                        cmd.Parameters.AddWithValue("@LastId", _lastNotificationId);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            int newCount = 0;
+                            // ВАЖНО: Находим максимальный ID среди всех непрочитанных уведомлений
+                            int maxId = _lastNotificationId;
+                            var allNotifications = new List<NotificationItem>();
+
                             while (await reader.ReadAsync())
                             {
-                                newCount++;
+                                int notificationId = reader.GetInt32(0);
 
-                                // Безопасное чтение RequestID (может быть NULL)
+                                if (notificationId > maxId)
+                                    maxId = notificationId;
+
                                 int? requestId = null;
                                 if (!reader.IsDBNull(1))
                                     requestId = reader.GetInt32(1);
 
                                 var notification = new NotificationItem
                                 {
-                                    ID_Notification = reader.GetInt32(0),
+                                    ID_Notification = notificationId,
                                     RequestID = requestId ?? 0,
                                     Message = reader.IsDBNull(2) ? "" : reader.GetString(2),
                                     NotificationType = reader.IsDBNull(3) ? "" : reader.GetString(3),
                                     CreatedDate = reader.GetDateTime(4),
                                     IsRead = reader.GetBoolean(5),
                                     RequestNumber = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                                    ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
-                                    UserName = reader.IsDBNull(8) ? "" : reader.GetString(8),
-                                    GroupName = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                                    LessonName = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                                    LessonDate = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                                    LessonTime = reader.IsDBNull(12) ? "" : reader.GetString(12),
-                                    BooksCount = reader.IsDBNull(13) ? 0 : reader.GetInt32(13),
-                                    BookTitles = reader.IsDBNull(14) ? "" : reader.GetString(14)
+                                    ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7)
                                 };
 
-                                lock (_lockObject)
+                                if (isLibrarian)
                                 {
-                                    if (notification.ID_Notification > _lastNotificationId)
-                                        _lastNotificationId = notification.ID_Notification;
+                                    notification.UserName = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                    notification.GroupName = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                                    notification.LessonName = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                                    notification.LessonDate = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                                    notification.LessonTime = reader.IsDBNull(12) ? "" : reader.GetString(12);
+                                    notification.BooksCount = reader.IsDBNull(13) ? 0 : reader.GetInt32(13);
+                                    notification.BookTitles = reader.IsDBNull(14) ? "" : reader.GetString(14);
                                 }
 
-
-                                _dispatcher.Invoke(() =>
-                                {
-                                    _notifications.Insert(0, notification);
-                                    NotificationsUpdated?.Invoke(this, _notifications);
-                                    UnreadCountChanged?.Invoke(this, GetUnreadCount());
-                                    NewNotificationReceived?.Invoke(this, notification);  // ← ЭТО ДЛЯ НОВЫХ
-
-                                    System.Diagnostics.Debug.WriteLine($"🔔 НОВОЕ УВЕДОМЛЕНИЕ: {notification.NotificationType} - {notification.Message}");
-                                });
+                                allNotifications.Add(notification);
                             }
 
-                            if (newCount > 0)
-                                System.Diagnostics.Debug.WriteLine($"✅ Получено новых уведомлений: {newCount}");
+                            // Обновляем lastId на максимальный найденный ID
+                            if (maxId > _lastNotificationId)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"🔄 Обновляем lastId: {_lastNotificationId} -> {maxId}");
+                                _lastNotificationId = maxId;
+                            }
+
+                            // Теперь ищем ТОЛЬКО НОВЫЕ уведомления (которых нет в коллекции)
+                            var existingIds = new HashSet<int>(_notifications.Select(n => n.ID_Notification));
+                            var newNotifications = allNotifications.Where(n => !existingIds.Contains(n.ID_Notification)).ToList();
+
+                            if (newNotifications.Any())
+                            {
+                                System.Diagnostics.Debug.WriteLine($"✅ Получено новых уведомлений: {newNotifications.Count}");
+
+                                foreach (var notification in newNotifications)
+                                {
+                                    _dispatcher.Invoke(() =>
+                                    {
+                                        _notifications.Insert(0, notification);
+                                        NotificationsUpdated?.Invoke(this, _notifications);
+                                        UnreadCountChanged?.Invoke(this, GetUnreadCount());
+                                        NewNotificationReceived?.Invoke(this, notification);
+
+                                        System.Diagnostics.Debug.WriteLine($"🔔 НОВОЕ УВЕДОМЛЕНИЕ: {notification.NotificationType} - {notification.Message}");
+                                    });
+                                }
+                            }
                             else
+                            {
                                 System.Diagnostics.Debug.WriteLine($"🔍 Новых уведомлений нет, lastId={_lastNotificationId}");
+                            }
                         }
                     }
                 }

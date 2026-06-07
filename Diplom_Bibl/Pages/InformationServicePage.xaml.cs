@@ -569,7 +569,7 @@ namespace Diplom_Bibl.Pages
 
                 var first = booksFromRequest.First();
 
-                // Получаем реальное количество доступных экземпляров (включая зарезервированные для этой заявки)
+                // ИСПРАВЛЕНО: Доступно = Всего - Выдано - Списано (не вычитаем зарезервированные!)
                 first.AvailableCopies = await GetRealAvailableCopiesForRequest(first.TitleBook, requestId);
 
                 var selected = _books.FirstOrDefault(b => b.TitleBook == first.TitleBook && b.AuthorName == first.AuthorName);
@@ -598,7 +598,7 @@ namespace Diplom_Bibl.Pages
                 BookSearchBox.Foreground = Brushes.Black;
                 AvailableQuantityText.Text = selected.AvailableCopies.ToString();
 
-                System.Diagnostics.Debug.WriteLine($"Книга загружена: {selected.TitleBook}, Доступно (с учётом резерва): {selected.AvailableCopies}");
+                System.Diagnostics.Debug.WriteLine($"Книга загружена: {selected.TitleBook}, Доступно (Всего-Выдано-Списано): {selected.AvailableCopies}");
             }
             catch (Exception ex)
             {
@@ -606,42 +606,32 @@ namespace Diplom_Bibl.Pages
                 ShowError("Ошибка загрузки книг из заявки", ex);
             }
         }
-
         /// <summary>
-        /// Получение реального количества доступных экземпляров (включая зарезервированные для этой заявки)
+        /// Получение реального количества доступных экземпляров (НЕ вычитаем зарезервированные!)
         /// </summary>
         private async Task<int> GetRealAvailableCopiesForRequest(string title, int requestId)
         {
             try
             {
+                // Используем CopiesInUse, а не подзапросы!
                 string sql = @"
-            SELECT ISNULL(SUM(b.AvailableCopies), 0)
+            SELECT 
+                ISNULL(SUM(b.TotalCopies), 0) - 
+                ISNULL(SUM(b.CopiesInUse), 0) AS AvailableCopies
             FROM Books b
-            WHERE b.TitleBook = @Title 
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )";
-
-                using (var conn = new SqlConnection(_connectionString))
+            WHERE b.TitleBook = @Title
+              AND b.StatusBook NOT IN (5) 
+              AND b.ID_Disposal IS NULL"; 
+        
+        using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Title", title);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
-                        cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
-                        cmd.Parameters.AddWithValue("@RequestId", requestId);
                         var result = await cmd.ExecuteScalarAsync();
-                        return result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                        int available = result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                        return available;
                     }
                 }
             }
@@ -995,24 +985,14 @@ namespace Diplom_Bibl.Pages
             var bookIds = new List<int>();
             try
             {
-                // Для заявки - учитываем зарезервированные экземпляры
+                // ИСПРАВЛЕНО ДЛЯ ВАШЕЙ БД:
+                // Доступно = Всего - Выдано (Списаные книги не учитываем, они уже исключены по StatusBook)
                 string sql = @"
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
             WHERE b.TitleBook = (SELECT TitleBook FROM Books WHERE IDBook = @BookId)
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )
-              AND b.AvailableCopies > 0
+              AND b.StatusBook IN (1, 6)  -- 1=В наличии, 6=Зарезервирована
+              AND b.CopiesInUse = 0       -- Книга не выдана
             ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1022,9 +1002,6 @@ namespace Diplom_Bibl.Pages
                     {
                         cmd.Parameters.AddWithValue("@BookId", bookId);
                         cmd.Parameters.AddWithValue("@Qty", requiredQuantity);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
-                        cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
-                        cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.HasValue ? _pendingRequestId.Value : (object)DBNull.Value);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -1040,7 +1017,6 @@ namespace Diplom_Bibl.Pages
             }
             return bookIds;
         }
-
         private async void CreateGroupIssuance(int quantity)
         {
             try

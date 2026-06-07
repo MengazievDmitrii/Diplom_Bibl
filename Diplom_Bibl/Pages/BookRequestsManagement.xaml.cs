@@ -552,7 +552,6 @@ namespace Diplom_Bibl.Pages
 
         /// <summary>
         /// Получение доступных ID книг для выдачи
-        /// </summary>
         private async Task<List<int>> GetAvailableBookIdsForIssuance(int bookId, int quantity, int requestId)
         {
             var bookIds = new List<int>();
@@ -562,19 +561,9 @@ namespace Diplom_Bibl.Pages
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
             WHERE b.TitleBook = (SELECT TitleBook FROM Books WHERE IDBook = @BookId)
-              AND (
-                  b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%В наличии%')
-                  OR (
-                      b.StatusBook = (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Зарезервирована%')
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )
-              AND b.AvailableCopies > 0
+              AND b.StatusBook IN (1, 6)  -- 1=В наличии, 6=Зарезервирована
+              AND b.CopiesInUse = 0       -- Не выдана
+              AND b.ID_Disposal IS NULL   -- Не списана
             ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
