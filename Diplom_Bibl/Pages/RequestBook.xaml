@@ -8,8 +8,33 @@
       d:DesignHeight="800" d:DesignWidth="1200"
       Title="Оформление заявки на выдачу книг">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="24">
+
+    <Grid>
+
+        <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed">
+            <Border Background="White" 
+            CornerRadius="10" 
+            Width="300" 
+            Height="120" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            Effect="{StaticResource DropShadowEffect}">
+                <StackPanel Margin="20" VerticalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" 
+                         Width="260" 
+                         Height="20" 
+                         Margin="0,0,0,15"/>
+                    <TextBlock x:Name="LoadingText" 
+                       Text="Загрузка данных..." 
+                       FontSize="14" 
+                       Foreground="#2C3E50" 
+                       HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid Margin="24" x:Name="MainContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -203,4 +228,5 @@
             </StackPanel>
         </Grid>
     </ScrollViewer>
+   </Grid>
 </Page>

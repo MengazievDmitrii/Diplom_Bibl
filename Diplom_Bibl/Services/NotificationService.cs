@@ -384,13 +384,13 @@ namespace Diplom_Bibl.Services
 
                             _lastNotificationId = maxId;
                             System.Diagnostics.Debug.WriteLine($"✅ Загружено уведомлений: {count}, последний ID: {_lastNotificationId}");
-
-                            _dispatcher.Invoke(() => NotificationsUpdated?.Invoke(this, _notifications));
-                            _dispatcher.Invoke(() => UnreadCountChanged?.Invoke(this, GetUnreadCount()));
-
-                            // =========================================
-                            // ВАЖНО: Показываем все непрочитанные уведомления
-                            // =========================================
+                            _dispatcher.Invoke(() =>
+                            {
+                                NotificationsUpdated?.Invoke(this, _notifications);
+                                UnreadCountChanged?.Invoke(this, GetUnreadCount());
+                            });
+                            
+                           
                             ShowAllUnreadNotifications();
                         }
                     }
@@ -560,6 +560,9 @@ namespace Diplom_Bibl.Services
         /// <summary>
         /// Показывает все непрочитанные уведомления при инициализации
         /// </summary>
+        /// <summary>
+        /// Показывает все непрочитанные уведомления при инициализации
+        /// </summary>
         private void ShowAllUnreadNotifications()
         {
             System.Diagnostics.Debug.WriteLine($"📢 ПОКАЗ ВСЕХ НЕПРОЧИТАННЫХ УВЕДОМЛЕНИЙ: {_notifications.Count} шт.");
@@ -571,6 +574,7 @@ namespace Diplom_Bibl.Services
                     System.Diagnostics.Debug.WriteLine($"🔔 ТРИГГЕР ДЛЯ ID={notification.ID_Notification}, Тип={notification.NotificationType}");
                     _dispatcher.Invoke(() =>
                     {
+                        // ВАЖНО: Вызываем событие для каждого уведомления
                         NewNotificationReceived?.Invoke(this, notification);
                     });
                 }

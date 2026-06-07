@@ -15,12 +15,15 @@ using System.Windows.Media;
 
 namespace Diplom_Bibl.Pages
 {
+
     public partial class BookRequestsManagement : Page
     {
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<RequestItem> _allRequests;
         private int _librarianId;
         private System.Timers.Timer _notificationTimer;
+        private bool _isLoading = false;
+        private bool _isDataLoaded = false;
 
         // Словари статусов из БД
         private Dictionary<int, string> _requestStatuses = new Dictionary<int, string>();
@@ -102,10 +105,17 @@ namespace Diplom_Bibl.Pages
         }
         #region Конструктор и загрузка
 
+        #region Конструктор и загрузка
+
         public BookRequestsManagement(int librarianId)
         {
             InitializeComponent();
             _librarianId = librarianId;
+
+            // Скрываем индикатор загрузки при старте
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+
             _notificationTimer = new System.Timers.Timer(30000);
             _notificationTimer.Elapsed += async (sender, e) => await CheckNewRequests();
             _notificationTimer.Start();
@@ -117,6 +127,8 @@ namespace Diplom_Bibl.Pages
             LoadStatusFilters();
             await LoadDataAsync();
         }
+
+
 
         /// <summary>
         /// Загрузка статусов из БД в словари
@@ -170,22 +182,49 @@ namespace Diplom_Bibl.Pages
             return pair.Key != 0 ? pair.Key : -1;
         }
 
+        private void ShowLoading(bool show, string message = "Загрузка заявок...")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (LoadingOverlay != null)
+                {
+                    if (LoadingText != null)
+                        LoadingText.Text = message;
+                    LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                // Блокируем только DataGrid, а не всю страницу
+                if (DgRequests != null)
+                    DgRequests.IsEnabled = !show;
+            });
+        }
+
         private async System.Threading.Tasks.Task LoadDataAsync()
         {
+            if (_isDataLoaded) return;
+
             try
             {
+                ShowLoading(true, "Загрузка заявок...");
+
                 await LoadRequests();
                 await LoadUnreadNotificationsCount();
+
+                _isDataLoaded = true;
             }
             catch (Exception ex)
             {
                 CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
+            finally
+            {
+                ShowLoading(false);
+            }
         }
 
-        #endregion
 
+        #endregion
         #region Уведомления
 
         private async System.Threading.Tasks.Task LoadUnreadNotificationsCount()
@@ -375,64 +414,75 @@ namespace Diplom_Bibl.Pages
         {
             await System.Threading.Tasks.Task.Run(() =>
             {
-                string query = @"
-            SELECT 
-                r.ID_Request, 
-                r.RequestNumber, 
-                r.RequestDate,
-                r.UserID,
-                CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
-                r.GroupID, 
-                g.GroupCode, 
-                r.LessonName, 
-                r.LessonDate,
-                r.StatusID, 
-                rs.StatusName, 
-                r.ExpirationDate, 
-                r.UserTypeID,
-                (SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks
-            FROM BookRequests r
-            LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
-            LEFT JOIN Groups g ON r.GroupID = g.GroupID
-            LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
-            ORDER BY r.RequestDate DESC";
-
-                using (var conn = new SqlConnection(_connectionString))
+                try
                 {
-                    conn.Open();
-                    using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    string query = @"
+                SELECT 
+                    r.ID_Request, 
+                    r.RequestNumber, 
+                    r.RequestDate,
+                    r.UserID,
+                    CONCAT(rd.LastName, ' ', rd.FirstName, ' ', ISNULL(rd.MiddleName, '')) AS UserName,
+                    r.GroupID, 
+                    g.GroupCode, 
+                    r.LessonName, 
+                    r.LessonDate,
+                    r.StatusID, 
+                    rs.StatusName, 
+                    r.ExpirationDate, 
+                    r.UserTypeID,
+                    (SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = r.ID_Request) AS TotalBooks
+                FROM BookRequests r
+                LEFT JOIN ReaderForm rd ON r.UserID = rd.ReaderID
+                LEFT JOIN Groups g ON r.GroupID = g.GroupID
+                LEFT JOIN RequestStatuses rs ON r.StatusID = rs.ID_Status
+                ORDER BY r.RequestDate DESC";
+
+                    using (var conn = new SqlConnection(_connectionString))
                     {
-                        var items = new ObservableCollection<RequestItem>();
-
-                        while (reader.Read())
+                        conn.Open();
+                        using (var cmd = new SqlCommand(query, conn))
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            var item = new RequestItem
+                            var items = new ObservableCollection<RequestItem>();
+
+                            while (reader.Read())
                             {
-                                ID_Request = Convert.ToInt32(reader["ID_Request"]),
-                                RequestNumber = reader["RequestNumber"]?.ToString() ?? "",
-                                RequestDate = Convert.ToDateTime(reader["RequestDate"]),
-                                UserID = Convert.ToInt32(reader["UserID"]),
-                                UserName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "Неизвестный пользователь",
-                                GroupID = reader["GroupID"] != DBNull.Value ? Convert.ToInt32(reader["GroupID"]) : (int?)null,
-                                GroupCode = reader["GroupCode"]?.ToString() ?? "",
-                                LessonName = reader["LessonName"]?.ToString() ?? "",
-                                LessonDate = Convert.ToDateTime(reader["LessonDate"]),
-                                StatusID = Convert.ToInt32(reader["StatusID"]),
-                                StatusName = reader["StatusName"]?.ToString() ?? "",
-                                ExpirationDate = reader["ExpirationDate"] != DBNull.Value ? Convert.ToDateTime(reader["ExpirationDate"]) : (DateTime?)null,
-                                TotalBooks = Convert.ToInt32(reader["TotalBooks"]),
-                                UserTypeID = reader["UserTypeID"] != DBNull.Value ? Convert.ToInt32(reader["UserTypeID"]) : 1
-                            };
-                            items.Add(item);
-                        }
+                                var item = new RequestItem
+                                {
+                                    ID_Request = Convert.ToInt32(reader["ID_Request"]),
+                                    RequestNumber = reader["RequestNumber"]?.ToString() ?? "",
+                                    RequestDate = Convert.ToDateTime(reader["RequestDate"]),
+                                    UserID = Convert.ToInt32(reader["UserID"]),
+                                    UserName = reader["UserName"] != DBNull.Value ? reader["UserName"].ToString() : "Неизвестный пользователь",
+                                    GroupID = reader["GroupID"] != DBNull.Value ? Convert.ToInt32(reader["GroupID"]) : (int?)null,
+                                    GroupCode = reader["GroupCode"]?.ToString() ?? "",
+                                    LessonName = reader["LessonName"]?.ToString() ?? "",
+                                    LessonDate = Convert.ToDateTime(reader["LessonDate"]),
+                                    StatusID = Convert.ToInt32(reader["StatusID"]),
+                                    StatusName = reader["StatusName"]?.ToString() ?? "",
+                                    ExpirationDate = reader["ExpirationDate"] != DBNull.Value ? Convert.ToDateTime(reader["ExpirationDate"]) : (DateTime?)null,
+                                    TotalBooks = Convert.ToInt32(reader["TotalBooks"]),
+                                    UserTypeID = reader["UserTypeID"] != DBNull.Value ? Convert.ToInt32(reader["UserTypeID"]) : 1
+                                };
+                                items.Add(item);
+                            }
 
-                        Dispatcher.Invoke(() =>
-                        {
-                            _allRequests = items;
-                            ApplyFilters();
-                        });
+                            Dispatcher.Invoke(() =>
+                            {
+                                _allRequests = items;
+                                ApplyFilters();
+                            });
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        CustomMessageBox.Show($"Ошибка загрузки заявок: {ex.Message}", "Ошибка",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    });
                 }
             });
         }
@@ -1114,4 +1164,5 @@ namespace Diplom_Bibl.Pages
         #endregion
     }
 }
+#endregion
 #endregion

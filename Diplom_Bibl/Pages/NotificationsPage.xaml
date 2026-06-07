@@ -6,122 +6,156 @@
       mc:Ignorable="d" 
       d:DesignHeight="700" d:DesignWidth="1000"
       Title="Уведомления"
-      Background="#F8F9FA">
+      Background="#F8F9FA"
+      Loaded="Page_Loaded">
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
-            <TextBlock Text="🔔 Уведомления" 
-                       FontSize="24" 
-                       FontWeight="Bold"
-                       Foreground="{StaticResource PrimaryColor}"/>
-            <Border x:Name="UnreadBadge"
-                    Background="#E74C3C"
-                    CornerRadius="20"
-                    Padding="10,3"
-                    Margin="15,0,0,0"
-                    Visibility="Collapsed">
-                <TextBlock x:Name="UnreadCountText" 
-                           Text="0" 
-                           Foreground="White"
-                           FontWeight="Bold"
-                           FontSize="14"/>
+    <Grid>
+        <!-- ИНДИКАТОР ЗАГРУЗКИ -->
+        <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed" ZIndex="100">
+            <Border Background="White" 
+            CornerRadius="10" 
+            Width="300" 
+            Height="120" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            Effect="{StaticResource DropShadowEffect}">
+                <StackPanel Margin="20" VerticalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" 
+                         Width="260" 
+                         Height="20" 
+                         Margin="0,0,0,15"/>
+                    <TextBlock x:Name="LoadingText" 
+                       Text="Загрузка..." 
+                       FontSize="14" 
+                       Foreground="#2C3E50" 
+                       HorizontalAlignment="Center"/>
+                </StackPanel>
             </Border>
-        </StackPanel>
+        </Grid>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
-            <Button x:Name="MarkAllReadBtn" 
-                    Content="✓ Отметить всё как прочитанное"
-                    Style="{StaticResource SaveButtonStyle}"
-                    Width="220" Height="35"
-                    Click="MarkAllReadBtn_Click"
-                    Margin="0,0,10,0"/>
-            <Button x:Name="RefreshBtn" 
-                    Content="🔄 Обновить"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Width="120" Height="35"
-                    Click="RefreshBtn_Click"
-                    Margin="0,0,10,0"/>
-            <Button x:Name="BackBtn" 
-                    Content="← Назад"
-                    Style="{StaticResource DefaultButtonStyle}"
-                    Width="100" Height="35"
-                    Click="BackBtn_Click"/>
-        </StackPanel>
+        <!-- ОСНОВНОЙ КОНТЕНТ -->
+        <Grid x:Name="MainContentGrid" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <ItemsControl x:Name="NotificationsList">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="{Binding BackgroundColor}"
-                                CornerRadius="8"
-                                Margin="0,5,0,5"
-                                Padding="15,12"
-                                Cursor="Hand"
-                                MouseLeftButtonDown="Notification_Click"
-                                BorderBrush="#DEE2E6"
-                                BorderThickness="1">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+                <TextBlock Text="🔔 Уведомления" 
+                           FontSize="24" 
+                           FontWeight="Bold"
+                           Foreground="{StaticResource PrimaryColor}"/>
+                <Border x:Name="UnreadBadge"
+                        Background="#E74C3C"
+                        CornerRadius="20"
+                        Padding="10,3"
+                        Margin="15,0,0,0"
+                        Visibility="Collapsed">
+                    <TextBlock x:Name="UnreadCountText" 
+                               Text="0" 
+                               Foreground="White"
+                               FontWeight="Bold"
+                               FontSize="14"/>
+                </Border>
+            </StackPanel>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
+                <Button x:Name="MarkAllReadBtn" 
+                        Content="✓ Отметить всё как прочитанное"
+                        Style="{StaticResource SaveButtonStyle}"
+                        Width="220" Height="35"
+                        Click="MarkAllReadBtn_Click"
+                        Margin="0,0,10,0"/>
+                <Button x:Name="RefreshBtn" 
+                        Content="🔄 Обновить"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Width="120" Height="35"
+                        Click="RefreshBtn_Click"
+                        Margin="0,0,10,0"/>
+                <Button x:Name="BackBtn" 
+                        Content="← Назад"
+                        Style="{StaticResource DefaultButtonStyle}"
+                        Width="100" Height="35"
+                        Click="BackBtn_Click"/>
+            </StackPanel>
 
-                                <Border Grid.Column="0" 
-                                        Width="45" Height="45" 
-                                        CornerRadius="22.5"
-                                        Background="{Binding IconColor}"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding IconText}" 
-                                               FontSize="22"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                </Border>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="NotificationsList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding BackgroundColor}"
+                                    CornerRadius="8"
+                                    Margin="0,5,0,5"
+                                    Padding="15,12"
+                                    Cursor="Hand"
+                                    BorderBrush="#DEE2E6"
+                                    BorderThickness="1">
 
-                                <StackPanel Grid.Column="1" Margin="15,0">
-                                    <TextBlock Text="{Binding NotificationType}" 
-                                               FontSize="14" 
-                                               FontWeight="{Binding FontWeight}"
-                                               Foreground="#2C3E50"/>
-                                    <TextBlock Text="{Binding Message}" 
-                                               FontSize="12" 
-                                               Foreground="#34495E"
-                                               TextWrapping="Wrap"
-                                               Margin="0,5,0,0"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <TextBlock Text="Заявка №: " FontSize="11" Foreground="#7F8C8D"/>
-                                        <TextBlock Text="{Binding RequestNumber}" 
-                                                   FontSize="11" 
-                                                   FontWeight="SemiBold" 
-                                                   Foreground="#2980B9"/>
-                                        <TextBlock Text=" • " FontSize="11" Foreground="#BDC3C7"/>
-                                        <TextBlock Text="{Binding FormattedDate}" 
-                                                   FontSize="11" 
-                                                   Foreground="#7F8C8D"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" 
+                                            Width="45" Height="45" 
+                                            CornerRadius="22.5"
+                                            Background="{Binding IconColor}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding IconText}" 
+                                                   FontSize="22"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Margin="15,0">
+                                        <TextBlock Text="{Binding NotificationType}" 
+                                                   FontSize="14" 
+                                                   FontWeight="{Binding FontWeight}"
+                                                   Foreground="#2C3E50"/>
+                                        <TextBlock Text="{Binding Message}" 
+                                                   FontSize="12" 
+                                                   Foreground="#34495E"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,5,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <TextBlock Text="Заявка №: " FontSize="11" Foreground="#7F8C8D"/>
+                                            <TextBlock Text="{Binding RequestNumber}" 
+                                                       FontSize="11" 
+                                                       FontWeight="SemiBold" 
+                                                       Foreground="#2980B9"/>
+                                            <TextBlock Text=" • " FontSize="11" Foreground="#BDC3C7"/>
+                                            <TextBlock Text="{Binding FormattedDate}" 
+                                                       FontSize="11" 
+                                                       Foreground="#7F8C8D"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
 
-                                <!-- ИСПРАВЛЕНО: InvertBoolToVisibilityConverter вместо InvertBoolToVisibility -->
-                                <Border Grid.Column="2" 
-                                        Width="10" Height="10" 
-                                        CornerRadius="5" 
-                                        Background="#E74C3C"
-                                        VerticalAlignment="Top"
-                                        Margin="0,5,10,0"
-                                        Visibility="{Binding IsRead, Converter={StaticResource InvertBoolToVisibilityConverter}}"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                                    <Border Grid.Column="2" 
+                                            Width="10" Height="10" 
+                                            CornerRadius="5" 
+                                            Background="#E74C3C"
+                                            VerticalAlignment="Top"
+                                            Margin="0,5,10,0"
+                                            Visibility="{Binding IsRead, Converter={StaticResource InverseBooleanConverter}}"/>
+                                    <Button Grid.Column="2" 
+                Content=" Перейти"
+                Width="80" Height="30"
+                Background="#3498DB" Foreground="White"
+                BorderThickness="0" 
+                Click="ViewRequest_Click"
+                Tag="{Binding RequestID}"
+                VerticalAlignment="Center"
+                Margin="10,0,0,0"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Page>

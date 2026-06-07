@@ -93,13 +93,21 @@ namespace Diplom_Bibl.Windows
                 _ = Task.Run(() => StartReturnDateMonitoringBackground());
                 _ = Task.Run(() => StartExpiredRequestsMonitoring());
                 _ = Task.Run(async () => await ForceShowAllNotifications());
+                await Task.Delay(2000);
+                if (_notificationService != null)
+                {
+                    var count = _notificationService.GetUnreadCount();
+                    UpdateUnreadCount(count);
+                    System.Diagnostics.Debug.WriteLine($"🔔 Первоначальный счетчик уведомлений: {count}");
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки: {ex.Message}");
             }
         }
-
+            
+       
         /// <summary>
         /// Загрузка начальной страницы в зависимости от роли пользователя
         /// </summary>
@@ -568,7 +576,8 @@ namespace Diplom_Bibl.Windows
         /// </summary>
         private void OnNewNotificationReceived(object sender, NotificationService.NotificationItem notification)
         {
-            // Для библиотекаря показываем ВСЕ уведомления (никаких фильтров!)
+            System.Diagnostics.Debug.WriteLine($"🔔 OnNewNotificationReceived: Тип={notification.NotificationType}, Message={notification.Message}");
+            // Для библиотекаря показываем ВСЕ уведомления
             // Для читателя - показываем все, кроме "Новая заявка"
             if (!(_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN")))
             {
@@ -583,16 +592,22 @@ namespace Diplom_Bibl.Windows
 
             System.Diagnostics.Debug.WriteLine($"🔔 ПОЛУЧЕНО УВЕДОМЛЕНИЕ В MAINWINDOW: {notification.NotificationType} - {notification.Message}");
 
+            // ВАЖНО: ОБНОВЛЯЕМ СЧЕТЧИК СРАЗУ!
+            UpdateUnreadCount(_notificationService?.GetUnreadCount() ?? 0);
+
             Dispatcher.Invoke(() =>
             {
                 try
                 {
+                    // Для заявок показываем расширенное окно
                     if (notification.NotificationType == "Новая заявка" && notification.RequestID > 0)
                     {
+                        System.Diagnostics.Debug.WriteLine($"📋 Показываем расширенное уведомление");
                         ShowRequestNotification(notification);
                     }
                     else
                     {
+                        System.Diagnostics.Debug.WriteLine($"💬 Показываем простое уведомление");
                         ShowFloatingNotification(notification);
                     }
                 }
@@ -603,6 +618,10 @@ namespace Diplom_Bibl.Windows
             });
         }
 
+
+        /// <summary>
+        /// Показ простого всплывающего уведомления
+        /// </summary>
         /// <summary>
         /// Показ простого всплывающего уведомления
         /// </summary>
@@ -610,7 +629,14 @@ namespace Diplom_Bibl.Windows
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"💬 ShowFloatingNotification: {notification.NotificationType} - {notification.Message}");
+                System.Diagnostics.Debug.WriteLine($"💬 ShowFloatingNotification вызван: {notification.NotificationType} - {notification.Message}");
+
+                // Проверяем, что уведомление не null
+                if (notification == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("❌ Уведомление null");
+                    return;
+                }
 
                 var notificationWindow = new Window
                 {
@@ -691,6 +717,7 @@ namespace Diplom_Bibl.Windows
         /// </summary>
         private void OnUnreadCountChanged(object sender, int unreadCount)
         {
+            System.Diagnostics.Debug.WriteLine($"📊 OnUnreadCountChanged: {unreadCount}");
             Dispatcher.Invoke(() => UpdateUnreadCount(unreadCount));
         }
 
@@ -701,6 +728,7 @@ namespace Diplom_Bibl.Windows
         {
             TbUnreadCount.Text = count.ToString();
             NotificationBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            System.Diagnostics.Debug.WriteLine($"🔔 Обновлен счетчик уведомлений: {count}");
         }
 
         /// <summary>
@@ -711,6 +739,7 @@ namespace Diplom_Bibl.Windows
             if (_notificationService != null)
                 MainFrame.Navigate(new NotificationsPage(_notificationService));
         }
+       
 
         #endregion
 
