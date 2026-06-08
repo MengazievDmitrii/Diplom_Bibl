@@ -9,8 +9,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Diplom_Bibl.Helpers;
-
 
 namespace Diplom_Bibl.Pages
 {
@@ -22,6 +22,13 @@ namespace Diplom_Bibl.Pages
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private int? _editingUserId = null;
         private ObservableCollection<UserListItem> _users = new ObservableCollection<UserListItem>();
+        private ObservableCollection<UserListItem> _allUsers = new ObservableCollection<UserListItem>(); // Все пользователи для поиска
+
+        // Флаг для отслеживания, нужно ли обновлять пароль
+        private bool _isPasswordChanged = false;
+
+        // Флаг для плейсхолдера поиска
+        private bool _isSearchPlaceholderActive = true;
 
         // Новый конструктор с параметром
         public AddUser(int userId)
@@ -30,6 +37,7 @@ namespace Diplom_Bibl.Pages
             LoadRoles();
             LoadUsers();        // ← сначала загрузить список
             LoadUser(userId);   // ← потом данные пользователя
+            SetSearchPlaceholder();
         }
 
         // Старый конструктор (для создания нового)
@@ -38,9 +46,103 @@ namespace Diplom_Bibl.Pages
             InitializeComponent();
             LoadRoles();
             LoadUsers();
+            SetSearchPlaceholder();
         }
 
-        // Модель роли с флагом выбора
+        // === МЕТОДЫ ПОИСКА ===
+
+        /// <summary>
+        /// Установка плейсхолдера для поля поиска
+        /// </summary>
+        private void SetSearchPlaceholder()
+        {
+            _isSearchPlaceholderActive = true;
+            SearchBox.Text = "Поиск по фамилии, имени или логину...";
+            SearchBox.Foreground = Brushes.Gray;
+        }
+
+        /// <summary>
+        /// Очистка плейсхолдера при получении фокуса
+        /// </summary>
+        private void SearchBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (_isSearchPlaceholderActive)
+            {
+                SearchBox.Text = "";
+                SearchBox.Foreground = Brushes.Black;
+                _isSearchPlaceholderActive = false;
+            }
+            ClearSearchBtn.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// Восстановление плейсхолдера при потере фокуса
+        /// </summary>
+        private void SearchBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                SetSearchPlaceholder();
+                if (ClearSearchBtn != null)
+                    ClearSearchBtn.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Фильтрация списка пользователей
+        /// </summary>
+        private void ApplyFilter(string searchTerm)
+        {
+            if (_allUsers == null || _allUsers.Count == 0) return;
+
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                // Если поиск пуст - показываем всех
+                _users = new ObservableCollection<UserListItem>(_allUsers);
+            }
+            else
+            {
+                string lowerSearchTerm = searchTerm.ToLower();
+                var filtered = _allUsers.Where(u =>
+                    u.Surname.ToLower().Contains(lowerSearchTerm) ||
+                    u.Name.ToLower().Contains(lowerSearchTerm) ||
+                    u.Login.ToLower().Contains(lowerSearchTerm) ||
+                    (u.Patronymic != null && u.Patronymic.ToLower().Contains(lowerSearchTerm))
+                ).ToList();
+                _users = new ObservableCollection<UserListItem>(filtered);
+            }
+
+            LvUsers.ItemsSource = _users;
+        }
+
+        /// <summary>
+        /// Обработчик изменения текста в поле поиска
+        /// </summary>
+        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isSearchPlaceholderActive) return;
+
+            string searchTerm = SearchBox.Text.Trim();
+            ApplyFilter(searchTerm);
+
+            // Показываем кнопку очистки только если есть текст
+            ClearSearchBtn.Visibility = string.IsNullOrEmpty(searchTerm) ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        /// <summary>
+        /// Очистка поиска
+        /// </summary>
+        private void ClearSearchBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SearchBox.Text = "";
+            SearchBox.Focus();
+            ApplyFilter("");
+
+            if (ClearSearchBtn != null)
+                ClearSearchBtn.Visibility = Visibility.Collapsed;
+        }
+
+        // === Модель роли с флагом выбора ===
         private class RoleItem : INotifyPropertyChanged
         {
             public int ID_Role { get; set; }
@@ -102,14 +204,13 @@ namespace Diplom_Bibl.Pages
 
         private void BtnSaveNew_Click(object sender, RoutedEventArgs e)
         {
-            if (!ValidateInput(out string login, out string password)) return;
+            if (!ValidateInputForNew()) return;
 
             try
             {
-                // Хэшируем пароль перед сохранением
-                string hashedPassword = HashPassword(password);
+                string hashedPassword = HashPassword(PbPassword.Password.Trim());
 
-                int userId = InsertUser(login, hashedPassword);
+                int userId = InsertUser(TbLogin.Text.Trim(), hashedPassword);
                 if (userId > 0)
                 {
                     AssignRolesToUser(userId);
@@ -128,17 +229,29 @@ namespace Diplom_Bibl.Pages
         {
             if (_editingUserId == null) return;
 
-            if (!ValidateInput(out string login, out string password)) return;
+            if (!ValidateInputForEdit()) return;
 
             try
             {
-                // Хэшируем пароль перед обновлением
-                string hashedPassword = HashPassword(password);
+                string login = TbLogin.Text.Trim();
 
-                UpdateUser(_editingUserId.Value, login, hashedPassword);
-                // Удаляем старые роли
+                string passwordHash;
+                if (_isPasswordChanged && !string.IsNullOrWhiteSpace(PbPassword.Password))
+                {
+                    passwordHash = HashPassword(PbPassword.Password.Trim());
+                }
+                else
+                {
+                    passwordHash = PbPassword.Tag?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(passwordHash) && !string.IsNullOrWhiteSpace(PbPassword.Password))
+                    {
+                        passwordHash = HashPassword(PbPassword.Password.Trim());
+                    }
+                }
+
+                UpdateUser(_editingUserId.Value, login, passwordHash);
+
                 DeleteUserRoles(_editingUserId.Value);
-                // Назначаем новые
                 AssignRolesToUser(_editingUserId.Value);
 
                 CustomMessageBox.Show("Данные пользователя обновлены.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
@@ -178,57 +291,129 @@ namespace Diplom_Bibl.Pages
 
         // === МЕТОДЫ ХЭШИРОВАНИЯ ПАРОЛЕЙ ===
 
-        /// <summary>
-        /// Хэширует пароль с использованием BCrypt
-        /// </summary>
         private string HashPassword(string password)
         {
-            // Генерируем соль и хэшируем пароль (работа = 10 - стандартное значение)
-            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
-            return hashedPassword;
+            return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
         }
 
-        /// <summary>
-        /// Проверяет, соответствует ли введенный пароль хэшу
-        /// </summary>
         private bool VerifyPassword(string enteredPassword, string storedHash)
         {
             return BCrypt.Net.BCrypt.Verify(enteredPassword, storedHash);
         }
 
-        // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
+        // === МЕТОДЫ ВАЛИДАЦИИ ===
 
-        private bool ValidateInput(out string login, out string password)
+        private bool ValidateInputForNew()
         {
-            login = TbLogin.Text?.Trim();
-            password = PbPassword.Password?.Trim();
+            string login = TbLogin.Text?.Trim();
+            string password = PbPassword.Password?.Trim();
 
             if (string.IsNullOrWhiteSpace(TbSurname.Text) ||
                 string.IsNullOrWhiteSpace(TbName.Text) ||
                 string.IsNullOrWhiteSpace(login) ||
                 string.IsNullOrWhiteSpace(password))
             {
-                CustomMessageBox.Show("Заполните все обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Заполните все обязательные поля (*).", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
-            // Проверка длины пароля (минимум 4 символа)
             if (password.Length < 4)
             {
-                CustomMessageBox.Show("Пароль должен содержать минимум 4 символа.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Пароль должен содержать минимум 4 символа.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
-            // Проверка: хотя бы одна роль выбрана
             var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
             if (roles == null || !roles.Any(r => r.IsSelected))
             {
-                CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            if (IsLoginExists(login))
+            {
+                CustomMessageBox.Show("Пользователь с таким логином уже существует.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return false;
             }
 
             return true;
         }
+
+        private bool ValidateInputForEdit()
+        {
+            string login = TbLogin.Text?.Trim();
+            string password = PbPassword.Password?.Trim();
+
+            if (string.IsNullOrWhiteSpace(TbSurname.Text) ||
+                string.IsNullOrWhiteSpace(TbName.Text) ||
+                string.IsNullOrWhiteSpace(login))
+            {
+                CustomMessageBox.Show("Заполните все обязательные поля (*). Пароль можно оставить пустым, если не хотите его менять.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
+            if (roles == null || !roles.Any(r => r.IsSelected))
+            {
+                CustomMessageBox.Show("Выберите хотя бы одну роль.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(password) && password.Length < 4)
+            {
+                CustomMessageBox.Show("Пароль должен содержать минимум 4 символа.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            if (IsLoginExistsForEdit(login, _editingUserId.Value))
+            {
+                CustomMessageBox.Show("Пользователь с таким логином уже существует.", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsLoginExists(string login)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                const string sql = "SELECT COUNT(*) FROM Users WHERE Login = @Login";
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    int count = (int)cmd.ExecuteScalar();
+                    return count > 0;
+                }
+            }
+        }
+
+        private bool IsLoginExistsForEdit(string login, int excludeUserId)
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                conn.Open();
+                const string sql = "SELECT COUNT(*) FROM Users WHERE Login = @Login AND ID_User != @ExcludeId";
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    cmd.Parameters.AddWithValue("@ExcludeId", excludeUserId);
+                    int count = (int)cmd.ExecuteScalar();
+                    return count > 0;
+                }
+            }
+        }
+
+        // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
         private int InsertUser(string login, string hashedPassword)
         {
@@ -246,7 +431,7 @@ namespace Diplom_Bibl.Pages
                     cmd.Parameters.AddWithValue("@Name", TbName.Text.Trim());
                     cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(TbPatronymic.Text) ? (object)DBNull.Value : TbPatronymic.Text.Trim());
                     cmd.Parameters.AddWithValue("@Login", login);
-                    cmd.Parameters.AddWithValue("@Password", hashedPassword); // Сохраняем хэш
+                    cmd.Parameters.AddWithValue("@Password", hashedPassword);
                     return Convert.ToInt32(cmd.ExecuteScalar());
                 }
             }
@@ -273,7 +458,7 @@ namespace Diplom_Bibl.Pages
                     cmd.Parameters.AddWithValue("@Name", TbName.Text.Trim());
                     cmd.Parameters.AddWithValue("@Patronymic", string.IsNullOrWhiteSpace(TbPatronymic.Text) ? (object)DBNull.Value : TbPatronymic.Text.Trim());
                     cmd.Parameters.AddWithValue("@Login", login);
-                    cmd.Parameters.AddWithValue("@Password", hashedPassword); // Сохраняем хэш
+                    cmd.Parameters.AddWithValue("@Password", string.IsNullOrEmpty(hashedPassword) ? (object)DBNull.Value : hashedPassword);
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -338,6 +523,7 @@ namespace Diplom_Bibl.Pages
             TbPatronymic.Clear();
             TbLogin.Clear();
             PbPassword.Clear();
+            _isPasswordChanged = false;
 
             var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
             if (roles != null)
@@ -378,12 +564,10 @@ namespace Diplom_Bibl.Pages
                             TbPatronymic.Text = reader["Patronymic"]?.ToString() ?? "";
                             TbLogin.Text = reader["Login"].ToString();
 
-                            // Поле пароля не заполняем при редактировании
-                            // Пользователь должен ввести новый пароль, если хочет его изменить
                             PbPassword.Password = "";
-                            PbPassword.Tag = reader["PasswordHash"].ToString(); // Сохраняем хэш в Tag
+                            PbPassword.Tag = reader["PasswordHash"].ToString();
+                            _isPasswordChanged = false;
 
-                            // Загружаем роли пользователя
                             LoadUserRoles(userId);
                         }
                         else
@@ -396,7 +580,6 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            // Переключаем интерфейс в режим редактирования
             BtnSaveNew.Visibility = Visibility.Collapsed;
             BtnSaveChanges.Visibility = Visibility.Visible;
             BtnDelete.Visibility = Visibility.Visible;
@@ -428,7 +611,6 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            // Устанавливаем IsSelected = true для назначенных ролей
             var roles = LbRoles.ItemsSource as ObservableCollection<RoleItem>;
             if (roles != null)
             {
@@ -485,13 +667,27 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            _users = users;
+            _allUsers = users;
+            _users = new ObservableCollection<UserListItem>(users);
             LvUsers.ItemsSource = _users;
         }
 
         private void RefreshUserList()
         {
             LoadUsers();
+            // Обновляем фильтр после обновления списка
+            if (!_isSearchPlaceholderActive && !string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                ApplyFilter(SearchBox.Text.Trim());
+            }
+        }
+
+        private void PbPassword_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (_editingUserId.HasValue)
+            {
+                _isPasswordChanged = !string.IsNullOrWhiteSpace(PbPassword.Password);
+            }
         }
     }
 }

@@ -12,21 +12,18 @@ using System.Windows.Navigation;
 
 namespace Diplom_Bibl.Pages
 {
-    /// <summary>
-    /// Страница отображения уведомлений пользователя
-    /// Показывает все уведомления из системы (новые заявки, просрочки, готовность к выдаче и т.д.)
-    /// </summary>
     public partial class NotificationsPage : Page
     {
-        #region Поля класса
+        private readonly NotificationService _notificationService;
+        private ObservableCollection<NotificationDisplayItem> _notifications;
+        private bool _isLoading = false;
+        private bool _isInitialLoad = true;
 
-        private readonly NotificationService _notificationService;      // Сервис для работы с уведомлениями
-        private ObservableCollection<NotificationDisplayItem> _notifications;  // Коллекция уведомлений для отображения
-        private bool _isLoading = false;                                   // Флаг предотвращения повторной загрузки
-
-        #endregion
-
-        #region Конструктор
+        // Константы для пагинации
+        private const int PAGE_SIZE = 20;
+        private int _currentPage = 0;
+        private int _totalItems = 0;
+        private ScrollViewer _scrollViewer;
 
         public NotificationsPage(NotificationService notificationService)
         {
@@ -36,18 +33,22 @@ namespace Diplom_Bibl.Pages
 
             System.Diagnostics.Debug.WriteLine("📱 СТРАНИЦА УВЕДОМЛЕНИЙ ОТКРЫТА");
 
-            // Подписываемся на событие загрузки страницы
-            this.Loaded += async (s, e) => await LoadNotificationsAsync();
-
-            // Подписываемся на обновление уведомлений от сервиса
-            _notificationService.NotificationsUpdated += (s, n) =>
+            this.Loaded += async (s, e) =>
             {
-                System.Diagnostics.Debug.WriteLine("🔄 Событие NotificationsUpdated");
-                // Обновляем список в UI-потоке
-                Dispatcher.Invoke(async () => await LoadNotificationsAsync());
+                await LoadNotificationsAsync(true); // Загружаем только первую страницу
+                SetupScrollListener();
             };
 
-            // Подписываемся на изменение количества непрочитанных уведомлений
+            _notificationService.NotificationsUpdated += async (s, n) =>
+            {
+                System.Diagnostics.Debug.WriteLine("🔄 Событие NotificationsUpdated");
+                await Dispatcher.InvokeAsync(async () =>
+                {
+                    _currentPage = 0;
+                    await LoadNotificationsAsync(true);
+                });
+            };
+
             _notificationService.UnreadCountChanged += (s, count) =>
             {
                 System.Diagnostics.Debug.WriteLine($"📊 UnreadCountChanged: {count}");
@@ -55,16 +56,63 @@ namespace Diplom_Bibl.Pages
             };
         }
 
-        #endregion
-
-        #region Загрузка уведомлений
+        /// <summary>
+        /// Настройка слушателя прокрутки для бесконечной загрузки
+        /// </summary>
+        private void SetupScrollListener()
+        {
+            // Находим ScrollViewer внутри страницы
+            _scrollViewer = FindVisualChild<ScrollViewer>(this);
+            if (_scrollViewer != null)
+            {
+                _scrollViewer.ScrollChanged += OnScrollChanged;
+            }
+        }
 
         /// <summary>
-        /// Асинхронная загрузка списка уведомлений из сервиса
+        /// Поиск визуального элемента по типу
         /// </summary>
-        private async Task LoadNotificationsAsync()
+        private T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
-            // Предотвращаем повторную загрузку, если уже идёт загрузка
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                    return result;
+
+                var descendant = FindVisualChild<T>(child);
+                if (descendant != null)
+                    return descendant;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Обработчик прокрутки для подгрузки следующих страниц
+        /// </summary>
+        private async void OnScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (_isLoading) return;
+
+            var scrollViewer = sender as ScrollViewer;
+            if (scrollViewer == null) return;
+
+            // Если доскроллили до конца
+            if (scrollViewer.VerticalOffset >= scrollViewer.ScrollableHeight - 100)
+            {
+                if (_notifications.Count < _totalItems)
+                {
+                    await LoadMoreNotificationsAsync();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Асинхронная загрузка уведомлений с пагинацией
+        /// </summary>
+        /// <param name="reset">Очистить существующий список</param>
+        private async Task LoadNotificationsAsync(bool reset = true)
+        {
             if (_isLoading) return;
             _isLoading = true;
 
@@ -72,96 +120,107 @@ namespace Diplom_Bibl.Pages
 
             try
             {
-                // Показываем индикатор загрузки
-                await Dispatcher.InvokeAsync(() => ShowLoading(true));
+                await Dispatcher.InvokeAsync(() => ShowLoading(true, "Загрузка уведомлений..."));
 
-                // Выполняем загрузку в фоновом потоке, чтобы не блокировать UI
-                await Task.Run(() =>
+                // Загружаем уведомления с пагинацией в фоновом потоке
+                var (items, totalCount) = await Task.Run(() => GetNotificationsWithPagination(_currentPage, PAGE_SIZE));
+
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    // Получаем уведомления из сервиса
-                    var items = _notificationService.GetNotifications();
-
-                    // Обновляем UI в потоке диспетчера
-                    Dispatcher.Invoke(() =>
+                    if (reset)
                     {
                         _notifications.Clear();
-                        System.Diagnostics.Debug.WriteLine($"Получено уведомлений из сервиса: {items.Count}");
+                    }
 
-                        // Добавляем каждое уведомление в коллекцию для отображения
-                        foreach (var item in items)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"  - ID={item.ID_Notification}: {item.Message}");
-                            _notifications.Add(new NotificationDisplayItem(item));
-                        }
+                    _totalItems = totalCount;
 
-                        // Привязываем коллекцию к ListBox
-                        NotificationsList.ItemsSource = _notifications;
+                    foreach (var item in items)
+                    {
+                        _notifications.Add(new NotificationDisplayItem(item));
+                    }
 
-                        // Обновляем бейдж с количеством непрочитанных
-                        UpdateUnreadBadge(_notificationService.GetUnreadCount());
-                    });
+                    NotificationsList.ItemsSource = _notifications;
+                    UpdateUnreadBadge(_notificationService.GetUnreadCount());
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Загружено {_notifications.Count} из {_totalItems} уведомлений");
+
+                    // Обновляем счётчик на странице
+                    UpdatePageInfo();
                 });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки: {ex.Message}");
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки уведомлений: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
             finally
             {
-                // Скрываем индикатор загрузки
                 await Dispatcher.InvokeAsync(() => ShowLoading(false));
                 _isLoading = false;
             }
         }
 
-        #endregion
+        /// <summary>
+        /// Загрузка следующей страницы уведомлений
+        /// </summary>
+        private async Task LoadMoreNotificationsAsync()
+        {
+            if (_isLoading) return;
 
-        #region Обновление UI
+            _currentPage++;
+            await LoadNotificationsAsync(false);
+        }
 
         /// <summary>
-        /// Обновляет бейдж с количеством непрочитанных уведомлений
+        /// Получение уведомлений с пагинацией из сервиса
         /// </summary>
-        /// <param name="count">Количество непрочитанных уведомлений</param>
+        private (ObservableCollection<NotificationService.NotificationItem>, int) GetNotificationsWithPagination(int page, int pageSize)
+        {
+            var allNotifications = _notificationService.GetNotifications();
+            int totalCount = allNotifications.Count;
+
+            var pagedNotifications = allNotifications
+                .Skip(page * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var result = new ObservableCollection<NotificationService.NotificationItem>();
+            foreach (var item in pagedNotifications)
+            {
+                result.Add(item);
+            }
+
+            return (result, totalCount);
+        }
+
+        /// <summary>
+        /// Обновление информации о странице
+        /// </summary>
+        private void UpdatePageInfo()
+        {
+            // Если есть элемент для отображения информации о пагинации
+            var pageInfoText = FindName("PageInfoText") as TextBlock;
+            if (pageInfoText != null)
+            {
+                int totalPages = (int)Math.Ceiling((double)_totalItems / PAGE_SIZE);
+                pageInfoText.Text = $"Страница {_currentPage + 1} из {totalPages} (всего: {_totalItems})";
+            }
+        }
+
         private void UpdateUnreadBadge(int count)
         {
             UnreadCountText.Text = count.ToString();
             UnreadBadge.Visibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        /// <summary>
-        /// Показывает/скрывает индикатор загрузки
-        /// </summary>
-        /// <param name="show">true - показать, false - скрыть</param>
-        /// <param name="message">Текст сообщения при загрузке</param>
-        private void ShowLoading(bool show, string message = "Загрузка...")
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (LoadingOverlay != null)
-                {
-                    if (LoadingText != null)
-                        LoadingText.Text = message;
-                    LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-                }
-                if (MainContentGrid != null)
-                    MainContentGrid.IsEnabled = !show;
-            });
-        }
-
-        #endregion
-
-        #region Обработчики событий
-
-        /// <summary>
-        /// Обработчик кнопки "Отметить всё как прочитанное"
-        /// Отмечает все уведомления прочитанными и обновляет список
-        /// </summary>
         private async void MarkAllReadBtn_Click(object sender, RoutedEventArgs e)
         {
-            // Блокируем кнопку, чтобы избежать повторных нажатий
             MarkAllReadBtn.IsEnabled = false;
 
-            // Запрашиваем подтверждение у пользователя
             var result = CustomMessageBox.Show("Отметить все уведомления как прочитанные?\n\n" +
                 "Это действие может занять некоторое время при большом количестве уведомлений.",
                 "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
@@ -172,14 +231,13 @@ namespace Diplom_Bibl.Pages
                 {
                     ShowLoading(true, "Отметка уведомлений...");
 
-                    // Выполняем операцию в фоновом потоке, чтобы не блокировать UI
                     await Task.Run(async () =>
                     {
                         await _notificationService.MarkAllAsReadAsync();
                     });
 
-                    // Перезагружаем список уведомлений
-                    await LoadNotificationsAsync();
+                    _currentPage = 0;
+                    await LoadNotificationsAsync(true);
 
                     CustomMessageBox.Show("Все уведомления отмечены как прочитанные.", "Успешно",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
@@ -199,47 +257,38 @@ namespace Diplom_Bibl.Pages
         }
 
         /// <summary>
-        /// Обработчик кнопки обновления (Refresh)
-        /// Принудительно перезагружает список уведомлений
+        /// Принудительное обновление (сброс кэша и перезагрузка)
         /// </summary>
         private async void RefreshBtn_Click(object sender, RoutedEventArgs e)
         {
-            await LoadNotificationsAsync();
+            _currentPage = 0;
+            await RefreshNotifications();
         }
 
-        /// <summary>
-        /// Обработчик кнопки "Назад"
-        /// Возвращает на предыдущую страницу
-        /// </summary>
         private void BackBtn_Click(object sender, RoutedEventArgs e)
         {
             if (NavigationService != null && NavigationService.CanGoBack)
                 NavigationService.GoBack();
         }
 
-        /// <summary>
-        /// Обработчик клика по уведомлению
-        /// Отмечает уведомление как прочитанное и открывает связанную заявку
-        /// </summary>
         private async void Notification_Click(object sender, MouseButtonEventArgs e)
         {
-            // Получаем уведомление из DataContext элемента
             if (sender is FrameworkElement element && element.DataContext is NotificationDisplayItem notification)
             {
-                // Если уведомление не прочитано - отмечаем его как прочитанное
+                // Отмечаем как прочитанное (асинхронно, без ожидания)
                 if (!notification.IsRead)
                 {
-                    await _notificationService.MarkAsReadAsync(notification.ID_Notification);
-                    notification.MarkAsRead();
-                    await LoadNotificationsAsync(); // Обновляем список
+                    _ = Task.Run(async () =>
+                    {
+                        await _notificationService.MarkAsReadAsync(notification.ID_Notification);
+                        await Dispatcher.InvokeAsync(() => notification.MarkAsRead());
+                    });
                 }
 
-                // Показываем индикатор загрузки перед навигацией
                 ShowLoading(true, "Загрузка страницы...");
 
                 try
                 {
-                    // Переходим на страницу управления заявками с низким приоритетом
                     await Dispatcher.InvokeAsync(() =>
                     {
                         NavigationService?.Navigate(new BookRequestsManagement(notification.RequestID));
@@ -247,7 +296,7 @@ namespace Diplom_Bibl.Pages
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Ошибка навигации: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ Ошибка навигации: {ex.Message}");
                     CustomMessageBox.Show($"Ошибка открытия заявки: {ex.Message}", "Ошибка",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
@@ -258,9 +307,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Обработчик кнопки "Просмотр" для перехода к заявке
-        /// </summary>
         private async void ViewRequest_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is int requestId)
@@ -268,7 +314,6 @@ namespace Diplom_Bibl.Pages
                 ShowLoading(true, "Загрузка заявки...");
                 try
                 {
-                    // Небольшая задержка для корректного отображения индикатора
                     await Task.Delay(10);
                     NavigationService?.Navigate(new BookRequestsManagement(requestId));
                 }
@@ -279,46 +324,51 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Обработчик загрузки страницы
-        /// </summary>
         private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
-            await RefreshNotifications();
+            if (_isInitialLoad)
+            {
+                _isInitialLoad = false;
+                await RefreshNotifications();
+            }
         }
 
-        /// <summary>
-        /// Принудительное обновление уведомлений с проверкой новых
-        /// </summary>
         private async Task RefreshNotifications()
         {
             if (_notificationService != null)
             {
-                // Проверяем наличие новых уведомлений в БД
                 await _notificationService.CheckNewNotifications();
                 System.Diagnostics.Debug.WriteLine("📱 Страница уведомлений принудительно обновлена");
-                // Перезагружаем список
-                await LoadNotificationsAsync();
+                await LoadNotificationsAsync(true);
             }
         }
 
-        #endregion
+        /// <summary>
+        /// Показывает/скрывает индикатор загрузки
+        /// </summary>
+        private void ShowLoading(bool show, string message = "Загрузка...")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (LoadingOverlay != null)
+                {
+                    if (LoadingText != null)
+                        LoadingText.Text = message;
+                    LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
+                if (MainContentGrid != null)
+                    MainContentGrid.IsEnabled = !show;
+            });
+        }
     }
 
     /// <summary>
-    /// Класс-обёртка для отображения уведомления с дополнительными UI-свойствами
-    /// Используется для привязки данных в XAML
+    /// Класс для отображения уведомления с дополнительными свойствами
     /// </summary>
     public class NotificationDisplayItem
     {
-        #region Поля
-
-        private NotificationService.NotificationItem _source;  // Исходное уведомление из сервиса
-        private bool _isRead;                                  // Флаг прочитанности (локальная копия)
-
-        #endregion
-
-        #region Конструктор
+        private NotificationService.NotificationItem _source;
+        private bool _isRead;
 
         public NotificationDisplayItem(NotificationService.NotificationItem source)
         {
@@ -326,55 +376,31 @@ namespace Diplom_Bibl.Pages
             _isRead = source.IsRead;
         }
 
-        #endregion
-
-        #region Свойства для отображения
-
-        /// <summary>Уникальный ID уведомления</summary>
         public int ID_Notification => _source.ID_Notification;
-
-        /// <summary>ID связанной заявки</summary>
         public int RequestID => _source.RequestID;
-
-        /// <summary>Текст сообщения</summary>
         public string Message => _source.Message;
-
-        /// <summary>Тип уведомления (Новая заявка, Просрочена, Готова к выдаче и т.д.)</summary>
         public string NotificationType => _source.NotificationType;
-
-        /// <summary>Дата создания уведомления</summary>
         public DateTime CreatedDate => _source.CreatedDate;
-
-        /// <summary>Статус прочитанности (локальная копия)</summary>
         public bool IsRead => _isRead;
-
-        /// <summary>Номер заявки</summary>
         public string RequestNumber => _source.RequestNumber;
-
-        /// <summary>Форматированная дата для отображения</summary>
         public string FormattedDate => CreatedDate.ToString("dd.MM.yyyy HH:mm");
 
-        /// <summary>Цвет фона в зависимости от прочитанности (непрочитанные подсвечиваются)</summary>
         public string BackgroundColor => IsRead ? "White" : "#E3F2FD";
-
-        /// <summary>Жирность шрифта (непрочитанные - жирные)</summary>
         public string FontWeight => IsRead ? "Normal" : "Bold";
 
-        /// <summary>Текст иконки (эмодзи) в зависимости от типа уведомления</summary>
         public string IconText
         {
             get
             {
                 if (NotificationType == "Новая заявка") return "📋";
                 if (NotificationType == "Готова к выдаче") return "✅";
-                if (NotificationType == "Просрочена") return "⚠️";
+                if (NotificationType == "Просрочена") return "⏰";
                 if (NotificationType == "Отменена") return "❌";
                 if (NotificationType == "Занятие ПК") return "💻";
                 return "🔔";
             }
         }
 
-        /// <summary>Цвет иконки в зависимости от типа уведомления</summary>
         public Brush IconColor
         {
             get
@@ -389,19 +415,9 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        #endregion
-
-        #region Методы
-
-        /// <summary>
-        /// Отмечает уведомление как прочитанное в локальной копии
-        /// Используется для мгновенного обновления UI без перезагрузки всего списка
-        /// </summary>
         public void MarkAsRead()
         {
             _isRead = true;
         }
-
-        #endregion
     }
 }

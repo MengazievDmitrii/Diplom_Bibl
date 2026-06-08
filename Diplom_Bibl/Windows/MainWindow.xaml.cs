@@ -502,8 +502,8 @@ namespace Diplom_Bibl.Windows
                 case "BtnReportsLib":
                     MainFrame.Navigate(new ReportsPage());
                     break;
-                case "BtnSettingsAdmin":
-                    MainFrame.Navigate(new Settings());
+                case "BtnUsers":
+                    MainFrame.Navigate(new AddUser());
                     break;
                 case "BtnPcManagementLib":
                     MainFrame.Navigate(new ComputerSessionsManagement());
