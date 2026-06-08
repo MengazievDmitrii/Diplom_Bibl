@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
@@ -106,11 +107,14 @@ namespace Diplom_Bibl.Services
         public void StartPolling(int intervalSeconds = 5)
         {
             LoadInitialNotifications();
-            _pollingTimer = new Timer(async _ =>
+
+            // Увеличиваем интервал для библиотекаря/админа с 3 до 10 секунд
+            if (_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN"))
             {
-                System.Diagnostics.Debug.WriteLine($"🕐 Таймер сработал в {DateTime.Now:HH:mm:ss.fff}");
-                await PollNotificationsAsync();
-            }, null, 0, intervalSeconds * 1000);
+                intervalSeconds = 10;
+            }
+
+            _pollingTimer = new Timer(async _ => await PollNotificationsAsync(), null, 0, intervalSeconds * 1000);
             System.Diagnostics.Debug.WriteLine($"✅ Таймер запущен с интервалом {intervalSeconds} секунд");
         }
 
@@ -189,6 +193,9 @@ namespace Diplom_Bibl.Services
         /// <summary>
         /// Отметка всех уведомлений как прочитанных
         /// </summary>
+        /// <summary>
+        /// Отметка всех уведомлений как прочитанных
+        /// </summary>
         public async Task MarkAllAsReadAsync()
         {
             try
@@ -207,11 +214,11 @@ namespace Diplom_Bibl.Services
                     {
                         // Для читателя - только свои уведомления
                         query = @"
-                            UPDATE n 
-                            SET n.IsRead = 1
-                            FROM RequestNotifications n
-                            INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
-                            WHERE br.UserID = @UserId AND n.IsRead = 0";
+                    UPDATE n 
+                    SET n.IsRead = 1
+                    FROM RequestNotifications n
+                    INNER JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    WHERE br.UserID = @UserId AND n.IsRead = 0";
                     }
 
                     using (var cmd = new SqlCommand(query, conn))
@@ -224,9 +231,24 @@ namespace Diplom_Bibl.Services
                     }
                 }
 
-                _notifications.Clear();
-                _dispatcher.Invoke(() =>
+                // Обновляем UI через dispatcher с задержкой, чтобы не блокировать
+                await _dispatcher.InvokeAsync(async () =>
                 {
+                    // Показываем индикатор загрузки (если есть)
+                    // _notifications.Clear();
+
+                    // Вместо полной очистки - просто помечаем все как прочитанные в коллекции
+                    foreach (var notification in _notifications)
+                    {
+                        notification.IsRead = true;
+                    }
+
+                    // Очищаем коллекцию и перезагружаем уведомления
+                    _notifications.Clear();
+
+                    // Перезагружаем уведомления асинхронно
+                    await LoadNotificationsAsync();
+
                     NotificationsUpdated?.Invoke(this, _notifications);
                     UnreadCountChanged?.Invoke(this, GetUnreadCount());
                 });
@@ -234,6 +256,135 @@ namespace Diplom_Bibl.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка: {ex.Message}");
+                await _dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка при отметке уведомлений: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
+            }
+        }
+
+        // Добавить вспомогательный метод для загрузки уведомлений
+        private async Task LoadNotificationsAsync()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(_connectionString))
+                {
+                    await conn.OpenAsync();
+
+                    string query;
+                    bool isLibrarian = IsLibrarianOrAdmin();
+
+                    if (isLibrarian)
+                    {
+                        query = @"
+                    SELECT TOP 50 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        ISNULL(br.RequestNumber, '') AS RequestNumber,
+                        br.ExpirationDate,
+                        ISNULL(rf.LastName + ' ' + rf.FirstName + ' ' + rf.MiddleName, 'Системное уведомление') AS UserName,
+                        ISNULL(g.GroupCode, '') AS GroupName,
+                        ISNULL(br.LessonName, '') AS LessonName,
+                        FORMAT(br.LessonDate, 'dd.MM.yyyy') AS LessonDate,
+                        ISNULL(LEFT(CONVERT(NVARCHAR(8), br.LessonTime, 8), 5), '') AS LessonTime,
+                        ISNULL((SELECT ISNULL(SUM(Quantity), 0) FROM RequestItems WHERE RequestID = br.ID_Request), 0) AS BooksCount,
+                        ISNULL(STUFF((
+                            SELECT ', ' + b.TitleBook 
+                            FROM RequestItems ri
+                            INNER JOIN Books b ON ri.BookID = b.IDBook
+                            WHERE ri.RequestID = br.ID_Request
+                            FOR XML PATH('')
+                        ), 1, 2, ''), '') AS BookTitles
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    LEFT JOIN ReaderForm rf ON br.UserID = rf.ReaderID
+                    LEFT JOIN Groups g ON rf.GroupID = g.GroupID
+                    WHERE n.IsRead = 0
+                    ORDER BY n.CreatedDate DESC";
+                    }
+                    else
+                    {
+                        query = @"
+                    SELECT TOP 50 
+                        n.ID_Notification, 
+                        n.RequestID, 
+                        n.Message, 
+                        nt.TypeName AS NotificationType,
+                        n.CreatedDate, 
+                        n.IsRead,
+                        ISNULL(br.RequestNumber, '') AS RequestNumber,
+                        br.ExpirationDate
+                    FROM RequestNotifications n
+                    INNER JOIN NotificationTypes nt ON n.NotificationTypeID = nt.ID_Type
+                    LEFT JOIN BookRequests br ON n.RequestID = br.ID_Request
+                    WHERE (br.UserID = @UserId OR n.RequestID IS NULL)
+                      AND n.IsRead = 0 
+                      AND nt.TypeName <> 'Новая заявка'
+                    ORDER BY n.CreatedDate DESC";
+                    }
+
+                    using (var cmd = new SqlCommand(query, conn))
+                    {
+                        if (!isLibrarian)
+                        {
+                            cmd.Parameters.AddWithValue("@UserId", _currentUserId);
+                        }
+
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            _notifications.Clear();
+                            int maxId = 0;
+
+                            while (await reader.ReadAsync())
+                            {
+                                int? requestId = null;
+                                if (!reader.IsDBNull(1))
+                                    requestId = reader.GetInt32(1);
+
+                                var notification = new NotificationItem
+                                {
+                                    ID_Notification = reader.GetInt32(0),
+                                    RequestID = requestId ?? 0,
+                                    Message = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                    NotificationType = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                                    CreatedDate = reader.GetDateTime(4),
+                                    IsRead = reader.GetBoolean(5),
+                                    RequestNumber = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                    ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7)
+                                };
+
+                                if (isLibrarian)
+                                {
+                                    notification.UserName = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                    notification.GroupName = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                                    notification.LessonName = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                                    notification.LessonDate = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                                    notification.LessonTime = reader.IsDBNull(12) ? "" : reader.GetString(12);
+                                    notification.BooksCount = reader.IsDBNull(13) ? 0 : reader.GetInt32(13);
+                                    notification.BookTitles = reader.IsDBNull(14) ? "" : reader.GetString(14);
+                                }
+
+                                _notifications.Add(notification);
+
+                                if (notification.ID_Notification > maxId)
+                                    maxId = notification.ID_Notification;
+                            }
+
+                            _lastNotificationId = maxId;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки уведомлений: {ex.Message}");
             }
         }
 
@@ -406,6 +557,7 @@ namespace Diplom_Bibl.Services
                 System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки уведомлений: {ex.Message}\n{ex.StackTrace}");
             }
         }
+        /// <summary>
         /// Периодическая проверка новых уведомлений (выполняется в фоновом потоке)
         /// </summary>
         private async Task PollNotificationsAsync()
@@ -423,6 +575,7 @@ namespace Diplom_Bibl.Services
 
                     if (isLibrarian)
                     {
+                        // Запрос для библиотекаря/администратора - получаем все непрочитанные уведомления
                         query = @"
                     SELECT 
                         n.ID_Notification, 
@@ -456,6 +609,7 @@ namespace Diplom_Bibl.Services
                     }
                     else
                     {
+                        // Запрос для обычного читателя - получаем только свои уведомления (без "Новая заявка")
                         query = @"
                     SELECT 
                         n.ID_Notification, 
@@ -491,14 +645,16 @@ namespace Diplom_Bibl.Services
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
-                            // ВАЖНО: Находим максимальный ID среди всех непрочитанных уведомлений
+                            // Находим максимальный ID среди всех непрочитанных уведомлений
                             int maxId = _lastNotificationId;
                             var allNotifications = new List<NotificationItem>();
 
+                            // Собираем все непрочитанные уведомления из БД
                             while (await reader.ReadAsync())
                             {
                                 int notificationId = reader.GetInt32(0);
 
+                                // Обновляем максимальный ID
                                 if (notificationId > maxId)
                                     maxId = notificationId;
 
@@ -506,6 +662,7 @@ namespace Diplom_Bibl.Services
                                 if (!reader.IsDBNull(1))
                                     requestId = reader.GetInt32(1);
 
+                                // Создаём объект уведомления
                                 var notification = new NotificationItem
                                 {
                                     ID_Notification = notificationId,
@@ -518,6 +675,7 @@ namespace Diplom_Bibl.Services
                                     ExpirationDate = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7)
                                 };
 
+                                // Для библиотекаря добавляем дополнительную информацию
                                 if (isLibrarian)
                                 {
                                     notification.UserName = reader.IsDBNull(8) ? "" : reader.GetString(8);
@@ -539,16 +697,20 @@ namespace Diplom_Bibl.Services
                                 _lastNotificationId = maxId;
                             }
 
-                            // Теперь ищем ТОЛЬКО НОВЫЕ уведомления (которых нет в коллекции)
+                            // Получаем ID уже существующих уведомлений в коллекции
                             var existingIds = new HashSet<int>(_notifications.Select(n => n.ID_Notification));
+
+                            // Отбираем ТОЛЬКО НОВЫЕ уведомления (которых нет в коллекции)
                             var newNotifications = allNotifications.Where(n => !existingIds.Contains(n.ID_Notification)).ToList();
 
+                            // Если есть новые уведомления - показываем их
                             if (newNotifications.Any())
                             {
                                 System.Diagnostics.Debug.WriteLine($"✅ Получено новых уведомлений: {newNotifications.Count}");
 
                                 foreach (var notification in newNotifications)
                                 {
+                                    // Добавляем в коллекцию в UI-потоке
                                     _dispatcher.Invoke(() =>
                                     {
                                         _notifications.Insert(0, notification);

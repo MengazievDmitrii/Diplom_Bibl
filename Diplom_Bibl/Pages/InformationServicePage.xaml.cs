@@ -985,14 +985,14 @@ namespace Diplom_Bibl.Pages
             var bookIds = new List<int>();
             try
             {
-                // ИСПРАВЛЕНО ДЛЯ ВАШЕЙ БД:
-                // Доступно = Всего - Выдано (Списаные книги не учитываем, они уже исключены по StatusBook)
+                // ИСПРАВЛЕНО: Выбираем ТОЛЬКО зарезервированные книги для этой заявки
                 string sql = @"
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
-            WHERE b.TitleBook = (SELECT TitleBook FROM Books WHERE IDBook = @BookId)
-              AND b.StatusBook IN (1, 6)  -- 1=В наличии, 6=Зарезервирована
-              AND b.CopiesInUse = 0       -- Книга не выдана
+            INNER JOIN RequestItems ri ON b.IDBook = ri.BookID
+            WHERE ri.RequestID = @RequestId
+              AND b.StatusBook = @StatusReservedId
+              AND b.AvailableCopies > 0
             ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1002,6 +1002,8 @@ namespace Diplom_Bibl.Pages
                     {
                         cmd.Parameters.AddWithValue("@BookId", bookId);
                         cmd.Parameters.AddWithValue("@Qty", requiredQuantity);
+                        cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
+                        cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -1142,23 +1144,10 @@ namespace Diplom_Bibl.Pages
                 string sql = @"
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.TitleBook = @Title 
-              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+            INNER JOIN RequestItems ri ON b.IDBook = ri.BookID
+            WHERE ri.RequestID = @RequestId
+              AND b.StatusBook = @StatusReservedId
               AND b.AvailableCopies > 0
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND @RequestId IS NOT NULL 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )
             ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1169,7 +1158,6 @@ namespace Diplom_Bibl.Pages
                         cmd.Parameters.AddWithValue("@Title", title);
                         cmd.Parameters.AddWithValue("@Author", author);
                         cmd.Parameters.AddWithValue("@Qty", requiredQuantity);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
                         cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
                         cmd.Parameters.AddWithValue("@RequestId", requestId.HasValue ? (object)requestId.Value : DBNull.Value);
 

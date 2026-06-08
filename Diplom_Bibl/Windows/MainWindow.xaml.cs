@@ -45,8 +45,14 @@ namespace Diplom_Bibl.Windows
         private System.Threading.Timer _returnDateTimer;
         private bool _isInitialized = false;
         private System.Threading.Timer _expiredRequestsTimer;
+
+        // ДОБАВИТЬ ЭТИ ПОЛЯ:
         private static int _activeNotificationWindows = 0;
         private static readonly object _notificationLock = new object();
+        private static DateTime _lastNotificationTime = DateTime.MinValue;
+        private static readonly TimeSpan _minNotificationInterval = TimeSpan.FromSeconds(1.5);
+
+   
 
         #endregion
 
@@ -575,32 +581,65 @@ namespace Diplom_Bibl.Windows
         /// Обработчик получения нового уведомления
         /// Показывает всплывающее окно в правом нижнем углу
         /// </summary>
-        private void OnNewNotificationReceived(object sender, NotificationService.NotificationItem notification)
+        private async void OnNewNotificationReceived(object sender, NotificationService.NotificationItem notification)
         {
             System.Diagnostics.Debug.WriteLine($"🔔 OnNewNotificationReceived: Тип={notification.NotificationType}, Message={notification.Message}");
-            // Для библиотекаря показываем ВСЕ уведомления
+
+            // Проверяем, что уведомление не null
+            if (notification == null)
+            {
+                System.Diagnostics.Debug.WriteLine("❌ Уведомление null");
+                return;
+            }
+
             // Для читателя - показываем все, кроме "Новая заявка"
             if (!(_userRoles.Contains("LIBRARIAN") || _userRoles.Contains("ADMIN")))
             {
                 if (notification.NotificationType == "Новая заявка")
                 {
-                    System.Diagnostics.Debug.WriteLine($"🚫 Пропущено уведомление для читателя: {notification.NotificationType}");
+                    System.Diagnostics.Debug.WriteLine($"⏭️ Пропущено уведомление для читателя: {notification.NotificationType}");
                     return;
                 }
             }
 
-            try { SystemSounds.Beep.Play(); } catch { }
+            // Воспроизводим звук (в отдельном потоке, чтобы не блокировать)
+            try
+            {
+                await Task.Run(() => SystemSounds.Beep.Play());
+            }
+            catch { }
 
-            System.Diagnostics.Debug.WriteLine($"🔔 ПОЛУЧЕНО УВЕДОМЛЕНИЕ В MAINWINDOW: {notification.NotificationType} - {notification.Message}");
+            System.Diagnostics.Debug.WriteLine($"📨 ПОЛУЧЕНО УВЕДОМЛЕНИЕ В MAINWINDOW: {notification.NotificationType} - {notification.Message}");
 
-            // ВАЖНО: ОБНОВЛЯЕМ СЧЕТЧИК СРАЗУ!
-            UpdateUnreadCount(_notificationService?.GetUnreadCount() ?? 0);
+            // Ограничение частоты показа уведомлений (не чаще чем раз в 1.5 секунды)
+            var now = DateTime.Now;
+            var timeSinceLast = now - _lastNotificationTime;
+            if (timeSinceLast < _minNotificationInterval)
+            {
+                int delayMs = (int)(_minNotificationInterval - timeSinceLast).TotalMilliseconds;
+                System.Diagnostics.Debug.WriteLine($"⏱️ Задержка показа уведомления: {delayMs} мс");
+                await Task.Delay(delayMs);
+            }
+            _lastNotificationTime = DateTime.Now;
 
-            Dispatcher.Invoke(() =>
+            // Обновляем счетчик в UI-потоке
+            await Dispatcher.InvokeAsync(() =>
+            {
+                int unreadCount = _notificationService?.GetUnreadCount() ?? 0;
+                UpdateUnreadCount(unreadCount);
+                System.Diagnostics.Debug.WriteLine($"📊 Обновлен счетчик уведомлений: {unreadCount}");
+            });
+
+            // Небольшая задержка перед показом окна (даём время UI обновиться)
+            await Task.Delay(100);
+
+            // Показываем уведомление в UI-потоке
+            await Dispatcher.InvokeAsync(() =>
             {
                 try
                 {
-                    // Для заявок показываем расширенное окно
+                    System.Diagnostics.Debug.WriteLine($"🪟 Попытка показа уведомления, Тип={notification.NotificationType}, RequestID={notification.RequestID}");
+
                     if (notification.NotificationType == "Новая заявка" && notification.RequestID > 0)
                     {
                         System.Diagnostics.Debug.WriteLine($"📋 Показываем расширенное уведомление");
@@ -614,15 +653,12 @@ namespace Diplom_Bibl.Windows
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"❌ Ошибка показа уведомления: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ Ошибка показа уведомления: {ex.Message}\n{ex.StackTrace}");
                 }
-            });
+            }, System.Windows.Threading.DispatcherPriority.Normal);
         }
 
 
-        /// <summary>
-        /// Показ простого всплывающего уведомления
-        /// </summary>
         /// <summary>
         /// Показ простого всплывающего уведомления
         /// </summary>
@@ -632,64 +668,91 @@ namespace Diplom_Bibl.Windows
             {
                 System.Diagnostics.Debug.WriteLine($"💬 ShowFloatingNotification вызван: {notification.NotificationType} - {notification.Message}");
 
-                // Проверяем, что уведомление не null
                 if (notification == null)
                 {
                     System.Diagnostics.Debug.WriteLine("❌ Уведомление null");
                     return;
                 }
 
+                // Создаём окно уведомления
                 var notificationWindow = new Window
                 {
-                    Width = 400,
-                    Height = 120,
+                    Width = 380,
+                    Height = 100,
                     WindowStyle = WindowStyle.None,
                     AllowsTransparency = true,
                     Background = Brushes.Transparent,
                     Topmost = true,
                     ShowInTaskbar = false,
                     ResizeMode = ResizeMode.NoResize,
-                    Left = SystemParameters.WorkArea.Width - 420,
-                    Top = SystemParameters.WorkArea.Height - 140
+                    Left = SystemParameters.WorkArea.Width - 400,
+                    Top = SystemParameters.WorkArea.Height - 120
                 };
 
+                // Основная панель
                 var border = new Border
                 {
                     Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2C3E50")),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(15),
-                    Effect = new DropShadowEffect { BlurRadius = 15, ShadowDepth = 3, Opacity = 0.3 }
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12),
+                    Effect = new DropShadowEffect { BlurRadius = 10, ShadowDepth = 2, Opacity = 0.3 }
                 };
 
+                // Содержимое
                 var mainStack = new StackPanel();
-                var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
 
+                // Заголовок
+                var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 5) };
                 string icon = GetNotificationIcon(notification.NotificationType);
-
-                titlePanel.Children.Add(new TextBlock { Text = icon, FontSize = 24, VerticalAlignment = VerticalAlignment.Center });
+                titlePanel.Children.Add(new TextBlock { Text = icon, FontSize = 18, VerticalAlignment = VerticalAlignment.Center });
                 titlePanel.Children.Add(new TextBlock
                 {
                     Text = $" {notification.NotificationType}",
-                    FontSize = 14,
+                    FontSize = 12,
                     FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFC107")),
                     VerticalAlignment = VerticalAlignment.Center
                 });
-
                 mainStack.Children.Add(titlePanel);
-                mainStack.Children.Add(new Border { Height = 1, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34495E")), Margin = new Thickness(0, 0, 0, 10) });
-                mainStack.Children.Add(new TextBlock { Text = notification.Message, FontSize = 12, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) });
-                mainStack.Children.Add(new TextBlock { Text = DateTime.Now.ToString("HH:mm:ss"), FontSize = 10, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")), HorizontalAlignment = HorizontalAlignment.Right });
+
+                // Сообщение (обрезаем длинные сообщения)
+                string shortMessage = notification.Message.Length > 80
+                    ? notification.Message.Substring(0, 77) + "..."
+                    : notification.Message;
+                mainStack.Children.Add(new TextBlock
+                {
+                    Text = shortMessage,
+                    FontSize = 11,
+                    Foreground = Brushes.White,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 5)
+                });
+
+                // Время
+                mainStack.Children.Add(new TextBlock
+                {
+                    Text = DateTime.Now.ToString("HH:mm:ss"),
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#95A5A6")),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                });
 
                 border.Child = mainStack;
                 notificationWindow.Content = border;
+
+                // Показываем окно
                 notificationWindow.Show();
-
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
-                timer.Tick += (s, e) => { timer.Stop(); notificationWindow.Close(); };
-                timer.Start();
-
                 System.Diagnostics.Debug.WriteLine("✅ Всплывающее окно показано");
+
+                // Автоматическое закрытие через 5 секунд
+                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+                    notificationWindow.Close();
+                    System.Diagnostics.Debug.WriteLine("🔄 Всплывающее окно закрыто по таймеру");
+                };
+                timer.Start();
             }
             catch (Exception ex)
             {
@@ -705,14 +768,12 @@ namespace Diplom_Bibl.Windows
             switch (notificationType)
             {
                 case "Новая заявка": return "📋";
-                case "Готова к выдаче": return "✅";
                 case "Просрочена": return "⏰";
                 case "Скоро возврат": return "📚";
                 case "Занятие ПК": return "💻";
                 default: return "🔔";
             }
         }
-
         /// <summary>
         /// Обработчик изменения количества непрочитанных уведомлений
         /// </summary>
@@ -839,219 +900,213 @@ namespace Diplom_Bibl.Windows
         /// <summary>
         /// Показ расширенного уведомления для новой заявки
         /// </summary>
+        /// <param name="notification">Объект уведомления для отображения</param>
         public void ShowRequestNotification(NotificationService.NotificationItem notification)
         {
+            // Проверяем количество активных окон уведомлений (не более 3)
             lock (_notificationLock)
             {
                 if (_activeNotificationWindows >= 3)
                 {
-                    System.Diagnostics.Debug.WriteLine("Слишком много активных уведомлений, пропускаем");
+                    System.Diagnostics.Debug.WriteLine("⚠️ Слишком много активных уведомлений, пропускаем");
                     return;
                 }
                 _activeNotificationWindows++;
             }
 
+            // Выполняем в UI-потоке
             Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    // Используем стандартный MessageBox как fallback, если кастомное окно не работает
-                    try
+                    // Создаём окно уведомления
+                    var notificationWindow = new Window
                     {
-                        // Проверяем, что все ресурсы доступны
-                        if (Application.Current == null || Application.Current.Resources == null)
+                        Width = 450,
+                        Height = 420,
+                        WindowStyle = WindowStyle.None,
+                        AllowsTransparency = true,
+                        Background = Brushes.Transparent,
+                        Topmost = true,
+                        ShowInTaskbar = false,
+                        ResizeMode = ResizeMode.NoResize,
+                        Left = SystemParameters.WorkArea.Width - 470,
+                        Top = SystemParameters.WorkArea.Height - 440
+                    };
+
+                    // При закрытии окна уменьшаем счётчик активных окон
+                    notificationWindow.Closed += (s, e) =>
+                    {
+                        lock (_notificationLock)
                         {
-                            throw new InvalidOperationException("Ресурсы приложения не инициализированы");
+                            _activeNotificationWindows--;
                         }
+                    };
 
-                        var notificationWindow = new Window
-                        {
-                            Width = 450,
-                            Height = 420,
-                            WindowStyle = WindowStyle.None,
-                            AllowsTransparency = true,
-                            Background = Brushes.Transparent,
-                            Topmost = true,
-                            ShowInTaskbar = false,
-                            ResizeMode = ResizeMode.NoResize,
-                            Left = SystemParameters.WorkArea.Width - 470,
-                            Top = SystemParameters.WorkArea.Height - 440
-                        };
-
-                        notificationWindow.Closed += (s, e) =>
-                        {
-                            lock (_notificationLock)
-                            {
-                                _activeNotificationWindows--;
-                            }
-                        };
-
-                        // Создаём Border с проверкой стилей
-                        var border = new Border
-                        {
-                            Background = new SolidColorBrush(Colors.White),
-                            CornerRadius = new CornerRadius(10),
-                            Padding = new Thickness(15),
-                            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DEE2E6")),
-                            BorderThickness = new Thickness(1),
-                            Effect = new DropShadowEffect { BlurRadius = 15, ShadowDepth = 3, Opacity = 0.15 }
-                        };
-
-                        var mainStack = new StackPanel();
-
-                        // Заголовок
-                        var titlePanel = new Grid();
-                        titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                        titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                        titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                        titlePanel.Margin = new Thickness(0, 0, 0, 10);
-
-                        var iconText = new TextBlock
-                        {
-                            Text = GetNotificationIcon(notification.NotificationType),
-                            FontSize = 28,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Margin = new Thickness(0, 0, 10, 0)
-                        };
-                        Grid.SetColumn(iconText, 0);
-                        titlePanel.Children.Add(iconText);
-
-                        var titleText = new TextBlock
-                        {
-                            Text = notification.NotificationType.ToUpper(),
-                            FontSize = 14,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0056B3")),
-                            VerticalAlignment = VerticalAlignment.Center
-                        };
-                        Grid.SetColumn(titleText, 1);
-                        titlePanel.Children.Add(titleText);
-
-                        var closeBtn = new Button
-                        {
-                            Content = "✕",
-                            Width = 24,
-                            Height = 24,
-                            Background = Brushes.Transparent,
-                            BorderThickness = new Thickness(0),
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
-                            FontSize = 14,
-                            Cursor = Cursors.Hand
-                        };
-                        closeBtn.Click += (s, ev) => notificationWindow.Close();
-                        Grid.SetColumn(closeBtn, 2);
-                        titlePanel.Children.Add(closeBtn);
-
-                        mainStack.Children.Add(titlePanel);
-                        mainStack.Children.Add(new Border { Height = 1, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DEE2E6")), Margin = new Thickness(0, 0, 0, 12) });
-
-                        // Информация о заявителе
-                        var userPanel = new Border
-                        {
-                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD")),
-                            CornerRadius = new CornerRadius(8),
-                            Padding = new Thickness(10),
-                            Margin = new Thickness(0, 0, 0, 10)
-                        };
-                        var userStack = new StackPanel();
-                        AddInfoRow(userStack, "👤 ЗАЯВИТЕЛЬ:", notification.UserName ?? "Не указано", true);
-                        AddInfoRow(userStack, "🎓 ГРУППА:", notification.GroupName ?? "Не указана", true);
-                        userPanel.Child = userStack;
-                        mainStack.Children.Add(userPanel);
-
-                        // Информация о занятии
-                        mainStack.Children.Add(new TextBlock
-                        {
-                            Text = "ИНФОРМАЦИЯ О ЗАНЯТИИ",
-                            FontSize = 11,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
-                            Margin = new Thickness(0, 0, 0, 8)
-                        });
-
-                        var lessonContent = new Border
-                        {
-                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
-                            CornerRadius = new CornerRadius(6),
-                            Padding = new Thickness(10),
-                            Margin = new Thickness(0, 0, 0, 10)
-                        };
-                        var lessonStack = new StackPanel();
-                        AddInfoRow(lessonStack, "📚 Занятие:", notification.LessonName ?? "Не указано", false);
-                        AddInfoRow(lessonStack, "📅 Дата:", notification.LessonDate ?? "Не указана", false);
-                        AddInfoRow(lessonStack, "⏰ Время:", notification.LessonTime ?? "Не указано", false);
-                        lessonContent.Child = lessonStack;
-                        mainStack.Children.Add(lessonContent);
-
-                        // Информация о книгах
-                        mainStack.Children.Add(new TextBlock
-                        {
-                            Text = "ИНФОРМАЦИЯ О КНИГАХ",
-                            FontSize = 11,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
-                            Margin = new Thickness(0, 0, 0, 8)
-                        });
-
-                        var booksContent = new Border
-                        {
-                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
-                            CornerRadius = new CornerRadius(6),
-                            Padding = new Thickness(10),
-                            Margin = new Thickness(0, 0, 0, 15)
-                        };
-                        var booksStack = new StackPanel();
-                        AddInfoRow(booksStack, "📖 Количество книг:", notification.BooksCount.ToString(), false);
-                        AddInfoRow(booksStack, "🏷️ № заявки:", notification.RequestNumber, false);
-                        if (!string.IsNullOrEmpty(notification.BookTitles))
-                            AddInfoRow(booksStack, "📚 Книги:", notification.BookTitles.Length > 100 ? notification.BookTitles.Substring(0, 100) + "..." : notification.BookTitles, false);
-
-                        booksContent.Child = booksStack;
-                        mainStack.Children.Add(booksContent);
-
-                        // Кнопка просмотра
-                        var viewButton = new Button
-                        {
-                            Content = "🔍 Просмотреть заявку",
-                            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0056B3")),
-                            Foreground = Brushes.White,
-                            Padding = new Thickness(15, 8, 15, 8),
-                            Margin = new Thickness(0, 10, 0, 0),
-                            Cursor = Cursors.Hand,
-                            BorderThickness = new Thickness(0),
-                            FontWeight = FontWeights.SemiBold,
-                            FontSize = 12,
-                            HorizontalAlignment = HorizontalAlignment.Center
-                        };
-                        viewButton.Click += (s, ev) =>
-                        {
-                            notificationWindow.Close();
-                            MainFrame.Navigate(new BookRequestsManagement(_currentReaderId));
-                        };
-                        mainStack.Children.Add(viewButton);
-
-                        border.Child = mainStack;
-                        notificationWindow.Content = border;
-                        notificationWindow.Show();
-
-                        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-                        timer.Tick += (s, ev) =>
-                        {
-                            timer.Stop();
-                            notificationWindow.Close();
-                        };
-                        timer.Start();
-                    }
-                    catch (Exception innerEx)
+                    // Основной контейнер с тенью
+                    var border = new Border
                     {
-                        // Если кастомное окно не работает, показываем простое сообщение
-                        System.Diagnostics.Debug.WriteLine($"Ошибка показа кастомного уведомления: {innerEx.Message}");
-                        ShowFloatingNotification(notification);
-                    }
+                        Background = new SolidColorBrush(Colors.White),
+                        CornerRadius = new CornerRadius(10),
+                        Padding = new Thickness(15),
+                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DEE2E6")),
+                        BorderThickness = new Thickness(1),
+                        Effect = new DropShadowEffect { BlurRadius = 15, ShadowDepth = 3, Opacity = 0.15 }
+                    };
+
+                    var mainStack = new StackPanel();
+
+                    // ========== ЗАГОЛОВОК ==========
+                    var titlePanel = new Grid();
+                    titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    titlePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    titlePanel.Margin = new Thickness(0, 0, 0, 10);
+
+                    // Иконка уведомления
+                    var iconText = new TextBlock
+                    {
+                        Text = GetNotificationIcon(notification.NotificationType),
+                        FontSize = 28,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 10, 0)
+                    };
+                    Grid.SetColumn(iconText, 0);
+                    titlePanel.Children.Add(iconText);
+
+                    // Заголовок (тип уведомления)
+                    var titleText = new TextBlock
+                    {
+                        Text = notification.NotificationType.ToUpper(),
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0056B3")),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(titleText, 1);
+                    titlePanel.Children.Add(titleText);
+
+                    // Кнопка закрытия
+                    var closeBtn = new Button
+                    {
+                        Content = "✕",
+                        Width = 24,
+                        Height = 24,
+                        Background = Brushes.Transparent,
+                        BorderThickness = new Thickness(0),
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
+                        FontSize = 14,
+                        Cursor = Cursors.Hand
+                    };
+                    closeBtn.Click += (s, ev) => notificationWindow.Close();
+                    Grid.SetColumn(closeBtn, 2);
+                    titlePanel.Children.Add(closeBtn);
+
+                    mainStack.Children.Add(titlePanel);
+                    mainStack.Children.Add(new Border { Height = 1, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DEE2E6")), Margin = new Thickness(0, 0, 0, 12) });
+
+                    // ========== ИНФОРМАЦИЯ О ЗАЯВИТЕЛЕ ==========
+                    var userPanel = new Border
+                    {
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E3F2FD")),
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var userStack = new StackPanel();
+                    AddInfoRow(userStack, "👤 ЗАЯВИТЕЛЬ:", notification.UserName ?? "Не указано", true);
+                    AddInfoRow(userStack, "📚 ГРУППА:", notification.GroupName ?? "Не указана", true);
+                    userPanel.Child = userStack;
+                    mainStack.Children.Add(userPanel);
+
+                    // ========== ИНФОРМАЦИЯ О ЗАНЯТИИ ==========
+                    mainStack.Children.Add(new TextBlock
+                    {
+                        Text = "ИНФОРМАЦИЯ О ЗАНЯТИИ",
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    });
+
+                    var lessonContent = new Border
+                    {
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    var lessonStack = new StackPanel();
+                    AddInfoRow(lessonStack, "📖 Занятие:", notification.LessonName ?? "Не указано", false);
+                    AddInfoRow(lessonStack, "📅 Дата:", notification.LessonDate ?? "Не указана", false);
+                    AddInfoRow(lessonStack, "⏰ Время:", notification.LessonTime ?? "Не указано", false);
+                    lessonContent.Child = lessonStack;
+                    mainStack.Children.Add(lessonContent);
+
+                    // ========== ИНФОРМАЦИЯ О КНИГАХ ==========
+                    mainStack.Children.Add(new TextBlock
+                    {
+                        Text = "ИНФОРМАЦИЯ О КНИГАХ",
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6C757D")),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    });
+
+                    var booksContent = new Border
+                    {
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8F9FA")),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 15)
+                    };
+                    var booksStack = new StackPanel();
+                    AddInfoRow(booksStack, "📊 Количество книг:", notification.BooksCount.ToString(), false);
+                    AddInfoRow(booksStack, "🔢 № заявки:", notification.RequestNumber, false);
+                    if (!string.IsNullOrEmpty(notification.BookTitles))
+                        AddInfoRow(booksStack, "📚 Книги:", notification.BookTitles.Length > 100 ? notification.BookTitles.Substring(0, 100) + "..." : notification.BookTitles, false);
+
+                    booksContent.Child = booksStack;
+                    mainStack.Children.Add(booksContent);
+
+                    // ========== КНОПКА ПРОСМОТРА ==========
+                    var viewButton = new Button
+                    {
+                        Content = "👁 Просмотреть заявку",
+                        Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0056B3")),
+                        Foreground = Brushes.White,
+                        Padding = new Thickness(15, 8, 15, 8),
+                        Margin = new Thickness(0, 10, 0, 0),
+                        Cursor = Cursors.Hand,
+                        BorderThickness = new Thickness(0),
+                        FontWeight = FontWeights.SemiBold,
+                        FontSize = 12,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };
+                    viewButton.Click += (s, ev) =>
+                    {
+                        notificationWindow.Close();
+                        MainFrame.Navigate(new BookRequestsManagement(_currentReaderId));
+                    };
+                    mainStack.Children.Add(viewButton);
+
+                    // Собираем окно
+                    border.Child = mainStack;
+                    notificationWindow.Content = border;
+                    notificationWindow.Show();
+
+                    // Автоматическое закрытие через 10 секунд
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                    timer.Tick += (s, ev) =>
+                    {
+                        timer.Stop();
+                        notificationWindow.Close();
+                    };
+                    timer.Start();
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Ошибка показа уведомления: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"❌ Ошибка показа уведомления: {ex.Message}");
                     lock (_notificationLock)
                     {
                         _activeNotificationWindows--;
@@ -1059,6 +1114,8 @@ namespace Diplom_Bibl.Windows
                 }
             });
         }
+
+        #endregion
 
         /// <summary>
         /// Вспомогательный метод для добавления строки в уведомление
@@ -1094,7 +1151,6 @@ namespace Diplom_Bibl.Windows
             parent.Children.Add(row);
         }
 
-        #endregion
 
         #region Мониторинг просроченных заявок
 
