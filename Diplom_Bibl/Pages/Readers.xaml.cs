@@ -24,7 +24,6 @@ namespace Diplom_Bibl.Pages
         private ObservableCollection<ReaderDisplayItem> _filteredReaders;
         private ObservableCollection<ReaderDisplayItem> _searchResults;
 
-        private int? _currentReaderId = null;
         private bool _isSearchProgrammatic = false;
 
 
@@ -251,45 +250,49 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void ApplyFilters()
+        private IEnumerable<ReaderDisplayItem> GetFilteredReaders()
         {
-            if (_allReaders == null) return;
+            if (_allReaders == null) return Enumerable.Empty<ReaderDisplayItem>();
 
             var filtered = _allReaders.AsEnumerable();
 
-            // Фильтр по тексту поиска (ФИО, номер билета)
             string searchTerm = SearchBox.Text?.Trim() ?? "";
             if (!string.IsNullOrEmpty(searchTerm) &&
                 searchTerm != "Поиск по фамилии, имени или номеру билета...")
             {
+                string loweredSearch = searchTerm.ToLower();
                 filtered = filtered.Where(r =>
-                    r.LastName.ToLower().Contains(searchTerm.ToLower()) ||
-                    r.FirstName.ToLower().Contains(searchTerm.ToLower()) ||
-                    r.CardNumber.ToLower().Contains(searchTerm.ToLower()));
+                    r.LastName.ToLower().Contains(loweredSearch) ||
+                    r.FirstName.ToLower().Contains(loweredSearch) ||
+                    r.FullName.ToLower().Contains(loweredSearch) ||
+                    r.CardNumber.ToLower().Contains(loweredSearch));
             }
 
-            // Фильтр по должности
             string searchPostTerm = SearchBoxPost.Text?.Trim() ?? "";
             if (!string.IsNullOrEmpty(searchPostTerm) &&
                 searchPostTerm != "Поиск по должности...")
             {
+                string loweredPost = searchPostTerm.ToLower();
                 filtered = filtered.Where(r =>
-                    (r.PostName?.ToLower().Contains(searchPostTerm.ToLower()) ?? false));
+                    (r.PostName?.ToLower().Contains(loweredPost) ?? false));
             }
 
-            // Фильтр по типу читателя
             if (FilterTypeCombo.SelectedItem is FilterTypeItem selectedType && selectedType.TypeID > 0)
             {
                 filtered = filtered.Where(r => r.TypeID == selectedType.TypeID);
             }
 
-            // Фильтр по группе (только для студентов)
             if (FilterGroupCombo.SelectedItem is FilterGroupItem selectedGroup && selectedGroup.GroupID > 0)
             {
                 filtered = filtered.Where(r => r.GroupID == selectedGroup.GroupID);
             }
 
-            _filteredReaders = new ObservableCollection<ReaderDisplayItem>(filtered);
+            return filtered;
+        }
+
+        private void ApplyFilters()
+        {
+            _filteredReaders = new ObservableCollection<ReaderDisplayItem>(GetFilteredReaders());
             ReadersListView.ItemsSource = _filteredReaders;
 
             // Обновляем счетчик результатов поиска
@@ -324,6 +327,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
+            ApplyFilters();
             PerformSearch(searchText);
         }
 
@@ -395,10 +399,7 @@ namespace Diplom_Bibl.Pages
 
             _searchResults.Clear();
 
-            var filtered = _allReaders.Where(r =>
-                r.LastName.ToLower().Contains(searchText.ToLower()) ||
-                r.FirstName.ToLower().Contains(searchText.ToLower()) ||
-                r.CardNumber.ToLower().Contains(searchText.ToLower()))
+            var filtered = GetFilteredReaders()
                 .Take(10);
 
             foreach (var item in filtered)
@@ -414,20 +415,11 @@ namespace Diplom_Bibl.Pages
                 _isSearchProgrammatic = true;
                 SearchBox.Text = selected.FullName;
                 SearchResultsList.Visibility = Visibility.Collapsed;
-
-                // Применяем фильтр по выбранному читателю (очищаем другие фильтры поиска)
-                FilterTypeCombo.SelectedIndex = 0;
-                FilterGroupCombo.SelectedIndex = 0;
-                SearchBoxPost.Text = "Поиск по должности...";
-                SearchBoxPost.Foreground = Brushes.Gray;
-
-                // Фильтруем по ID выбранного читателя
-                var filtered = _allReaders.Where(r => r.ReaderID == selected.ReaderID);
-                _filteredReaders = new ObservableCollection<ReaderDisplayItem>(filtered);
-                ReadersListView.ItemsSource = _filteredReaders;
-                UpdateSearchCount();
-
                 _isSearchProgrammatic = false;
+
+                // Показываем выбранного читателя вместе с текущими активными фильтрами
+                ApplyFilters();
+
                 SearchBox.SelectAll();  // Выделить текст для удобства
             }
         }

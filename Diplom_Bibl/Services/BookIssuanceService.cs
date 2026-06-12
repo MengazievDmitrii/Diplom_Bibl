@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
@@ -100,29 +101,57 @@ namespace Diplom_Bibl.Services
         }
 
         /// <summary>
-        /// Получение списка доступных книг для выдачи (НЕ учитывает резервы)
+        /// Получение списка доступных книг для выдачи
+        /// Доступно = Всего - Выдано - Списано (резервы НЕ вычитаем!)
+        /// </summary>
+        /// <summary>
+        /// Получение списка доступных книг для выдачи
+        /// Доступно = Всего - Выдано - Списано (резервы НЕ вычитаем!)
         /// </summary>
         public ObservableCollection<BookInfo> GetAvailableBooks(string searchTerm = "")
         {
             var books = new ObservableCollection<BookInfo>();
 
+            // ВАЖНО: Не используем поле b.AvailableCopies!
+            // Рассчитываем доступное количество на лету:
+            // Available = TotalCopies - (Выдано индивидуально + Выдано группово) - Списано
             string sql = @"
         SELECT 
             b.TitleBook,
             ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-            dbo.fn_GetActuallyAvailableForIssue(MIN(b.IDBook)) AS AvailableCopies,
+            b.TotalCopies,
+            ISNULL((
+                SELECT COUNT(*) 
+                FROM BookIssuance bi 
+                WHERE bi.BookId = b.IDBook AND bi.ReturnDate IS NULL
+            ), 0) AS IndividualIssued,
+            ISNULL((
+                SELECT SUM(gii.Quantity)
+                FROM GroupIssuanceItems gii
+                INNER JOIN GroupBookIssuance gi ON gii.GroupIssuanceId = gi.GroupIssuanceId
+                WHERE gii.BookId = b.IDBook AND gi.ReturnDate IS NULL
+            ), 0) AS GroupIssued,
+            ISNULL((
+                SELECT COUNT(*) 
+                FROM Books sub 
+                WHERE sub.TitleBook = b.TitleBook 
+                  AND sub.StatusBook IN (SELECT ID_Status FROM StatusBook WHERE Title_Status LIKE '%Списана%')
+            ), 0) AS DisposedCopies,
             MIN(b.IDBook) AS MinIDBook
         FROM Books b
         LEFT JOIN Authors a ON b.Author = a.ID_Autor
-        WHERE dbo.fn_GetActuallyAvailableForIssue(b.IDBook) > 0";
+        GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor, b.TotalCopies";
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                sql += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
+                sql = $@"
+            SELECT * FROM (
+                {sql}
+            ) AS SubQuery
+            WHERE SubQuery.TitleBook LIKE @Search OR SubQuery.AuthorName LIKE @Search";
             }
 
-            sql += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-              ORDER BY b.TitleBook";
+            sql += " ORDER BY TitleBook";
 
             try
             {
@@ -142,16 +171,27 @@ namespace Diplom_Bibl.Services
                             {
                                 string title = reader["TitleBook"]?.ToString() ?? "";
                                 string author = reader["AuthorName"]?.ToString() ?? "";
-                                int availableCopies = Convert.ToInt32(reader["AvailableCopies"]);
+                                int totalCopies = Convert.ToInt32(reader["TotalCopies"]);
+                                int individualIssued = Convert.ToInt32(reader["IndividualIssued"]);
+                                int groupIssued = Convert.ToInt32(reader["GroupIssued"]);
+                                int disposedCopies = Convert.ToInt32(reader["DisposedCopies"]);
                                 int minIdBook = Convert.ToInt32(reader["MinIDBook"]);
 
-                                books.Add(new BookInfo
+                                // ПРАВИЛЬНАЯ ФОРМУЛА: Не вычитаем зарезервированные!
+                                int availableCopies = totalCopies - individualIssued - groupIssued - disposedCopies;
+
+                                // Добавляем только если есть доступные экземпляры
+                                if (availableCopies > 0)
                                 {
-                                    IDBook = minIdBook,
-                                    TitleBook = title,
-                                    AuthorName = author,
-                                    AvailableCopies = availableCopies
-                                });
+                                    books.Add(new BookInfo
+                                    {
+                                        IDBook = minIdBook,
+                                        TitleBook = title,
+                                        AuthorName = author,
+                                        AvailableCopies = availableCopies,
+                                        TotalCopies = totalCopies
+                                    });
+                                }
                             }
                         }
                     }
@@ -520,12 +560,19 @@ namespace Diplom_Bibl.Services
                     }
                 }
             }
+            catch (SqlException sqlEx)
+            {
+                CustomMessageBox.Show($"Ошибка при возврате книги: {sqlEx.Message}", "Ошибка SQL", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка в ReturnBook: {ex.Message}");
                 throw;
             }
         }
+            
+
+            
 
         /// <summary>
         /// Получает список выдач за указанную дату

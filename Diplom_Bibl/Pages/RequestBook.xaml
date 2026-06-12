@@ -8,8 +8,33 @@
       d:DesignHeight="800" d:DesignWidth="1200"
       Title="Оформление заявки на выдачу книг">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="24">
+
+    <Grid>
+
+        <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed">
+            <Border Background="White" 
+            CornerRadius="10" 
+            Width="300" 
+            Height="120" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            Effect="{StaticResource DropShadowEffect}">
+                <StackPanel Margin="20" VerticalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" 
+                         Width="260" 
+                         Height="20" 
+                         Margin="0,0,0,15"/>
+                    <TextBlock x:Name="LoadingText" 
+                       Text="Загрузка данных..." 
+                       FontSize="14" 
+                       Foreground="#2C3E50" 
+                       HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid Margin="24" x:Name="MainContentGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -41,12 +66,36 @@
                                 <TextBox x:Name="TbUserType" IsEnabled="False" Height="35" Padding="8,0"/>
                             </StackPanel>
 
-                            <StackPanel x:Name="GroupPanel" Margin="0,0,0,15" Visibility="Collapsed">
-                                <TextBlock Text="Группа *" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <ComboBox x:Name="CbGroup" Height="35" Padding="8,0" Style="{StaticResource InputFieldStyleCb}"/>
-                            </StackPanel>
+                                <StackPanel x:Name="GroupPanel" Margin="0,0,0,15" Visibility="Collapsed">
+                                    <TextBlock Text="Группа *" FontWeight="SemiBold" Margin="0,0,0,5"/>
 
-                            <StackPanel Margin="0,0,0,15">
+                                    <!-- Комбобокс с поиском -->
+                                    <ComboBox x:Name="CbGroup" 
+              Height="35" 
+              Padding="8,0" 
+              Style="{StaticResource InputFieldStyleCb}"
+              IsEditable="True"
+              IsTextSearchEnabled="True"
+              TextSearch.TextPath="GroupCode"
+              StaysOpenOnEdit="True"
+              DropDownClosed="CbGroup_DropDownClosed"
+              KeyUp="CbGroup_KeyUp">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding GroupCode}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <!-- Подсказка о фильтрации -->
+                                    <TextBlock Text="💡 Начните вводить код группы для поиска (например: ИС-121)" 
+               FontSize="10" 
+               Foreground="Gray" 
+               Margin="0,5,0,0"
+               FontStyle="Italic"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,0,15">
                                 <TextBlock Text="Название занятия / предмета *" FontWeight="SemiBold" Margin="0,0,0,5"/>
                                 <TextBox x:Name="TbLessonName" Height="35" Padding="8,0" MaxLength="200" Style="{StaticResource InputFieldStyle}"/>
                             </StackPanel>
@@ -203,4 +252,5 @@
             </StackPanel>
         </Grid>
     </ScrollViewer>
+   </Grid>
 </Page>

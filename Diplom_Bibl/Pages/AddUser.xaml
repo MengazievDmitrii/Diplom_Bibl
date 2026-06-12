@@ -57,10 +57,9 @@
                     <!-- Пароль -->
                     <StackPanel Margin="0,0,0,15">
                         <TextBlock Text="Пароль *" Style="{StaticResource LabelStyle}"/>
-                        <PasswordBox x:Name="PbPassword" MaxLength="255"/>
+                        <PasswordBox x:Name="PbPassword" MaxLength="32" PasswordChanged="PbPassword_PasswordChanged"/>
                     </StackPanel>
 
-                    <!-- Роли -->
                     <StackPanel Margin="0,0,0,15">
                         <TextBlock Text="Роли *" Style="{StaticResource LabelStyle}"/>
                         <ListBox x:Name="LbRoles"
@@ -82,6 +81,7 @@
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -89,8 +89,48 @@
                 <TextBlock Grid.Row="0" Text="Список пользователей"
                            Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10"/>
 
+                <!-- ПОИСК ПОЛЬЗОВАТЕЛЕЙ -->
+                <Border Grid.Row="1" 
+                        Background="White" 
+                        CornerRadius="6" 
+                        BorderBrush="{StaticResource BorderColor}" 
+                        BorderThickness="1"
+                        Padding="10"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="🔍" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="SearchBox" 
+                                 Grid.Column="1"
+                                 Style="{StaticResource InputFieldStyle}"
+                                 Height="32"
+                                 Padding="8,0"
+                                 TextChanged="SearchBox_TextChanged"
+                                 GotFocus="SearchBox_GotFocus"
+                                 LostFocus="SearchBox_LostFocus"/>
+                        <Button x:Name="ClearSearchBtn" 
+                                Grid.Column="2"
+                                Content="✖"
+                                Width="30"
+                                Height="30"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                Foreground="{StaticResource DangerColor}"
+                                FontWeight="Bold"
+                                Visibility="Collapsed"
+                                Click="ClearSearchBtn_Click"
+                                Margin="8,0,0,0"
+                                ToolTip="Очистить поиск"/>
+                    </Grid>
+                </Border>
+
                 <!-- Таблица -->
-                <DataGrid Grid.Row="1"
+                <DataGrid Grid.Row="2"
                           x:Name="LvUsers"
                           SelectionChanged="LvUsers_SelectionChanged"
                           AutoGenerateColumns="False"

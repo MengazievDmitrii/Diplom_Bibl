@@ -234,11 +234,32 @@
                    Margin="0,0,0,10"
                    HorizontalAlignment="Left"/>
 
-        <!-- Таблица книг (с ограничением высоты) -->
-        <ScrollViewer Grid.Row="4" 
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Auto"
-                      MaxHeight="400">
+        <!-- ОБЛАСТЬ ТАБЛИЦЫ С ИНДИКАТОРОМ ЗАГРУЗКИ -->
+        <Grid Grid.Row="4" MaxHeight="400">
+            <!-- ИНДИКАТОР ЗАГРУЗКИ (только над таблицей) -->
+            <Grid x:Name="LoadingOverlay" Background="#C0FFFFFF" Visibility="Collapsed" ZIndex="100">
+                <Border Background="White" 
+                        CornerRadius="10" 
+                        Width="300" 
+                        Height="120" 
+                        HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"
+                        Effect="{StaticResource DropShadowEffect}">
+                    <StackPanel Margin="20" VerticalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" 
+                                     Width="260" 
+                                     Height="20" 
+                                     Margin="0,0,0,15"/>
+                        <TextBlock x:Name="LoadingText" 
+                                   Text="Загрузка библиотечного фонда..." 
+                                   FontSize="14" 
+                                   Foreground="#2C3E50" 
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Таблица книг -->
             <DataGrid x:Name="DgBooks"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
@@ -250,7 +271,9 @@
                       BorderBrush="{StaticResource BorderColor}"
                       BorderThickness="1"
                       MouseDoubleClick="DgBooks_MouseDoubleClick"
-                      HorizontalAlignment="Stretch">
+                      HorizontalAlignment="Stretch"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Auto">
 
                 <DataGrid.Resources>
                     <Style TargetType="DataGridColumnHeader">
@@ -277,6 +300,7 @@
                     <DataGridTextColumn Header="Жанр" Binding="{Binding GenreName}" Width="120" MinWidth="100"/>
                     <DataGridTextColumn Header="Всего" Binding="{Binding TotalCopies}" Width="70"/>
                     <DataGridTextColumn Header="В наличии" Binding="{Binding AvailableCopies}" Width="85"/>
+                    <DataGridTextColumn Header="Зарезервировано" Binding="{Binding ReservedCopies}" Width="100"/>
                     <DataGridTextColumn Header="Выдано" Binding="{Binding IssuedCopies}" Width="70"/>
                     <DataGridTemplateColumn Header="Статус" Width="110">
                         <DataGridTemplateColumn.CellTemplate>
@@ -295,7 +319,7 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
-        </ScrollViewer>
+        </Grid>
 
         <!-- Панель статистики -->
         <Border Grid.Row="5"
@@ -318,9 +342,11 @@
 
                 <TextBlock Text="Выдано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
                 <TextBlock x:Name="IssuedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource WarningColor}" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Зарезервировано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="ReservedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
 
-                <TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>
+                <!--<TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>-->
             </WrapPanel>
         </Border>
     </Grid>

@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diplom_Bibl", "Diplom_Bibl\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Diplom_Bibl.Tests", "Diplom_Bibl.Tests\Diplom_Bibl.Tests.csproj", "{EA47B33A-B458-4CFA-AE1B-A4BA607EE1AA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibrarySystem.Tests", "LibrarySystem.Tests\LibrarySystem.Tests.csproj", "{E936C02B-B965-4AC8-980E-36F8DC2DE38B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{EA47B33A-B458-4CFA-AE1B-A4BA607EE1AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EA47B33A-B458-4CFA-AE1B-A4BA607EE1AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EA47B33A-B458-4CFA-AE1B-A4BA607EE1AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E936C02B-B965-4AC8-980E-36F8DC2DE38B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E936C02B-B965-4AC8-980E-36F8DC2DE38B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E936C02B-B965-4AC8-980E-36F8DC2DE38B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E936C02B-B965-4AC8-980E-36F8DC2DE38B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

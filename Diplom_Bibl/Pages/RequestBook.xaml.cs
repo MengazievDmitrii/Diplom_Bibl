@@ -1,5 +1,7 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
+using Diplom_Bibl.Services;
+using Diplom_Bibl.Windows;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -22,80 +24,53 @@ namespace Diplom_Bibl.Pages
     {
         #region Поля и свойства
 
-        /// <summary>
-        /// Строка подключения к базе данных
-        /// </summary>
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
-
-        /// <summary>
-        /// ID текущего читателя/преподавателя
-        /// </summary>
         private readonly int _currentReaderId;
-
-        /// <summary>
-        /// Тип пользователя (1-читатель, 2-библиотекарь, 3-преподаватель)
-        /// </summary>
         private readonly int _currentUserTypeId;
-
-        /// <summary>
-        /// Коллекция доступных книг для выбора
-        /// </summary>
         private ObservableCollection<BookItem> _availableBooks;
-
-        /// <summary>
-        /// Коллекция выбранных книг для заявки
-        /// </summary>
         private ObservableCollection<SelectedBookItem> _selectedBooks;
-
-        /// <summary>
-        /// Коллекция доступных пар по расписанию звонков
-        /// </summary>
         private ObservableCollection<SchedulePeriodItem> _schedulePeriods;
+        private ObservableCollection<GroupItem> _allGroups;           // Все группы для поиска
+        private bool _isInitialized = false;
+        private bool _isLoading = false;
+        private bool _isUpdatingGroupsProgrammatically = false;       // Флаг программного обновления
 
         #endregion
 
         #region Вложенные модели данных
 
-        /// <summary>
-        /// Модель книги для отображения в списке доступных книг
-        /// </summary>
         public class BookItem
         {
-            public int IDBook { get; set; }          // Уникальный идентификатор книги
-            public string TitleBook { get; set; } = "";   // Название книги
-            public string AuthorName { get; set; } = "";  // ФИО автора
-            public int AvailableCopies { get; set; }      // Количество доступных экземпляров
+            public int IDBook { get; set; }
+            public string TitleBook { get; set; } = "";
+            public string AuthorName { get; set; } = "";
+            public int AvailableCopies { get; set; }
         }
 
-        /// <summary>
-        /// Модель выбранной книги с количеством экземпляров
-        /// </summary>
         public class SelectedBookItem
         {
-            public int IDBook { get; set; }          // ID книги
-            public string BookTitle { get; set; } = "";   // Название
-            public string AuthorName { get; set; } = "";  // Автор
-            public int Quantity { get; set; } = 1;        // Запрашиваемое количество
-            public int MaxQuantity { get; set; }          // Максимально доступное количество
+            public int IDBook { get; set; }
+            public string BookTitle { get; set; } = "";
+            public string AuthorName { get; set; } = "";
+            public int Quantity { get; set; } = 1;
+            public int MaxQuantity { get; set; }
         }
 
         /// <summary>
-        /// Модель учебной группы
+        /// Модель учебной группы (расширенная для поиска)
         /// </summary>
         public class GroupItem
         {
-            public int GroupID { get; set; }         // ID группы
-            public string GroupCode { get; set; } = "";   // Код группы (например, ИС-141)
+            public int GroupID { get; set; }
+            public string GroupCode { get; set; } = "";
+            public string DisplayText => GroupCode;
         }
 
-        /// <summary>
-        /// Модель пары (расписание звонков)
-        /// </summary>
         public class SchedulePeriodItem
         {
-            public int PeriodNumber { get; set; }    // Номер пары (1-8)
-            public string StartTime { get; set; }    // Время начала
-            public string EndTime { get; set; }      // Время окончания
+            public int PeriodNumber { get; set; }
+            public string StartTime { get; set; }
+            public string EndTime { get; set; }
             public string DisplayText => $"{PeriodNumber} пара: {StartTime} - {EndTime}";
         }
 
@@ -103,11 +78,6 @@ namespace Diplom_Bibl.Pages
 
         #region Конструктор и инициализация
 
-        /// <summary>
-        /// Конструктор страницы оформления заявки
-        /// </summary>
-        /// <param name="readerId">ID пользователя</param>
-        /// <param name="userTypeId">Тип пользователя</param>
         public RequestBook(int readerId, int userTypeId)
         {
             InitializeComponent();
@@ -115,65 +85,94 @@ namespace Diplom_Bibl.Pages
             _currentReaderId = readerId;
             _currentUserTypeId = userTypeId;
 
-            // Инициализируем интерфейс в зависимости от типа пользователя
             SetupUIForUserType();
-            LoadUserData();
-
             DpLessonDateSimple.SelectedDate = DateTime.Today;
-            LoadAvailableBooks();
-            this.Loaded += RequestBook_Loaded;
+
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+
+            this.Loaded += async (s, e) => await RequestBook_LoadedAsync();
+        }
+
+        private async Task RequestBook_LoadedAsync()
+        {
+            if (_isInitialized) return;
+            _isInitialized = true;
+            await InitializeAsync();
+        }
+
+        private async Task InitializeAsync()
+        {
+            if (_isLoading) return;
+            _isLoading = true;
+
+            try
+            {
+                await Dispatcher.InvokeAsync(() => ShowLoading(true));
+
+                // Загружаем данные последовательно, а не параллельно (избегаем конфликтов)
+                await LoadUserDataAsync();
+                await LoadScheduleForDate(DateTime.Today);
+                await LoadAvailableBooksAsync();
+
+                System.Diagnostics.Debug.WriteLine($"📊 Статус загрузки:");
+                System.Diagnostics.Debug.WriteLine($"  - Групп загружено: {_allGroups?.Count ?? 0}");
+                System.Diagnostics.Debug.WriteLine($"  - Тип пользователя: {_currentUserTypeId}");
+                System.Diagnostics.Debug.WriteLine($"  - Видимость панели групп: {GroupPanel.Visibility}");
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                await Dispatcher.InvokeAsync(() => ShowLoading(false));
+                _isLoading = false;
+            }
+        }
+
+
+        private void ShowLoading(bool show)
+        {
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (MainContentGrid != null)
+                MainContentGrid.IsEnabled = !show;
         }
 
         private void SetupUIForUserType()
         {
-            if (_currentUserTypeId == 3) // Преподаватель
+            if (_currentUserTypeId == 3)
             {
-                // Показываем все поля
                 GroupPanel.Visibility = Visibility.Visible;
                 TbLessonName.Visibility = Visibility.Visible;
                 DpLessonDateSimple.Visibility = Visibility.Visible;
                 CbLessonPeriod.Visibility = Visibility.Visible;
             }
-            else // Читатель (индивидуальная выдача)
+            else
             {
-                // Скрываем поля, не нужные для читателя
                 GroupPanel.Visibility = Visibility.Collapsed;
                 TbLessonName.Visibility = Visibility.Collapsed;
                 DpLessonDateSimple.Visibility = Visibility.Collapsed;
                 CbLessonPeriod.Visibility = Visibility.Collapsed;
-
-                
             }
-        }
-
-        /// <summary>
-        /// Обработчик загрузки страницы
-        /// </summary>
-        private async void RequestBook_Loaded(object sender, RoutedEventArgs e)
-        {
-            // Загружаем расписание звонков для сегодняшней даты
-            await LoadScheduleForDate(DateTime.Today);
         }
 
         #endregion
 
         #region Работа с расписанием звонков
 
-        /// <summary>
-        /// Загрузка расписания звонков для выбранной даты
-        /// </summary>
-        /// <param name="date">Дата занятия</param>
         private async Task LoadScheduleForDate(DateTime date)
         {
             try
             {
-                // Получаем номер дня недели (1-7)
                 int dayOfWeek = GetDayOfWeekNumber(date);
-
-                // Определяем летнее или зимнее расписание
                 bool isSummerSchedule = IsSummerSchedule(date);
 
-                // SQL-запрос для получения расписания
                 string query = @"
                     SELECT PeriodNumber, 
                            CAST(StartTime AS NVARCHAR(5)) AS StartTime,
@@ -186,7 +185,6 @@ namespace Diplom_Bibl.Pages
 
                 var allPeriods = new List<SchedulePeriodItem>();
 
-                // Выполняем запрос к базе данных
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
@@ -210,57 +208,43 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Для сегодняшней даты фильтруем доступные пары по текущему времени
                 var availablePeriods = allPeriods;
                 if (date.Date == DateTime.Today)
                 {
                     availablePeriods = FilterAvailablePeriodsByCurrentTime(allPeriods);
                 }
 
-                // Обновляем выпадающий список пар
-                _schedulePeriods = new ObservableCollection<SchedulePeriodItem>(availablePeriods);
-                CbLessonPeriod.ItemsSource = _schedulePeriods;
-
-                // Выбираем первую доступную пару по умолчанию
-                if (_schedulePeriods.Any())
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    CbLessonPeriod.SelectedIndex = 0;
-                }
+                    _schedulePeriods = new ObservableCollection<SchedulePeriodItem>(availablePeriods);
+                    CbLessonPeriod.ItemsSource = _schedulePeriods;
+                    if (_schedulePeriods.Any()) CbLessonPeriod.SelectedIndex = 0;
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки расписания: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки расписания: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Фильтрация доступных пар по текущему времени
-        /// </summary>
         private List<SchedulePeriodItem> FilterAvailablePeriodsByCurrentTime(List<SchedulePeriodItem> allPeriods)
         {
             var now = DateTime.Now;
             var currentTime = now.TimeOfDay;
 
-            SchedulePeriodItem currentPeriod = null;      // Текущая пара (идет сейчас)
-            SchedulePeriodItem nextAvailablePeriod = null; // Следующая пара (еще не началась)
+            SchedulePeriodItem currentPeriod = null;
+            SchedulePeriodItem nextAvailablePeriod = null;
 
-            // Анализируем все пары
             foreach (var period in allPeriods)
             {
-                // Парсим время начала и окончания
-                if (!TimeSpan.TryParse(period.StartTime, out TimeSpan start))
-                    continue;
-                if (!TimeSpan.TryParse(period.EndTime, out TimeSpan end))
-                    continue;
+                if (!TimeSpan.TryParse(period.StartTime, out TimeSpan start)) continue;
+                if (!TimeSpan.TryParse(period.EndTime, out TimeSpan end)) continue;
 
-                // Проверяем, идет ли эта пара сейчас
                 if (currentTime >= start && currentTime <= end)
                 {
                     currentPeriod = period;
                 }
 
-                // Ищем ближайшую будущую пару
                 if (start > currentTime)
                 {
                     if (nextAvailablePeriod == null || period.PeriodNumber < nextAvailablePeriod.PeriodNumber)
@@ -273,258 +257,345 @@ namespace Diplom_Bibl.Pages
             var availablePeriods = new List<SchedulePeriodItem>();
             int minAvailablePeriodNumber = 1;
 
-            // Определяем минимальный номер доступной пары
             if (currentPeriod != null)
-            {
-                // Если есть текущая пара - доступны с нее
                 minAvailablePeriodNumber = currentPeriod.PeriodNumber;
-            }
             else if (nextAvailablePeriod != null)
-            {
-                // Если нет текущей, но есть будущие - доступны с ближайшей будущей
                 minAvailablePeriodNumber = nextAvailablePeriod.PeriodNumber;
-            }
             else
-            {
-                // Нет доступных пар
                 return availablePeriods;
-            }
 
-            // Добавляем все пары с минимального номера
             availablePeriods.AddRange(allPeriods.Where(p => p.PeriodNumber >= minAvailablePeriodNumber));
             return availablePeriods;
         }
 
-        /// <summary>
-        /// Преобразование дня недели в числовой формат (1=ПН, 2=ВТ, ..., 7=ВС)
-        /// </summary>
         private int GetDayOfWeekNumber(DateTime date)
         {
             int day = (int)date.DayOfWeek;
-            // DayOfWeek: Sunday=0, Monday=1, ..., Saturday=6
             return day == 0 ? 7 : day;
         }
 
-        /// <summary>
-        /// Определение летнего расписания (действует с 26 мая)
-        /// </summary>
         private bool IsSummerSchedule(DateTime date)
         {
             return date >= new DateTime(date.Year, 5, 26);
         }
 
-        /// <summary>
-        /// Обработчик изменения даты занятия
-        /// </summary>
         private async void DpLessonDateSimple_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DpLessonDateSimple.SelectedDate.HasValue)
             {
                 DateTime selectedDate = DpLessonDateSimple.SelectedDate.Value.Date;
 
-                // Проверка - дата не может быть раньше сегодня
                 if (selectedDate < DateTime.Today)
                 {
-                    CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
+                            CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    });
                     DpLessonDateSimple.SelectedDate = DateTime.Today;
                     return;
                 }
 
-                // Загружаем расписание для выбранной даты
                 await LoadScheduleForDate(selectedDate);
             }
         }
 
         #endregion
 
-        #region Загрузка данных пользователя и групп
+        #region Загрузка данных пользователя и групп (с поиском)
 
-        /// <summary>
-        /// Загрузка данных пользователя и определение видимости панели группы
-        /// </summary>
-        private void LoadUserData()
+        private async Task LoadUserDataAsync()
         {
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     string typeQuery = "SELECT TypeName FROM ReaderType WHERE TypeID = @TypeID";
                     using (var cmd = new SqlCommand(typeQuery, conn))
                     {
                         cmd.Parameters.AddWithValue("@TypeID", _currentUserTypeId);
-                        var result = cmd.ExecuteScalar();
-                        TbUserType.Text = result?.ToString() ?? "";
+                        var result = await cmd.ExecuteScalarAsync();
+                        await Dispatcher.InvokeAsync(() => TbUserType.Text = result?.ToString() ?? "");
                     }
                 }
 
-                // Для преподавателей (TypeID = 3) показываем выбор группы
                 if (_currentUserTypeId == 3)
                 {
-                    GroupPanel.Visibility = Visibility.Visible;
-                    LoadGroups();
-                }
-                else
-                {
-                    GroupPanel.Visibility = Visibility.Collapsed;
+                    await Dispatcher.InvokeAsync(() => GroupPanel.Visibility = Visibility.Visible);
+                    await LoadAllGroupsAsync();
                 }
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки данных: {ex.Message}");
             }
         }
 
-        private void LoadGroups()
+        /// <summary>
+        /// Загрузка всех групп с поддержкой поиска
+        /// </summary>
+        private async Task LoadAllGroupsAsync()
         {
             try
             {
                 const string query = "SELECT GroupID, GroupCode FROM Groups ORDER BY GroupCode";
 
+                var groups = new ObservableCollection<GroupItem>();
+
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
-
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        var groups = new ObservableCollection<GroupItem>();
-
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            // Для smallint используем GetInt16
-                            short groupId = reader.IsDBNull(0) ? (short)0 : reader.GetInt16(0);
-
-                            // Для nvarchar оставляем GetString
-                            string groupCode = reader.IsDBNull(1) ? "Неизвестно" : reader.GetString(1);
-
-                            groups.Add(new GroupItem
+                            int groupId = 0;
+                            if (!reader.IsDBNull(0))
                             {
-                                GroupID = groupId,
-                                GroupCode = groupCode
-                            });
+                                groupId = Convert.ToInt32(reader.GetValue(0));
+                            }
+
+                            string groupCode = "";
+                            if (!reader.IsDBNull(1))
+                            {
+                                groupCode = reader.GetString(1);
+                            }
+
+                            if (groupId > 0 && !string.IsNullOrEmpty(groupCode))
+                            {
+                                groups.Add(new GroupItem
+                                {
+                                    GroupID = groupId,
+                                    GroupCode = groupCode
+                                });
+                            }
                         }
-
-
-                        // Привязка данных
-                        CbGroup.ItemsSource = groups;
-                        CbGroup.DisplayMemberPath = "GroupCode";
-                        CbGroup.SelectedValuePath = "GroupID";
-
-                        System.Diagnostics.Debug.WriteLine($"Загружено групп: {groups.Count}");
                     }
                 }
+
+                _allGroups = groups;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CbGroup.ItemsSource = _allGroups;
+                    // Убираем DisplayMemberPath - используем только ItemTemplate из XAML
+                    CbGroup.SelectedValuePath = "GroupID";
+                    CbGroup.Text = "";
+
+                    System.Diagnostics.Debug.WriteLine($"✅ Загружено групп: {_allGroups.Count}");
+                });
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки групп: {ex.Message}\n{ex.StackTrace}");
-                CustomMessageBox.Show(
-                    $"Не удалось загрузить список групп. Проверьте подключение к базе данных.\nОшибка: {ex.Message}",
-                    "Ошибка загрузки данных",
-                    CustomMessageBoxButton.OK,
-                    CustomMessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки групп: {ex.Message}");
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки групп: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
+        }
+
+        private void FilterGroups(string searchText)
+        {
+            if (_allGroups == null) return;
+
+            ObservableCollection<GroupItem> filteredGroups;
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                filteredGroups = new ObservableCollection<GroupItem>(_allGroups);
+            }
+            else
+            {
+                var filtered = _allGroups
+                    .Where(g => g.GroupCode.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                    .ToList();
+                filteredGroups = new ObservableCollection<GroupItem>(filtered);
+            }
+
+            CbGroup.ItemsSource = filteredGroups;
+            // Убираем DisplayMemberPath - используем только ItemTemplate из XAML
+            CbGroup.SelectedValuePath = "GroupID";
+
+            if (filteredGroups.Count == 1 && !string.IsNullOrWhiteSpace(searchText))
+            {
+                CbGroup.SelectedItem = filteredGroups[0];
+            }
+
+            System.Diagnostics.Debug.WriteLine($"🔍 Фильтрация групп: '{searchText}' -> найдено {filteredGroups.Count}");
+        }
+
+
+        
+        /// <summary>
+        /// Обработчик изменения текста в комбобоксе (поиск)
+        /// </summary>
+        private void CbGroup_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (_isUpdatingGroupsProgrammatically) return;
+
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            string searchText = comboBox.Text;
+            FilterGroups(searchText);
+
+            if (CbGroup.Items.Count > 0 && !comboBox.IsDropDownOpen)
+            {
+                comboBox.IsDropDownOpen = true;
+            }
+        }
+
+        /// <summary>
+        /// Обработчик закрытия выпадающего списка
+        /// </summary>
+        private void CbGroup_DropDownClosed(object sender, EventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            if (comboBox == null) return;
+
+            if (comboBox.SelectedItem == null && !string.IsNullOrWhiteSpace(comboBox.Text))
+            {
+                string searchText = comboBox.Text;
+                var foundGroup = _allGroups?.FirstOrDefault(g =>
+                    g.GroupCode.Equals(searchText, StringComparison.OrdinalIgnoreCase));
+
+                if (foundGroup != null)
+                {
+                    _isUpdatingGroupsProgrammatically = true;
+                    comboBox.SelectedItem = foundGroup;
+                    _isUpdatingGroupsProgrammatically = false;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(comboBox.Text))
+            {
+                FilterGroups("");
+            }
+        }
+       
+        /// <summary>
+        /// Получение ID выбранной группы
+        /// </summary>
+        private int? GetSelectedGroupId()
+        {
+            if (CbGroup.SelectedItem is GroupItem selectedGroup)
+            {
+                return selectedGroup.GroupID;
+            }
+
+            if (CbGroup.SelectedValue != null && CbGroup.SelectedValue is int id && id > 0)
+            {
+                return id;
+            }
+
+            return null;
         }
 
         #endregion
 
         #region Работа с книгами
 
-        /// <summary>
-        /// Загрузка доступных книг (сгруппированных по названию и автору)
-        /// </summary>
-        /// <param name="searchTerm">Поисковый запрос</param>
-        /// <summary>
-        /// Загрузка доступных книг (сгруппированных по названию и автору)
-        /// </summary>
-        /// <param name="searchTerm">Поисковый запрос</param>
-        private void LoadAvailableBooks(string searchTerm = "")
+        private async Task LoadAvailableBooksAsync(string searchTerm = "")
         {
             try
             {
-                string query = @"
-            SELECT
-                MIN(b.IDBook) AS IDBook,
-                b.TitleBook,
-                ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
-                SUM(dbo.fn_GetActuallyAvailableForRequest(b.IDBook)) AS AvailableCopies
-            FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE dbo.fn_GetActuallyAvailableForRequest(b.IDBook) > 0
-              AND b.StatusBook IN (
-                  SELECT ID_Status FROM StatusBook
-                  WHERE Title_Status IN ('В наличии')
-              )";
-
-                if (!string.IsNullOrWhiteSpace(searchTerm))
+                // Выполняем запрос в фоне, но обновляем UI через Dispatcher
+                var booksList = await Task.Run(async () =>
                 {
-                    query += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
-                }
+                    string query = @"
+                SELECT
+                    MIN(b.IDBook) AS IDBook,
+                    b.TitleBook,
+                    ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') AS AuthorName,
+                    COUNT(*) AS AvailableCopies
+                FROM Books b
+                LEFT JOIN Authors a ON b.Author = a.ID_Autor
+                INNER JOIN StatusBook sb ON b.StatusBook = sb.ID_Status
+                WHERE sb.ID_Status = 1
+                  AND b.AvailableCopies = 1";
 
-                query += @" GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
-            ORDER BY b.TitleBook";
-
-                using (var conn = new SqlConnection(_connectionString))
-                {
-                    conn.Open();
-                    using (var cmd = new SqlCommand(query, conn))
+                    if (!string.IsNullOrWhiteSpace(searchTerm))
                     {
-                        if (!string.IsNullOrWhiteSpace(searchTerm))
-                        {
-                            cmd.Parameters.AddWithValue("@Search", $"%{searchTerm}%");
-                        }
+                        query += " AND (b.TitleBook LIKE @Search OR a.SurnameAuthor LIKE @Search)";
+                    }
 
-                        using (var reader = cmd.ExecuteReader())
+                    query += @"
+                GROUP BY
+                    b.TitleBook,
+                    a.SurnameAuthor,
+                    a.NameAuthor,
+                    a.PatronymicAuthor
+                ORDER BY b.TitleBook";
+
+                    var result = new List<BookItem>();
+
+                    using (var conn = new SqlConnection(_connectionString))
+                    {
+                        await conn.OpenAsync();
+                        using (var cmd = new SqlCommand(query, conn))
                         {
-                            _availableBooks = new ObservableCollection<BookItem>();
-                            while (reader.Read())
+                            if (!string.IsNullOrWhiteSpace(searchTerm))
                             {
-                                int available = reader.GetInt32(3);
-                                _availableBooks.Add(new BookItem
+                                cmd.Parameters.AddWithValue("@Search", $"%{searchTerm}%");
+                            }
+
+                            using (var reader = await cmd.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
                                 {
-                                    IDBook = reader.GetInt32(0),
-                                    TitleBook = reader.GetString(1),
-                                    AuthorName = reader.GetString(2),
-                                    AvailableCopies = available
-                                });
+                                    result.Add(new BookItem
+                                    {
+                                        IDBook = reader.GetInt32(0),
+                                        TitleBook = reader.GetString(1),
+                                        AuthorName = reader.GetString(2),
+                                        AvailableCopies = reader.GetInt32(3)
+                                    });
+                                }
                             }
                         }
                     }
-                }
-                DgAvailableBooks.ItemsSource = _availableBooks;
+
+                    return result;
+                });
+
+                // Обновляем UI один раз после завершения загрузки
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _availableBooks = new ObservableCollection<BookItem>(booksList);
+                    DgAvailableBooks.ItemsSource = _availableBooks;
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
-                CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки книг: {ex.Message}");
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
 
-        /// <summary>
-        /// Добавление книги в заявку
-        /// </summary>
         private void AddBookToRequest(BookItem book)
         {
             if (_selectedBooks == null)
                 _selectedBooks = new ObservableCollection<SelectedBookItem>();
 
-            int actualAvailable = book.AvailableCopies;
-
-            if (actualAvailable <= 0)
+            if (book.AvailableCopies <= 0)
             {
                 CustomMessageBox.Show($"Книга '{book.TitleBook}' временно недоступна.",
                     "Книга недоступна", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b =>
-                b.IDBook == book.IDBook);
+            SelectedBookItem existing = _selectedBooks.FirstOrDefault(b => b.IDBook == book.IDBook);
 
             if (existing != null)
             {
-                // Для читателя — только 1 экземпляр
                 if (_currentUserTypeId != 3 && existing.Quantity >= 1)
                 {
                     CustomMessageBox.Show("Для индивидуальной выдачи можно взять только 1 экземпляр книги.",
@@ -532,15 +603,15 @@ namespace Diplom_Bibl.Pages
                     return;
                 }
 
-                if (existing.Quantity + 1 <= actualAvailable)
+                if (existing.Quantity + 1 <= book.AvailableCopies)
                     existing.Quantity++;
                 else
-                    CustomMessageBox.Show($"Доступно только {actualAvailable} экземпляров этой книги.",
+                    CustomMessageBox.Show($"Доступно только {book.AvailableCopies} экземпляров этой книги.",
                         "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
             }
             else
             {
-                int maxQuantity = (_currentUserTypeId == 3) ? actualAvailable : 1;
+                int maxQuantity = (_currentUserTypeId == 3) ? book.AvailableCopies : 1;
 
                 _selectedBooks.Add(new SelectedBookItem
                 {
@@ -556,10 +627,6 @@ namespace Diplom_Bibl.Pages
             UpdateTotalCount();
         }
 
-
-        /// <summary>
-        /// Обновление общего количества выбранных книг
-        /// </summary>
         private void UpdateTotalCount()
         {
             int total = _selectedBooks?.Sum(b => b.Quantity) ?? 0;
@@ -570,9 +637,6 @@ namespace Diplom_Bibl.Pages
 
         #region Генерация номера заявки
 
-        /// <summary>
-        /// Генерация уникального номера заявки в формате ЗАЯВ-ГГГГММДД-XXXX
-        /// </summary>
         private string GenerateUniqueRequestNumber()
         {
             try
@@ -612,7 +676,6 @@ namespace Diplom_Bibl.Pages
             }
             catch
             {
-                // В случае ошибки генерируем случайный номер
                 return $"ЗАЯВ-{DateTime.Now:yyyyMMdd}-{new Random().Next(1, 9999):D4}";
             }
         }
@@ -621,43 +684,28 @@ namespace Diplom_Bibl.Pages
 
         #region Обработчики событий UI
 
-        /// <summary>
-        /// Поиск книг при изменении текста
-        /// </summary>
-        private void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
+        private async void TbBookSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
-            LoadAvailableBooks(TbBookSearch.Text.Trim());
+            await LoadAvailableBooksAsync(TbBookSearch.Text.Trim());
         }
 
-        /// <summary>
-        /// Кнопка поиска книг
-        /// </summary>
-        private void BtnSearchBook_Click(object sender, RoutedEventArgs e)
+        private async void BtnSearchBook_Click(object sender, RoutedEventArgs e)
         {
-            LoadAvailableBooks(TbBookSearch.Text.Trim());
+            await LoadAvailableBooksAsync(TbBookSearch.Text.Trim());
         }
 
-        /// <summary>
-        /// Кнопка очистки поиска
-        /// </summary>
-        private void BtnClearSearch_Click(object sender, RoutedEventArgs e)
+        private async void BtnClearSearch_Click(object sender, RoutedEventArgs e)
         {
             TbBookSearch.Clear();
-            LoadAvailableBooks();
+            await LoadAvailableBooksAsync();
         }
 
-        /// <summary>
-        /// Двойной клик по книге для добавления в заявку
-        /// </summary>
         private void DgAvailableBooks_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (DgAvailableBooks.SelectedItem is BookItem selectedBook)
                 AddBookToRequest(selectedBook);
         }
 
-        /// <summary>
-        /// Удаление книги из заявки
-        /// </summary>
         private void BtnRemoveBook_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.DataContext is SelectedBookItem selectedBook && _selectedBooks != null)
@@ -668,9 +716,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Изменение количества экземпляров книги
-        /// </summary>
         private void Quantity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
             if (sender is IntegerUpDown spinner && spinner.DataContext is SelectedBookItem book)
@@ -689,9 +734,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Кнопка отмены - возврат на предыдущую страницу
-        /// </summary>
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -712,15 +754,10 @@ namespace Diplom_Bibl.Pages
 
         #region Валидация и отправка заявки
 
-        /// <summary>
-        /// Валидация формы перед отправкой
-        /// </summary>
         private bool ValidateForm()
         {
-            // Для преподавателя (тип 3) — полная валидация всех полей
             if (_currentUserTypeId == 3)
             {
-                // Проверка названия занятия
                 if (string.IsNullOrWhiteSpace(TbLessonName.Text))
                 {
                     CustomMessageBox.Show("Введите название занятия/предмета.", "Ошибка",
@@ -728,7 +765,6 @@ namespace Diplom_Bibl.Pages
                     return false;
                 }
 
-                // Проверка даты занятия
                 if (!DpLessonDateSimple.SelectedDate.HasValue)
                 {
                     CustomMessageBox.Show("Выберите дату занятия.", "Ошибка",
@@ -736,7 +772,6 @@ namespace Diplom_Bibl.Pages
                     return false;
                 }
 
-                // Дату нельзя выбрать раньше сегодня
                 if (DpLessonDateSimple.SelectedDate.Value.Date < DateTime.Today)
                 {
                     CustomMessageBox.Show("Дата занятия не может быть раньше сегодняшнего дня.", "Ошибка",
@@ -744,15 +779,16 @@ namespace Diplom_Bibl.Pages
                     return false;
                 }
 
-                // Для преподавателя обязателен выбор группы
-                if (CbGroup.SelectedItem == null)
+                // НОВАЯ ПРОВЕРКА: выбранная группа
+                int? selectedGroupId = GetSelectedGroupId();
+                if (selectedGroupId == null || selectedGroupId <= 0)
                 {
-                    CustomMessageBox.Show("Выберите группу.", "Ошибка",
+                    CustomMessageBox.Show("Выберите группу из списка или введите корректный код группы.", "Ошибка",
                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CbGroup.Focus();
                     return false;
                 }
 
-                // Проверка выбора пары
                 if (CbLessonPeriod.SelectedItem == null)
                 {
                     CustomMessageBox.Show("Выберите пару / время занятия.", "Ошибка",
@@ -761,7 +797,6 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            // Проверка наличия выбранных книг — обязательна для всех пользователей
             if (_selectedBooks == null || _selectedBooks.Count == 0)
             {
                 CustomMessageBox.Show("Добавьте хотя бы одну книгу в заявку.", "Ошибка",
@@ -769,8 +804,7 @@ namespace Diplom_Bibl.Pages
                 return false;
             }
 
-            // Дополнительная проверка для читателя: убедиться, что количество книг не превышает ограничение (1 экземпляр на книгу)
-            if (_currentUserTypeId != 3) // Читатель
+            if (_currentUserTypeId != 3)
             {
                 foreach (var book in _selectedBooks)
                 {
@@ -786,59 +820,52 @@ namespace Diplom_Bibl.Pages
             return true;
         }
 
-
-        /// <summary>
-        /// Отправка заявки (основной метод сохранения)
-        /// </summary>
         private async void BtnSubmitRequest_Click(object sender, RoutedEventArgs e)
         {
-            // Валидация формы
             if (!ValidateForm()) return;
 
-            // Блокируем кнопку, чтобы избежать повторной отправки
             BtnSubmitRequest.IsEnabled = false;
 
             try
             {
-                // Получаем ID группы (только для преподавателей)
-                int? groupId = CbGroup.SelectedValue != null ? Convert.ToInt32(CbGroup.SelectedValue) : (int?)null;
+                ShowLoading(true);
 
-                // Дата занятия (без времени)
-                DateTime lessonDate = DpLessonDateSimple.SelectedDate.Value.Date;
+                int? groupId = GetSelectedGroupId();
+                DateTime lessonDate = DpLessonDateSimple.SelectedDate.HasValue
+                    ? DpLessonDateSimple.SelectedDate.Value.Date
+                    : DateTime.Today;
 
-                // Время занятия (выбранная пара)
                 string lessonTime = null;
                 if (CbLessonPeriod.SelectedItem is SchedulePeriodItem selectedPeriod)
                 {
                     lessonTime = selectedPeriod.StartTime;
                 }
 
-                // Генерация уникального номера заявки
                 string generatedNumber = GenerateUniqueRequestNumber();
 
-                // Подключение к базе данных
+                int requestId = 0;
+
                 using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
 
-                    // Начинаем транзакцию для согласованности данных
                     using (var transaction = conn.BeginTransaction())
                     {
                         try
                         {
+                            // 1. Создаем заявку
                             string insertRequestSql = @"
-     INSERT INTO BookRequests (
-         RequestNumber, UserID, UserTypeID, GroupID, LessonName, 
-         LessonDate, LessonTime, StatusID, RequestDate, ExpirationDate, CreatedDate
-     ) VALUES (
-         @RequestNumber, @UserID, @UserTypeID, @GroupID, @LessonName,
-         @LessonDate, @LessonTime, 
-         (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Новая'),
-         GETDATE(), DATEADD(DAY, 1, @LessonDate), GETDATE()
-     );
-     SELECT SCOPE_IDENTITY();";
+                        INSERT INTO BookRequests (
+                            RequestNumber, UserID, UserTypeID, GroupID, LessonName, 
+                            LessonDate, LessonTime, StatusID, RequestDate, ExpirationDate, CreatedDate
+                        ) VALUES (
+                            @RequestNumber, @UserID, @UserTypeID, @GroupID, @LessonName,
+                            @LessonDate, @LessonTime, 
+                            (SELECT ID_Status FROM RequestStatuses WHERE StatusName = 'Новая'),
+                            GETDATE(), DATEADD(DAY, 1, @LessonDate), GETDATE()
+                        );
+                        SELECT SCOPE_IDENTITY();";
 
-                            int requestId;
                             using (var cmd = new SqlCommand(insertRequestSql, conn, transaction))
                             {
                                 cmd.Parameters.AddWithValue("@RequestNumber", generatedNumber);
@@ -847,30 +874,24 @@ namespace Diplom_Bibl.Pages
                                 cmd.Parameters.AddWithValue("@GroupID", groupId.HasValue ? (object)groupId.Value : DBNull.Value);
                                 cmd.Parameters.AddWithValue("@LessonName", TbLessonName.Text.Trim());
                                 cmd.Parameters.Add("@LessonDate", SqlDbType.Date).Value = lessonDate;
+
                                 if (!string.IsNullOrWhiteSpace(lessonTime) && TimeSpan.TryParse(lessonTime, out TimeSpan parsedTime))
-                                    {
-                                    cmd.Parameters.Add("@LessonTime", SqlDbType.Time).Value = parsedTime;
-                                    }
-                                else
-                                    {
-                                    cmd.Parameters.Add("@LessonTime", SqlDbType.Time).Value = DBNull.Value;
-                                    }
-                                // Временная отладка — скопируй этот текст и выполни в SSMS
-                                System.Diagnostics.Debug.WriteLine("=== SQL DEBUG ===");
-                                System.Diagnostics.Debug.WriteLine(cmd.CommandText);
-                                foreach (SqlParameter p in cmd.Parameters)
                                 {
-                                    System.Diagnostics.Debug.WriteLine($"{p.ParameterName} = {p.Value} (Type: {p.SqlDbType})");
+                                    cmd.Parameters.Add("@LessonTime", SqlDbType.Time).Value = parsedTime;
                                 }
-                                System.Diagnostics.Debug.WriteLine("=== END SQL DEBUG ===");
+                                else
+                                {
+                                    cmd.Parameters.Add("@LessonTime", SqlDbType.Time).Value = DBNull.Value;
+                                }
+
                                 requestId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
                             }
 
-                            // 2. Вставка книг в заявку
+                            // 2. Добавляем книги в заявку
                             string insertItemsSql = @"
-                                INSERT INTO RequestItems (RequestID, BookID, Quantity, StatusID)
-                                VALUES (@RequestID, @BookID, @Quantity, 
-                                    (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Ожидает'))";
+                        INSERT INTO RequestItems (RequestID, BookID, Quantity, StatusID)
+                        VALUES (@RequestID, @BookID, @Quantity, 
+                            (SELECT ID_Status FROM RequestItemStatuses WHERE StatusName = 'Ожидает'))";
 
                             foreach (var book in _selectedBooks)
                             {
@@ -883,12 +904,12 @@ namespace Diplom_Bibl.Pages
                                 }
                             }
 
-                            // 3. Создание уведомления для библиотекаря
+                            // 3. Создаем уведомление для библиотекаря
                             string insertNotificationSql = @"
-                                INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
-                                VALUES (@RequestID, 
-                                    (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Новая заявка'),
-                                    @Message, 0, GETDATE())";
+                        INSERT INTO RequestNotifications (RequestID, NotificationTypeID, Message, IsRead, CreatedDate)
+                        VALUES (@RequestID, 
+                            (SELECT ID_Type FROM NotificationTypes WHERE TypeName = 'Новая заявка'),
+                            @Message, 0, GETDATE())";
 
                             using (var cmd = new SqlCommand(insertNotificationSql, conn, transaction))
                             {
@@ -897,51 +918,97 @@ namespace Diplom_Bibl.Pages
                                 await cmd.ExecuteNonQueryAsync();
                             }
 
-                            // Фиксируем транзакцию
                             transaction.Commit();
-
-                            // Сообщаем об успехе
-                            CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
-                                "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-
-                            // Очищаем форму
-                            ClearForm();
                         }
                         catch
                         {
-                            // В случае ошибки откатываем изменения
                             transaction.Rollback();
                             throw;
+                        }
+                    }
+                }
+
+                // ПОКАЗЫВАЕМ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЮ (СРАЗУ)
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\n",
+                        "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                });
+
+                // ОЧИЩАЕМ ФОРМУ
+                await ClearForm();
+
+                // ОБНОВЛЯЕМ УВЕДОМЛЕНИЯ В ФОНОВОМ ПОТОКЕ (без ожидания)
+                _ = Task.Run(async () =>
+                {
+                    // Даём время БД на сохранение
+                    await Task.Delay(500);
+                    await ForceUpdateNotificationsForLibrarians();
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка при создании заявки: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                ShowLoading(false);
+                BtnSubmitRequest.IsEnabled = true;
+            }
+        }
+
+        private async Task ForceUpdateNotificationsForLibrarians()
+        {
+            try
+            {
+                // Находим все открытые окна MainWindow
+                var mainWindows = Application.Current.Windows.OfType<MainWindow>();
+
+                foreach (var mainWindow in mainWindows)
+                {
+                    // Получаем сервис уведомлений через публичный метод или свойство
+                    // Если нет публичного доступа, используем рефлексию (медленно, но терпимо)
+                    var notificationServiceField = typeof(MainWindow).GetField("_notificationService",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                    if (notificationServiceField != null)
+                    {
+                        var notificationService = notificationServiceField.GetValue(mainWindow) as NotificationService;
+                        if (notificationService != null)
+                        {
+                            // ИСПРАВЛЕНО: Добавляем задержку перед проверкой
+                            await Task.Delay(100);
+                            await notificationService.CheckNewNotifications();
+                            System.Diagnostics.Debug.WriteLine("✅ Уведомления библиотекаря обновлены");
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка при создании заявки: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-            }
-            finally
-            {
-                // Разблокируем кнопку
-                BtnSubmitRequest.IsEnabled = true;
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка принудительного обновления уведомлений: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Очистка формы после успешного создания заявки
-        /// </summary>
-        private void ClearForm()
+        private async Task ClearForm()
         {
-            TbLessonName.Clear();
-            DpLessonDateSimple.SelectedDate = DateTime.Today;
-            CbLessonPeriod.SelectedIndex = -1;
-            CbGroup.SelectedIndex = -1;
-            if (_selectedBooks != null)
-                _selectedBooks.Clear();
-            DgSelectedBooks.ItemsSource = null;
-            UpdateTotalCount();
-            LoadAvailableBooks();
+            await Dispatcher.InvokeAsync(() =>
+            {
+                TbLessonName.Clear();
+                DpLessonDateSimple.SelectedDate = DateTime.Today;
+                CbLessonPeriod.SelectedIndex = -1;
+                CbGroup.SelectedIndex = -1;
+                CbGroup.Text = "";  // Очищаем текст поиска
+                if (_selectedBooks != null)
+                    _selectedBooks.Clear();
+                DgSelectedBooks.ItemsSource = null;
+                UpdateTotalCount();
+            });
+            await LoadAvailableBooksAsync();
         }
 
         #endregion

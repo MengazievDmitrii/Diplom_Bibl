@@ -33,6 +33,8 @@ namespace Diplom_Bibl.Windows
             Loaded += ComputerSessionWindow_Loaded;
         }
 
+        //загрузка окна записи на использование компьютером
+
         private void ComputerSessionWindow_Loaded(object sender, RoutedEventArgs e)
         {
             TbDateTime.Text = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
@@ -47,7 +49,11 @@ namespace Diplom_Bibl.Windows
             TbComputerNumber.Text = computerNumber;
             TbPurpose.Focus();
         }
-
+        /// <summary>
+        /// парсинг наименования компьютера из настроек системы
+        /// </summary>
+        /// <param name="machineName"></param>
+        /// <returns></returns>
         private string ParseComputerNumber(string machineName)
         {
             if (string.IsNullOrEmpty(machineName)) return "Неизвестно";
@@ -88,15 +94,15 @@ namespace Diplom_Bibl.Windows
                 TbPurpose.IsEnabled = false;
                 LockMinimizeButton();
 
-                CustomMessageBox.Show("Вы успешно зарегистрированы!\n\nОкно будет заблокировано. Для завершения сессии используйте кнопку 'Выход' в меню.",
+                CustomMessageBox.Show("Вы успешно зарегистрированы!\n",
                     "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
-                if (_currentSessionId > 0)
-                {
-                    var mainWindow = Application.Current.MainWindow as MainWindow;
-                    if (mainWindow != null)
-                        await mainWindow.SendComputerSessionNotificationToLibrarian(_fullName, _groupCode);
-                }
+                //if (_currentSessionId > 0)
+                //{
+                //    var mainWindow = Application.Current.MainWindow as MainWindow;
+                //    if (mainWindow != null)
+                //        await mainWindow.SendComputerSessionNotificationToLibrarian(_fullName, _groupCode);
+                //}
             }
             catch (Exception ex)
             {

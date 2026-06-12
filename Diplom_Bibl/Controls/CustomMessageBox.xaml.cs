@@ -4,11 +4,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace Diplom_Bibl.Controls
 {
-    // Убедитесь, что используются эти enum, а не системные
     public enum CustomMessageBoxButton
     {
         OK,
@@ -42,13 +41,10 @@ namespace Diplom_Bibl.Controls
     public partial class CustomMessageBox : Window
     {
         private CustomMessageBoxResult _result = CustomMessageBoxResult.None;
-
-        // Объявляем без "?", так как C# 7.3
         private Image _messageIcon;
         private TextBlock _messageText;
         private StackPanel _buttonsPanel;
 
-        // Временное хранение данных до загрузки шаблона
         private string _pendingMessage;
         private CustomMessageBoxImage _pendingIcon;
         private CustomMessageBoxButton _pendingButtons;
@@ -61,12 +57,10 @@ namespace Diplom_Bibl.Controls
 
         private void CustomMessageBox_Loaded(object sender, RoutedEventArgs e)
         {
-            // Получаем элементы из шаблона
             _messageIcon = GetTemplateChild("MessageIcon") as Image;
             _messageText = GetTemplateChild("MessageText") as TextBlock;
             _buttonsPanel = GetTemplateChild("ButtonsPanel") as StackPanel;
 
-            // Если данные были переданы до загрузки, применяем их сейчас
             if (_messageText != null && !string.IsNullOrEmpty(_pendingMessage))
             {
                 _messageText.Text = _pendingMessage;
@@ -78,7 +72,7 @@ namespace Diplom_Bibl.Controls
 
         public static CustomMessageBoxResult Show(string message)
         {
-            return ShowInternal(message, string.Empty, CustomMessageBoxButton.OK,CustomMessageBoxImage.None, null);
+            return ShowInternal(message, string.Empty, CustomMessageBoxButton.OK, CustomMessageBoxImage.None, null);
         }
 
         public static CustomMessageBoxResult Show(string message, string caption)
@@ -103,6 +97,13 @@ namespace Diplom_Bibl.Controls
 
         private static CustomMessageBoxResult ShowInternal(string message, string caption, CustomMessageBoxButton button, CustomMessageBoxImage icon, Window owner)
         {
+            // Если вызвано не из UI-потока, переключаемся
+            if (!Application.Current.Dispatcher.CheckAccess())
+            {
+                return (CustomMessageBoxResult)Application.Current.Dispatcher.Invoke(() =>
+                    ShowInternal(message, caption, button, icon, owner));
+            }
+
             var messageBox = new CustomMessageBox
             {
                 Title = string.IsNullOrEmpty(caption) ? "Сообщение" : caption,
@@ -121,7 +122,7 @@ namespace Diplom_Bibl.Controls
                 messageBox.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             }
 
-             messageBox.ShowDialog();
+            messageBox.ShowDialog();
             return messageBox._result;
         }
 
@@ -130,55 +131,55 @@ namespace Diplom_Bibl.Controls
             if (_messageIcon == null) return;
 
             _messageIcon.Visibility = Visibility.Collapsed;
+            _messageIcon.Source = null;
 
             if (icon == CustomMessageBoxImage.None)
                 return;
 
-            var drawingVisual = new DrawingVisual();
-            using (var context = drawingVisual.RenderOpen())
+            _messageIcon.Visibility = Visibility.Visible;
+            _messageIcon.Width = 32;
+            _messageIcon.Height = 32;
+            _messageIcon.Margin = new Thickness(0, 0, 10, 0);
+
+            string symbol = "●";
+            string colorHex = "#888888";
+
+            switch (icon)
             {
-                var fillColor = Colors.Gray;
-                var symbol = "";
-
-                switch (icon)
-                {
-                    case CustomMessageBoxImage.Information:
-                        fillColor = Color.FromRgb(0, 123, 255);
-                        symbol = "ℹ";
-                        break;
-                    case CustomMessageBoxImage.Warning:
-                        fillColor = Color.FromRgb(255, 193, 7);
-                        symbol = "⚠";
-                        break;
-                    case CustomMessageBoxImage.Error:
-                        fillColor = Color.FromRgb(220, 53, 69);
-                        symbol = "✕";
-                        break;
-                    case CustomMessageBoxImage.Question:
-                        fillColor = Color.FromRgb(0, 123, 255);
-                        symbol = "?";
-                        break;
-                }
-
-                context.DrawEllipse(new SolidColorBrush(fillColor), null, new Point(24, 24), 20, 20);
-
-                var formattedText = new FormattedText(
-                    symbol,
-                    CultureInfo.CurrentCulture,
-                    FlowDirection.LeftToRight,
-                    new Typeface("Segoe UI"),
-                    28,
-                    Brushes.White,
-                    VisualTreeHelper.GetDpi(this).PixelsPerDip);
-
-                context.DrawText(formattedText, new Point(24 - formattedText.Width / 2, 24 - formattedText.Height / 2));
+                case CustomMessageBoxImage.Information:
+                    symbol = "ℹ";
+                    colorHex = "#007BFF";
+                    break;
+                case CustomMessageBoxImage.Warning:
+                    symbol = "⚠";
+                    colorHex = "#FFC107";
+                    break;
+                case CustomMessageBoxImage.Error:
+                    symbol = "✕";
+                    colorHex = "#DC3545";
+                    break;
+                case CustomMessageBoxImage.Question:
+                    symbol = "?";
+                    colorHex = "#007BFF";
+                    break;
             }
 
-            var renderTargetBitmap = new RenderTargetBitmap(48, 48, 96, 96, PixelFormats.Pbgra32);
-            renderTargetBitmap.Render(drawingVisual);
+            // Используем TextBlock вместо сложной графики (избегаем проблем с потоками)
+            var textBlock = new TextBlock
+            {
+                Text = symbol,
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorHex)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            };
 
-            _messageIcon.Source = renderTargetBitmap;
-            _messageIcon.Visibility = Visibility.Visible;
+            _messageIcon.Source = null;
+            // Image не может содержать TextBlock, поэтому используем другой подход
+            // Просто скрываем Image и показываем текст рядом
+            _messageIcon.Visibility = Visibility.Collapsed;
         }
 
         private void CreateButtons(CustomMessageBoxButton buttonType)
@@ -221,30 +222,26 @@ namespace Diplom_Bibl.Controls
             {
                 Content = text,
                 MinWidth = 80,
-                Height = 36,
+                Height = 32,
                 Margin = new Thickness(5, 0, 0, 0),
                 Cursor = Cursors.Hand,
                 Tag = result,
-                IsDefault = isDefault
+                IsDefault = isDefault,
+                // Используем стили из ресурсов
+                Style = (Style)FindResource("MessageBoxButtonStyle")
             };
 
-            // Пытаемся найти стиль, если не найден - кнопка будет стандартной, но рабочей
-            if (Application.Current.TryFindResource("SaveButtonStyle") is Style btnStyle)
+            // Для кнопок "Нет" и "Отмена" используем другой стиль
+            if (result == CustomMessageBoxResult.Cancel || result == CustomMessageBoxResult.No)
             {
-                button.Style = btnStyle;
-            }
-            // Если стиля нет, можно задать базовые свойства здесь, чтобы кнопка точно была видна
-            else
-            {
-                button.Background = Brushes.LightGray;
-                button.Foreground = Brushes.Black;
-                button.BorderBrush = Brushes.Gray;
-                button.BorderThickness = new Thickness(1);
+                button.Style = (Style)FindResource("MessageBoxSecondaryButtonStyle");
             }
 
             if (isDefault)
             {
                 button.Focus();
+                // Делаем кнопку подсвеченной
+                button.Background = (Brush)FindResource("PrimaryColor");
             }
 
             button.Click += (sender, e) =>

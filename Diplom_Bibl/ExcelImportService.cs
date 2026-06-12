@@ -5,41 +5,52 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Text;
 using System.Windows;
+using Diplom_Bibl.Controls;
 using ExcelDataReader;
 
 namespace Diplom_Bibl.Services
 {
+    /// <summary>
+    /// Сервис для импорта читателей из Excel/CSV файлов
+    /// При импорте автоматически создаются учётные записи пользователей
+    /// Логин и пароль = номер читательского билета
+    /// </summary>
     public class ExcelImportService
     {
         private readonly string _connectionString;
 
-        // Результат импорта
+        /// <summary>
+        /// Результат импорта - содержит статистику, ошибки, предупреждения и учётные данные
+        /// </summary>
         public class ImportResult
         {
-            public int TotalRows { get; set; }
-            public int SuccessRows { get; set; }
-            public int ErrorRows { get; set; }
-            public List<string> Errors { get; set; } = new List<string>();
-            public List<string> Warnings { get; set; } = new List<string>();
-            public List<string> UserCredentials { get; set; } = new List<string>(); // Уже есть
-            public bool HasErrors => Errors.Count > 0;
+            public int TotalRows { get; set; }          // Всего строк в файле
+            public int SuccessRows { get; set; }        // Успешно импортировано
+            public int ErrorRows { get; set; }          // Строк с ошибками
+            public List<string> Errors { get; set; } = new List<string>();     // Список ошибок
+            public List<string> Warnings { get; set; } = new List<string>();   // Список предупреждений
+            public List<string> UserCredentials { get; set; } = new List<string>(); // Логины/пароли
+            public bool HasErrors => Errors.Count > 0;  // Есть ли ошибки
         }
-        // Модель данных из Excel
+
+        /// <summary>
+        /// Модель данных одной строки из Excel/CSV
+        /// </summary>
         public class ExcelReaderRow
         {
-            public string CardNumber { get; set; }
-            public string LastName { get; set; }
-            public string FirstName { get; set; }
-            public string MiddleName { get; set; }
-            public string TypeName { get; set; }
-            public string GroupCode { get; set; }
-            public string PostName { get; set; }
-            public string Speciality { get; set; }
-            public string PhoneNumber { get; set; }
-            public string HomeAddress { get; set; }
-            public string MembershipStartDate { get; set; }
-            public string FormFillDate { get; set; }
-            public int RowNumber { get; set; }
+            public string CardNumber { get; set; }          // Номер читательского билета
+            public string LastName { get; set; }            // Фамилия
+            public string FirstName { get; set; }           // Имя
+            public string MiddleName { get; set; }          // Отчество
+            public string TypeName { get; set; }            // Тип читателя (Студент/Сотрудник)
+            public string GroupCode { get; set; }           // Код группы (для студентов)
+            public string PostName { get; set; }            // Должность (для сотрудников)
+            public string Speciality { get; set; }          // Специальность
+            public string PhoneNumber { get; set; }         // Телефон
+            public string HomeAddress { get; set; }         // Домашний адрес
+            public string MembershipStartDate { get; set; } // Дата начала членства
+            public string FormFillDate { get; set; }        // Дата оформления билета
+            public int RowNumber { get; set; }              // Номер строки в файле (для сообщений)
         }
 
         public ExcelImportService(string connectionString)
@@ -47,6 +58,9 @@ namespace Diplom_Bibl.Services
             _connectionString = connectionString;
         }
 
+        /// <summary>
+        /// Импорт из Excel файла (.xlsx, .xls)
+        /// </summary>
         public ImportResult ImportFromFile(string filePath)
         {
             var result = new ImportResult();
@@ -65,6 +79,7 @@ namespace Diplom_Bibl.Services
                     }
                     catch
                     {
+                        // Если не получилось прочитать как Excel - пробуем как CSV
                         return ImportFromCsv(filePath);
                     }
 
@@ -74,7 +89,7 @@ namespace Diplom_Bibl.Services
                         {
                             ConfigureDataTable = _ => new ExcelDataTableConfiguration()
                             {
-                                UseHeaderRow = true
+                                UseHeaderRow = true  // Первая строка - заголовки
                             }
                         });
 
@@ -98,6 +113,9 @@ namespace Diplom_Bibl.Services
             return result;
         }
 
+        /// <summary>
+        /// Проверка наличия обязательных колонок в файле
+        /// </summary>
         private void ValidateColumns(DataTable dt, ImportResult result)
         {
             var requiredColumns = new[] {
@@ -132,6 +150,9 @@ namespace Diplom_Bibl.Services
             }
         }
 
+        /// <summary>
+        /// Парсинг строки данных в объект ExcelReaderRow
+        /// </summary>
         private ExcelReaderRow ParseRow(DataRow row, int rowNumber)
         {
             var result = new ExcelReaderRow();
@@ -141,6 +162,7 @@ namespace Diplom_Bibl.Services
                 string colName = col.ColumnName.Trim().ToLower().Replace(" ", "");
                 string value = row[col]?.ToString()?.Trim() ?? "";
 
+                // Маппинг колонок (поддержка разных вариантов написания)
                 switch (colName)
                 {
                     case "номерчитательскогобилета":
@@ -199,10 +221,14 @@ namespace Diplom_Bibl.Services
             return result;
         }
 
+        /// <summary>
+        /// Валидация строки перед импортом
+        /// </summary>
         private bool ValidateRow(ExcelReaderRow row, ImportResult result)
         {
             bool isValid = true;
 
+            // Проверка обязательных полей
             if (string.IsNullOrWhiteSpace(row.CardNumber))
             {
                 result.Errors.Add($"Строка {row.RowNumber}: Не указан номер читательского билета");
@@ -227,6 +253,7 @@ namespace Diplom_Bibl.Services
                 isValid = false;
             }
 
+            // Проверка уникальности номера билета
             if (!string.IsNullOrWhiteSpace(row.CardNumber))
             {
                 if (CheckCardNumberExists(row.CardNumber))
@@ -239,6 +266,9 @@ namespace Diplom_Bibl.Services
             return isValid;
         }
 
+        /// <summary>
+        /// Проверка существования номера читательского билета в БД
+        /// </summary>
         private bool CheckCardNumberExists(string cardNumber)
         {
             using (var conn = new SqlConnection(_connectionString))
@@ -253,6 +283,9 @@ namespace Diplom_Bibl.Services
             }
         }
 
+        /// <summary>
+        /// Проверка существования логина в БД (номер билета)
+        /// </summary>
         private bool CheckLoginExists(string login)
         {
             using (var conn = new SqlConnection(_connectionString))
@@ -267,53 +300,53 @@ namespace Diplom_Bibl.Services
             }
         }
 
-        private string GenerateLogin(string lastName, string firstName)
-        {
-            // Логин = Фамилия + Имя (например: ИвановИван)
-            string login = lastName + firstName;
-
-            // Убираем пробелы и лишние символы
-            login = login.Replace(" ", "").Replace("-", "");
-
-            // Проверяем уникальность
-            string uniqueLogin = login;
-            int counter = 1;
-
-            while (CheckLoginExists(uniqueLogin))
-            {
-                uniqueLogin = login + counter.ToString();
-                counter++;
-            }
-
-            return uniqueLogin;
-        }
-
+        /// <summary>
+        /// Генерация пароля (номер билета, минимум 4 символа)
+        /// Если номер короче 4 символов, добавляем "lib" в начало
+        /// </summary>
         private string GeneratePassword(string cardNumber)
         {
             string password = cardNumber.Trim();
-
-            // Если пароль короче 4 символов, добавляем "lib" в начало
             if (password.Length < 4)
             {
                 password = "lib" + password;
             }
-
             return password;
         }
 
+        /// <summary>
+        /// Создание учётной записи пользователя и назначение роли READER
+        /// Логин и пароль = номер читательского билета
+        /// </summary>
         private void CreateUserForReader(SqlConnection conn, SqlTransaction transaction, int readerId, string surname, string name, string patronymic, string cardNumber, ExcelReaderRow row, ImportResult result)
         {
             try
             {
-                string login = GenerateLogin(surname, name);
+                // Логин = номер читательского билета
+                string login = cardNumber.Trim();
+
+                // Пароль = номер читательского билета (с возможным дополнением до 4 символов)
                 string plainPassword = GeneratePassword(cardNumber);
+
+                // Хэшируем пароль с помощью BCrypt
                 string passwordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
 
-                string query = @"
-            INSERT INTO Users (Surname, Name, Patronymic, Login, PasswordHash, ReaderID)
-            VALUES (@Surname, @Name, @Patronymic, @Login, @PasswordHash, @ReaderID)";
+                // Проверяем уникальность логина (номер билета должен быть уникальным)
+                // Это уже проверено в ValidateRow, но на всякий случай проверяем ещё раз
+                if (CheckLoginExists(login))
+                {
+                    result.Warnings.Add($"Строка {row.RowNumber}: Учётная запись с номером {login} уже существует. Пропущено.");
+                    return;
+                }
 
-                using (var cmd = new SqlCommand(query, conn, transaction)) // Добавлен transaction
+                // Вставляем пользователя
+                string userQuery = @"
+                    INSERT INTO Users (Surname, Name, Patronymic, Login, PasswordHash, ReaderID)
+                    VALUES (@Surname, @Name, @Patronymic, @Login, @PasswordHash, @ReaderID);
+                    SELECT SCOPE_IDENTITY();";
+
+                int userId = 0;
+                using (var cmd = new SqlCommand(userQuery, conn, transaction))
                 {
                     cmd.Parameters.AddWithValue("@Surname", surname);
                     cmd.Parameters.AddWithValue("@Name", name);
@@ -321,12 +354,44 @@ namespace Diplom_Bibl.Services
                     cmd.Parameters.AddWithValue("@Login", login);
                     cmd.Parameters.AddWithValue("@PasswordHash", passwordHash);
                     cmd.Parameters.AddWithValue("@ReaderID", readerId);
-                    cmd.ExecuteNonQuery();
+                    object resultObj = cmd.ExecuteScalar();
+                    if (resultObj != null && resultObj != DBNull.Value)
+                    {
+                        userId = Convert.ToInt32(resultObj);
+                    }
                 }
 
-                // Сохраняем данные для входа в результат
-                string loginByName = GenerateLogin(surname, name);
-                result.UserCredentials.Add($"Читатель {surname} {name} (билет №{cardNumber}): Логин = {loginByName}, Пароль = {plainPassword}");
+                if (userId > 0)
+                {
+                    // Получаем ID роли READER
+                    string roleQuery = "SELECT ID_Role FROM UserRoles WHERE RoleCode = 'READER'";
+                    int readerRoleId = 0;
+                    using (var cmd = new SqlCommand(roleQuery, conn, transaction))
+                    {
+                        object resultObj = cmd.ExecuteScalar();
+                        if (resultObj != null && resultObj != DBNull.Value)
+                        {
+                            readerRoleId = Convert.ToInt32(resultObj);
+                        }
+                    }
+
+                    // Назначаем роль пользователю
+                    if (readerRoleId > 0)
+                    {
+                        string assignRoleQuery = @"
+                            INSERT INTO UserRolesAssignments (ID_User, ID_Role)
+                            VALUES (@UserId, @RoleId)";
+                        using (var cmd = new SqlCommand(assignRoleQuery, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@UserId", userId);
+                            cmd.Parameters.AddWithValue("@RoleId", readerRoleId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Сохраняем учётные данные для отображения пользователю
+                    result.UserCredentials.Add($"{surname} {name} (билет №{cardNumber}): Логин = {login}, Пароль = {plainPassword}");
+                }
             }
             catch (Exception ex)
             {
@@ -334,13 +399,15 @@ namespace Diplom_Bibl.Services
             }
         }
 
+        /// <summary>
+        /// Импорт одного читателя в БД (в транзакции)
+        /// </summary>
         private void ImportReader(ExcelReaderRow row, ImportResult result)
         {
             using (var conn = new SqlConnection(_connectionString))
             {
                 conn.Open();
 
-                // Начинаем транзакцию
                 using (var transaction = conn.BeginTransaction())
                 {
                     try
@@ -348,8 +415,10 @@ namespace Diplom_Bibl.Services
                         bool isStudent = row.TypeName.ToLower().Contains("студент");
                         bool isEmployee = row.TypeName.ToLower().Contains("сотрудник");
 
+                        // Получаем ID типа читателя
                         int typeId = GetReaderTypeId(conn, row.TypeName, transaction);
 
+                        // Для студента - получаем ID группы
                         int? groupId = null;
                         if (isStudent && !string.IsNullOrWhiteSpace(row.GroupCode))
                         {
@@ -360,6 +429,7 @@ namespace Diplom_Bibl.Services
                             }
                         }
 
+                        // Для сотрудника - получаем ID должности
                         int? postId = null;
                         if (isEmployee && !string.IsNullOrWhiteSpace(row.PostName))
                         {
@@ -370,21 +440,22 @@ namespace Diplom_Bibl.Services
                             }
                         }
 
+                        // Парсим даты (если не указаны - текущая дата)
                         DateTime membershipStartDate = ParseDate(row.MembershipStartDate, DateTime.Today);
                         DateTime formFillDate = ParseDate(row.FormFillDate, DateTime.Today);
 
                         // Вставка читателя
                         string query = @"
-                    INSERT INTO ReaderForm (
-                        CardNumber, LastName, FirstName, MiddleName,
-                        TypeID, GroupID, Post, Speciality,
-                        PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
-                    ) VALUES (
-                        @CardNumber, @LastName, @FirstName, @MiddleName,
-                        @TypeID, @GroupID, @Post, @Speciality,
-                        @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
-                    );
-                    SELECT SCOPE_IDENTITY();";
+                            INSERT INTO ReaderForm (
+                                CardNumber, LastName, FirstName, MiddleName,
+                                TypeID, GroupID, Post, Speciality,
+                                PhoneNumber, HomeAddress, MembershipStartDate, FormFillDate
+                            ) VALUES (
+                                @CardNumber, @LastName, @FirstName, @MiddleName,
+                                @TypeID, @GroupID, @Post, @Speciality,
+                                @PhoneNumber, @HomeAddress, @MembershipStartDate, @FormFillDate
+                            );
+                            SELECT SCOPE_IDENTITY();";
 
                         int newReaderId = 0;
 
@@ -403,12 +474,16 @@ namespace Diplom_Bibl.Services
                             cmd.Parameters.AddWithValue("@MembershipStartDate", membershipStartDate);
                             cmd.Parameters.AddWithValue("@FormFillDate", formFillDate);
 
-                            newReaderId = Convert.ToInt32(cmd.ExecuteScalar());
+                            object resultObj = cmd.ExecuteScalar();
+                            if (resultObj != null && resultObj != DBNull.Value)
+                            {
+                                newReaderId = Convert.ToInt32(resultObj);
+                            }
                         }
 
                         if (newReaderId > 0)
                         {
-                            // Создаём учётную запись пользователя - передаём transaction
+                            // Создаём учётную запись пользователя
                             CreateUserForReader(conn, transaction, newReaderId, row.LastName, row.FirstName, row.MiddleName, row.CardNumber, row, result);
                         }
 
@@ -416,6 +491,7 @@ namespace Diplom_Bibl.Services
                     }
                     catch (Exception ex)
                     {
+                        CustomMessageBox.Show("Ошибка при импорте данных: " + ex.Message);
                         transaction.Rollback();
                         throw;
                     }
@@ -423,29 +499,38 @@ namespace Diplom_Bibl.Services
             }
         }
 
+        /// <summary>
+        /// Получение ID типа читателя по названию
+        /// Сначала ищем точное совпадение, потом по вхождению, по умолчанию - студент (1)
+        /// </summary>
         private int GetReaderTypeId(SqlConnection conn, string typeName, SqlTransaction transaction)
         {
+            // Прямое совпадение
             string query = "SELECT TypeID FROM ReaderType WHERE TypeName = @TypeName";
             using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@TypeName", typeName);
                 var result = cmd.ExecuteScalar();
-                if (result != null)
+                if (result != null && result != DBNull.Value)
                     return Convert.ToInt32(result);
             }
 
+            // Поиск по вхождению (например, "Студент" найдёт "Студент очной формы")
             query = "SELECT TOP 1 TypeID FROM ReaderType WHERE @TypeName LIKE '%' + TypeName + '%' OR TypeName LIKE '%' + @TypeName + '%'";
             using (var cmd = new SqlCommand(query, conn, transaction))
             {
                 cmd.Parameters.AddWithValue("@TypeName", typeName);
                 var result = cmd.ExecuteScalar();
-                if (result != null)
+                if (result != null && result != DBNull.Value)
                     return Convert.ToInt32(result);
             }
 
-            return 1;
+            return 1; // По умолчанию - студент
         }
 
+        /// <summary>
+        /// Получение ID группы по коду
+        /// </summary>
         private int? GetGroupId(SqlConnection conn, string groupCode, SqlTransaction transaction)
         {
             string query = "SELECT GroupID FROM Groups WHERE GroupCode = @GroupCode";
@@ -453,10 +538,13 @@ namespace Diplom_Bibl.Services
             {
                 cmd.Parameters.AddWithValue("@GroupCode", groupCode);
                 var result = cmd.ExecuteScalar();
-                return result != null ? Convert.ToInt32(result) : (int?)null;
+                return result != null && result != DBNull.Value ? Convert.ToInt32(result) : (int?)null;
             }
         }
 
+        /// <summary>
+        /// Получение ID должности по названию
+        /// </summary>
         private int? GetPostId(SqlConnection conn, string postName, SqlTransaction transaction)
         {
             string query = "SELECT ID_Post FROM Post WHERE Post_Name = @PostName";
@@ -464,10 +552,14 @@ namespace Diplom_Bibl.Services
             {
                 cmd.Parameters.AddWithValue("@PostName", postName);
                 var result = cmd.ExecuteScalar();
-                return result != null ? Convert.ToInt32(result) : (int?)null;
+                return result != null && result != DBNull.Value ? Convert.ToInt32(result) : (int?)null;
             }
         }
 
+        /// <summary>
+        /// Парсинг даты из строки с поддержкой разных форматов
+        /// Поддерживаются форматы: ДД.ММ.ГГГГ, ДД/ММ/ГГГГ, ГГГГ-ММ-ДД и другие
+        /// </summary>
         private DateTime ParseDate(string dateString, DateTime defaultValue)
         {
             if (string.IsNullOrWhiteSpace(dateString))
@@ -492,6 +584,9 @@ namespace Diplom_Bibl.Services
             return defaultValue;
         }
 
+        /// <summary>
+        /// Импорт из CSV файла
+        /// </summary>
         public ImportResult ImportFromCsv(string filePath)
         {
             var result = new ImportResult();
@@ -558,6 +653,9 @@ namespace Diplom_Bibl.Services
             return result;
         }
 
+        /// <summary>
+        /// Парсинг CSV строки с учётом кавычек (поддержка полей, содержащих запятые)
+        /// </summary>
         private string[] ParseCsvLine(string line)
         {
             var result = new List<string>();
@@ -570,6 +668,7 @@ namespace Diplom_Bibl.Services
 
                 if (c == '"')
                 {
+                    // Экранирование кавычек внутри поля
                     if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
                     {
                         current.Append('"');
@@ -595,16 +694,23 @@ namespace Diplom_Bibl.Services
             return result.ToArray();
         }
 
+        /// <summary>
+        /// Обработка DataTable - построчный импорт
+        /// </summary>
         private void ProcessDataTable(System.Data.DataTable dt, ImportResult result)
         {
+            // Проверяем наличие обязательных колонок
             ValidateColumns(dt, result);
+
+            // Если есть критические ошибки и нет данных - выходим
             if (result.HasErrors && result.Errors.Count > 0 && dt.Rows.Count == 0) return;
 
+            // Обрабатываем каждую строку
             for (int i = 0; i < dt.Rows.Count; i++)
             {
                 try
                 {
-                    var row = ParseRow(dt.Rows[i], i + 2);
+                    var row = ParseRow(dt.Rows[i], i + 2); // +2 потому что 1 - заголовок, а индексация с 0
                     row.RowNumber = i + 2;
 
                     if (ValidateRow(row, result))

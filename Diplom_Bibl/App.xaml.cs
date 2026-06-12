@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Diplom_Bibl
 {
@@ -20,8 +22,54 @@ namespace Diplom_Bibl
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            DispatcherUnhandledException += App_DispatcherUnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
         }
-    }
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            var exception = e.ExceptionObject as Exception;
+            ShowFatalError(exception?.Message ?? "Неизвестная ошибка");
+        }
+
+        private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            ShowFatalError(e.Exception.Message);
+            e.Handled = true;
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            ShowFatalError(e.Exception.Message);
+            e.SetObserved();
+        }
+
+        private void ShowFatalError(string message)
+        {
+            try
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    var result = CustomMessageBox.Show(
+                        $"Программа не отвечает.\n\nОшибка: {message}\n\nРекомендуется перезапустить приложение.\n\nНажмите ОК для выхода.",
+                        "Критическая ошибка",
+                        CustomMessageBoxButton.OK,
+                        CustomMessageBoxImage.Error);
+
+                    if (result == CustomMessageBoxResult.OK)
+                    {
+                        Shutdown();
+                    }
+                });
+            }
+            catch
+            {
+                // Если не удалось показать сообщение, просто выходим
+                Environment.Exit(1);
+            }
+        }
+    
+}
     public class BoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

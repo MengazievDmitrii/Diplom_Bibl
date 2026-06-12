@@ -4,7 +4,10 @@
              xmlns:local="clr-namespace:Diplom_Bibl"
              StartupUri="Windows/AutorisationWindow.xaml">
     <Application.Resources>
-        <local:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter"/>
+        <!-- Убедитесь, что класс InvertBoolToVisibilityConverter реализован в пространстве имен Diplom_Bibl
+             и что проект успешно компилируется. Если класса нет, удалите или закомментируйте следующую строку: -->
+         <!--<local:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter"/>-->
+        <BooleanToVisibilityConverter x:Key="InverseBooleanConverter"/>
 
         <!-- Цвета -->
         <SolidColorBrush x:Key="PrimaryColor" Color="#0056B3"/>

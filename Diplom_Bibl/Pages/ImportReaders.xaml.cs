@@ -20,6 +20,9 @@ namespace Diplom_Bibl.Pages
 
             // Важно для поддержки русского языка в CSV
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+            // Изначально кнопка импорта заблокирована
+            ImportButton.IsEnabled = false;
         }
 
         private void BrowseButton_Click(object sender, RoutedEventArgs e)
@@ -38,21 +41,51 @@ namespace Diplom_Bibl.Pages
                 // Очищаем предыдущие результаты
                 ClearResults();
             }
+            else
+            {
+                // Если пользователь отменил выбор файла, но в поле уже есть текст,
+                // проверяем, существует ли файл
+                if (!string.IsNullOrEmpty(FilePathTextBox.Text) && !File.Exists(FilePathTextBox.Text))
+                {
+                    FilePathTextBox.Text = "";
+                    ImportButton.IsEnabled = false;
+                    CustomMessageBox.Show("Выбранный файл не найден. Пожалуйста, выберите файл заново.",
+                        "Файл не найден", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                }
+            }
+        }
+
+        private void FilePathTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Если пользователь вручную очистил поле - блокируем кнопку импорта
+            if (string.IsNullOrWhiteSpace(FilePathTextBox.Text))
+            {
+                ImportButton.IsEnabled = false;
+            }
+            else
+            {
+                // Если в поле есть текст, проверяем существование файла
+                ImportButton.IsEnabled = File.Exists(FilePathTextBox.Text);
+            }
         }
 
         private async void ImportButton_Click(object sender, RoutedEventArgs e)
         {
+            // Проверка: выбран ли файл
             if (string.IsNullOrEmpty(FilePathTextBox.Text))
             {
-                 CustomMessageBox.Show("Выберите файл для импорта.", "Ошибка",
+                CustomMessageBox.Show("Выберите файл для импорта.", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
+            // Проверка: существует ли файл
             if (!File.Exists(FilePathTextBox.Text))
             {
-                 CustomMessageBox.Show("Файл не найден.", "Ошибка",
+                CustomMessageBox.Show("Файл не найден. Пожалуйста, выберите файл заново.", "Ошибка",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                FilePathTextBox.Text = "";
+                ImportButton.IsEnabled = false;
                 return;
             }
 
@@ -86,18 +119,27 @@ namespace Diplom_Bibl.Pages
 
                 // Отображаем результаты
                 DisplayResults(result);
+
+                // Если импорт был успешным, очищаем поле выбора файла
+                if (result.SuccessRows > 0)
+                {
+                    FilePathTextBox.Text = "";
+                    ImportButton.IsEnabled = false;
+                }
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при импорте: {ex.Message}\n\nПопробуйте сохранить файл в формате CSV.",
+                CustomMessageBox.Show($"Ошибка при импорте: {ex.Message}\n\nПопробуйте сохранить файл в формате CSV.",
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             finally
             {
                 // Разблокируем кнопки
-                ImportButton.IsEnabled = true;
                 BrowseButton.IsEnabled = true;
                 ImportButton.Content = "📥 Импортировать";
+
+                // Повторно проверяем состояние кнопки импорта
+                ImportButton.IsEnabled = !string.IsNullOrEmpty(FilePathTextBox.Text) && File.Exists(FilePathTextBox.Text);
             }
         }
 
@@ -130,21 +172,23 @@ namespace Diplom_Bibl.Pages
             // Показываем данные для входа
             if (result.UserCredentials.Count > 0)
             {
-                string credentialsMessage = "Созданы учётные записи для следующих читателей:\n\n" +
-                                            string.Join("\n", result.UserCredentials);
+                string credentialsMessage = "✅ Созданы учётные записи для следующих читателей:\n\n" +
+                                            string.Join("\n", result.UserCredentials) +
+                                            "\n\n🔑 Роль: Читатель (READER)";
 
                 CustomMessageBox.Show(credentialsMessage, "Данные для входа",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
 
             string message = result.HasErrors
-                ? $"Импорт завершен с ошибками.\nУспешно: {result.SuccessRows}, Ошибок: {result.ErrorRows}"
-                : $"Импорт успешно завершен!\nДобавлено читателей: {result.SuccessRows}";
+                ? $"⚠️ Импорт завершен с ошибками.\n✅ Успешно: {result.SuccessRows}, ❌ Ошибок: {result.ErrorRows}"
+                : $"✅ Импорт успешно завершен!\n📚 Добавлено читателей: {result.SuccessRows}\n🔑 Для всех созданы учётные записи с ролью 'Читатель'";
 
             CustomMessageBox.Show(message, "Результат импорта",
                 CustomMessageBoxButton.OK,
                 result.HasErrors ? CustomMessageBoxImage.Warning : CustomMessageBoxImage.Information);
         }
+
         private void ClearResults()
         {
             TotalRowsText.Text = "0";
@@ -189,14 +233,19 @@ namespace Diplom_Bibl.Pages
 
                 File.WriteAllText(filePath, template.ToString(), Encoding.UTF8);
 
-                 CustomMessageBox.Show($"CSV шаблон сохранён:\n{filePath}\n\n" +
-                               "Заполните данные и сохраните файл.\n\n" +
-                               "💡 Подсказка: Для Excel откройте этот CSV файл и сохраните как XLSX.",
+                CustomMessageBox.Show($"CSV шаблон сохранён:\n{filePath}\n\n" +
+                    "Заполните данные и сохраните файл.\n\n" +
+                    "💡 Подсказка: Для Excel откройте этот CSV файл и сохраните как XLSX.\n\n" +
+                    "🔐 При импорте для каждого читателя автоматически:\n" +
+                    "• Создаётся учётная запись\n" +
+                    "• Логин = ФамилияИмя (например: ИвановИван)\n" +
+                    "• Пароль = номер читательского билета (например: 001)\n" +
+                    "• Назначается роль 'Читатель' (READER)",
                     "Шаблон создан", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при создании шаблона: {ex.Message}",
+                CustomMessageBox.Show($"Ошибка при создании шаблона: {ex.Message}",
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
@@ -205,6 +254,5 @@ namespace Diplom_Bibl.Pages
         {
             ClearResults();
         }
-
     }
 }

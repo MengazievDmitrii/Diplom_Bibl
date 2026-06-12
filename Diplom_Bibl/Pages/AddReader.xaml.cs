@@ -1236,7 +1236,7 @@ namespace Diplom_Bibl.Pages
                         {
                             using (var conn = new SqlConnection(connectionString))
                             {
-                                conn.Open();
+                                await conn.OpenAsync();
                                 using (var cmd = new SqlCommand("SELECT LastName, FirstName, MiddleName, CardNumber FROM ReaderForm WHERE ReaderID = @ReaderId", conn))
                                 {
                                     cmd.Parameters.AddWithValue("@ReaderId", _currentReaderId.Value);

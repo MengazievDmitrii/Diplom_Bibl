@@ -34,6 +34,10 @@ namespace Diplom_Bibl.Pages
 
         private bool _isSearchPlaceholderActive = true;
         private bool _isSearchProgrammatic = false;
+        private bool _isLoading = false;
+        private bool _isDataLoaded = false; 
+
+
 
         #endregion
 
@@ -87,6 +91,7 @@ namespace Diplom_Bibl.Pages
             public int TotalCopies { get; set; }
             public int AvailableCopies { get; set; }
             public int IssuedCopies { get; set; }
+            public int ReservedCopies { get; set; }
             public int DisposedCopies { get; set; }
             public string StatusName { get; set; } = "";
             public int? StatusID { get; set; }
@@ -94,6 +99,15 @@ namespace Diplom_Bibl.Pages
 
             private SolidColorBrush _statusColor;
             private string _statusText;
+            public int GetStatusIdForFilter()
+            {
+                if (AvailableCopies > 0) return 1;      // В наличии
+                if (IssuedCopies > 0) return 3;         // Выдана
+                if (DisposedCopies > 0) return 5;       // Списана
+                if (StatusID.HasValue && StatusID.Value == 4) return 4;  // Утрачена
+                if (StatusID.HasValue && StatusID.Value == 6) return 6;  // Зарезервирована
+                return 1;
+            }
 
             // Используем полное имя для Color, чтобы избежать конфликта
             public SolidColorBrush StatusColor
@@ -138,21 +152,29 @@ namespace Diplom_Bibl.Pages
 
             private int GetPriorityStatusId()
             {
-                if (StatusID.HasValue)
-                {
-                    int id = StatusID.Value;
-                    if (id == 5) return 5;
-                    if (id == 4) return 4;
-                    if (id == 3) return 3;
-                    if (id == 6) return 6;
-                    if (id == 1) return 1;
-                }
+                // Приоритет: В наличии > Выдана > Зарезервирована > Утрачена > Списана
 
-                if (DisposedCopies > 0) return 5;
-                if (AvailableCopies == 0 && IssuedCopies == 0 && DisposedCopies == 0) return 4;
-                if (IssuedCopies > 0) return 3;
-                if (AvailableCopies > 0 && IssuedCopies == 0 && DisposedCopies == 0) return 1;
-                return 6;
+                // Если есть хоть один доступный экземпляр — статус "В наличии"
+                if (AvailableCopies > 0)
+                    return 1;
+
+                // Если есть выданные экземпляры (и нет доступных)
+                if (IssuedCopies > 0)
+                    return 3;
+
+                // Если есть зарезервированные
+                if (StatusID.HasValue && StatusID.Value == 6)
+                    return 6;
+
+                // Если есть утраченные
+                if (StatusID.HasValue && StatusID.Value == 4)
+                    return 4;
+
+                // Если есть списанные (и нет других статусов)
+                if (DisposedCopies > 0)
+                    return 5;
+
+                return 1;
             }
         }
 
@@ -174,30 +196,97 @@ namespace Diplom_Bibl.Pages
             _searchResults = new ObservableCollection<BookSearchItem>();
 
             SetSearchPlaceholder();
-            this.Loaded += LibraryFundPage_Loaded;
+            AddBook.Visibility = Visibility.Collapsed;
+
+            // Скрываем локальный индикатор загрузки при старте
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+
+           
+
+            this.Loaded += async (s, e) => await LibraryFundPage_LoadedAsync();
         }
 
         #endregion
 
         #region Загрузка данных
 
-        private void LibraryFundPage_Loaded(object sender, RoutedEventArgs e)
+        private async Task LibraryFundPage_LoadedAsync()
         {
-            LoadData();
+            if (_isDataLoaded) return; // Не грузим дважды
+            await LoadDataAsync();
         }
 
-        private void LoadData()
+        #endregion
+
+        #region Загрузка данных
+
+       
+        private async Task LoadDataAsync()
         {
-            LoadBooks();
+            if (_isLoading) return;
+            _isLoading = true;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (LoadingOverlay != null)
+                    LoadingOverlay.Visibility = Visibility.Visible;
+               
+            });
+
+            try
+            {
+                // Загружаем всё параллельно
+                await Task.WhenAll(
+                    Task.Run(() => LoadBooks()),
+                    Task.Run(() => LoadAuthorsForFilter()),
+                    Task.Run(() => LoadStatuses()),
+                    Task.Run(() => LoadGenres()),
+                    Task.Run(() => LoadPublishers()),
+                    Task.Run(() => LoadBooksForSearch())
+                );
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    ApplyAllFilters();
+                    UpdateStatistics();
+                    _isDataLoaded = true;
+                });
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                // Скрываем ТОЛЬКО локальный индикатор загрузки
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (LoadingOverlay != null)
+                        LoadingOverlay.Visibility = Visibility.Collapsed;
+                    
+                });
+                _isLoading = false;
+            }
+        }
+        private void ShowLoading(bool show)
+        {
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+
         }
 
-        private void LoadBooks()
+
+        private async Task LoadBooks()
         {
             try
             {
                 string sql = @"
             WITH IssuanceStats AS (
-                -- Индивидуальные выдачи
                 SELECT 
                     b.TitleBook,
                     COUNT(*) AS IssuedCount
@@ -208,7 +297,6 @@ namespace Diplom_Bibl.Pages
                 
                 UNION ALL
                 
-                -- Групповые выдачи
                 SELECT 
                     b.TitleBook,
                     SUM(gii.Quantity - gii.ReturnedQuantity) AS IssuedCount
@@ -232,6 +320,14 @@ namespace Diplom_Bibl.Pages
                 FROM Books
                 WHERE StatusBook = 5
                 GROUP BY TitleBook
+            ),
+            ReservedStats AS (
+                SELECT 
+                    TitleBook,
+                    COUNT(*) AS ReservedCount
+                FROM Books
+                WHERE StatusBook = 6
+                GROUP BY TitleBook
             )
             SELECT 
                 MIN(b.IDBook) AS GroupId,
@@ -244,15 +340,15 @@ namespace Diplom_Bibl.Pages
                 MIN(ISNULL(g.TitleGener, '')) AS GenreName,
                 MIN(b.Gener) AS GenreID,
                 COUNT(*) AS TotalCopies,
-                -- Доступно = Всего - Выдано - Списано
                 COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) AS AvailableCopies,
                 ISNULL(MAX(ti.TotalIssued), 0) AS IssuedCopies,
                 ISNULL(MAX(ds.DisposedCount), 0) AS DisposedCopies,
-                -- Статус определяется по приоритету
+                ISNULL(MAX(rs.ReservedCount), 0) AS ReservedCopies,
                 CASE 
                     WHEN ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'Списана'
                     WHEN COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'В наличии'
                     WHEN ISNULL(MAX(ti.TotalIssued), 0) > 0 THEN 'Выдана'
+                    WHEN ISNULL(MAX(rs.ReservedCount), 0) > 0 THEN 'Зарезервирована'
                     ELSE 'Неизвестно'
                 END AS StatusName,
                 NULL AS StatusID
@@ -262,73 +358,65 @@ namespace Diplom_Bibl.Pages
             LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
             LEFT JOIN TotalIssued ti ON b.TitleBook = ti.TitleBook
             LEFT JOIN DisposedStats ds ON b.TitleBook = ds.TitleBook
+            LEFT JOIN ReservedStats rs ON b.TitleBook = rs.TitleBook
             GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
             ORDER BY b.TitleBook";
 
                 var yearsSet = new HashSet<int>();
-                _allBooks.Clear();
+                var booksList = new List<BookGroupItem>();
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            string title = reader["TitleBook"]?.ToString() ?? "";
-                            string author = reader["AuthorName"]?.ToString() ?? "";
-
-                            int totalCopies = Convert.ToInt32(reader["TotalCopies"]);
-                            int availableCopies = Convert.ToInt32(reader["AvailableCopies"]);
-                            int issuedCopies = Convert.ToInt32(reader["IssuedCopies"]);
-                            int disposedCopies = Convert.ToInt32(reader["DisposedCopies"]);
-
                             var book = new BookGroupItem
                             {
                                 GroupId = Convert.ToInt32(reader["GroupId"]),
-                                TitleBook = title,
-                                AuthorName = author,
+                                TitleBook = reader["TitleBook"]?.ToString() ?? "",
+                                AuthorName = reader["AuthorName"]?.ToString() ?? "",
                                 AuthorID = reader["AuthorID"] != DBNull.Value ? Convert.ToInt32(reader["AuthorID"]) : (int?)null,
                                 YearPublishing = Convert.ToInt32(reader["YearPublishing"]),
                                 PublishingHouseName = reader["PublishingHouseName"]?.ToString() ?? "",
                                 PublisherID = reader["PublisherID"] != DBNull.Value ? Convert.ToInt32(reader["PublisherID"]) : (int?)null,
                                 GenreName = reader["GenreName"]?.ToString() ?? "",
                                 GenreID = reader["GenreID"] != DBNull.Value ? Convert.ToInt32(reader["GenreID"]) : (int?)null,
-                                TotalCopies = totalCopies,
-                                AvailableCopies = availableCopies,
-                                IssuedCopies = issuedCopies,
-                                DisposedCopies = disposedCopies,
+                                TotalCopies = Convert.ToInt32(reader["TotalCopies"]),
+                                AvailableCopies = Convert.ToInt32(reader["AvailableCopies"]),
+                                IssuedCopies = Convert.ToInt32(reader["IssuedCopies"]),
+                                DisposedCopies = Convert.ToInt32(reader["DisposedCopies"]),
+                                ReservedCopies = Convert.ToInt32(reader["ReservedCopies"]),
                                 StatusName = reader["StatusName"]?.ToString() ?? "Неизвестно",
                                 StatusID = reader["StatusID"] != DBNull.Value ? Convert.ToInt32(reader["StatusID"]) : (int?)null
                             };
-
-                            _allBooks.Add(book);
-
-                            if (book.YearPublishing > 0)
-                                yearsSet.Add(book.YearPublishing);
+                            booksList.Add(book);
+                            if (book.YearPublishing > 0) yearsSet.Add(book.YearPublishing);
                         }
                     }
                 }
 
-                LoadAuthorsForFilter();
-                LoadStatuses();
-                LoadGenres();
-                LoadPublishers();
-                LoadBooksForSearch();
-                LoadYearFilters(yearsSet.ToList());
-
-                ApplyAllFilters();
-                UpdateStatistics();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _allBooks.Clear();
+                    foreach (var book in booksList) _allBooks.Add(book);
+                    LoadYearFilters(yearsSet.ToList());
+                    ApplyAllFilters();
+                    UpdateStatistics();
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
-
-        private void LoadBooksForSearch()
+        private async Task LoadBooksForSearch()
         {
             try
             {
@@ -347,7 +435,7 @@ namespace Diplom_Bibl.Pages
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     using (var reader = cmd.ExecuteReader())
                     {
@@ -369,29 +457,28 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadAuthorsForFilter()
+        private async Task LoadAuthorsForFilter()
         {
             try
             {
                 const string sql = "SELECT ID_Autor, SurnameAuthor, NameAuthor, PatronymicAuthor FROM Authors ORDER BY SurnameAuthor";
-
-                _allAuthors.Clear();
-                _allAuthors.Add(new AuthorFilterItem { ID_Author = 0, DisplayAuthors = "Все авторы" });
+                var authorsList = new List<AuthorFilterItem>();
+                authorsList.Add(new AuthorFilterItem { ID_Author = 0, DisplayAuthors = "Все авторы" });
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
                             int id = Convert.ToInt32(reader["ID_Autor"]);
                             string surname = reader["SurnameAuthor"]?.ToString() ?? "";
                             string name = reader["NameAuthor"]?.ToString() ?? "";
                             string patronymic = reader["PatronymicAuthor"] != DBNull.Value ? reader["PatronymicAuthor"].ToString() : "";
 
-                            _allAuthors.Add(new AuthorFilterItem
+                            authorsList.Add(new AuthorFilterItem
                             {
                                 ID_Author = id,
                                 DisplayAuthors = $"{surname} {name} {patronymic}".Trim()
@@ -400,39 +487,49 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                if (FilterAuthorCombo != null)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    FilterAuthorCombo.ItemsSource = _allAuthors;
-                    FilterAuthorCombo.SelectedValuePath = "ID_Author";
-                    FilterAuthorCombo.DisplayMemberPath = "DisplayAuthors";
-                    FilterAuthorCombo.SelectedIndex = 0;
-                }
+                    _allAuthors.Clear();
+                    foreach (var author in authorsList)
+                        _allAuthors.Add(author);
+
+                    if (FilterAuthorCombo != null)
+                    {
+                        FilterAuthorCombo.ItemsSource = null;
+                        FilterAuthorCombo.ItemsSource = _allAuthors;
+                        FilterAuthorCombo.SelectedValuePath = "ID_Author";
+                        FilterAuthorCombo.DisplayMemberPath = "DisplayAuthors";
+                        FilterAuthorCombo.SelectedIndex = 0;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки авторов: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
 
-        private void LoadStatuses()
+        private async Task LoadStatuses()
         {
             try
             {
-                const string sql = "SELECT ID_Status, LTRIM(RTRIM(Title_Status)) AS Title_Status FROM StatusBook ORDER BY Title_Status";
-
-                _allStatuses.Clear();
-                _allStatuses.Add(new StatusItem { ID_Status = 0, Title_Status = "Все статусы" });
+                const string sql = "SELECT ID_Status, LTRIM(RTRIM(Title_Status)) AS Title_Status FROM StatusBook WHERE ID_Status NOT IN (4, 6) ORDER BY Title_Status";
+                var statusesList = new List<StatusItem>();
+                statusesList.Add(new StatusItem { ID_Status = 0, Title_Status = "Все статусы" });
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            _allStatuses.Add(new StatusItem
+                            statusesList.Add(new StatusItem
                             {
                                 ID_Status = Convert.ToInt32(reader["ID_Status"]),
                                 Title_Status = reader["Title_Status"]?.ToString()?.Trim() ?? ""
@@ -441,39 +538,49 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                if (FilterStatusCombo != null)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    FilterStatusCombo.ItemsSource = _allStatuses;
-                    FilterStatusCombo.DisplayMemberPath = "DisplayName";
-                    FilterStatusCombo.SelectedValuePath = "ID_Status";
-                    FilterStatusCombo.SelectedIndex = 0;
-                }
+                    _allStatuses.Clear();
+                    foreach (var status in statusesList)
+                        _allStatuses.Add(status);
+
+                    if (FilterStatusCombo != null)
+                    {
+                        FilterStatusCombo.ItemsSource = null;
+                        FilterStatusCombo.ItemsSource = _allStatuses;
+                        FilterStatusCombo.DisplayMemberPath = "DisplayName";
+                        FilterStatusCombo.SelectedValuePath = "ID_Status";
+                        FilterStatusCombo.SelectedIndex = 0;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки статусов: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
 
-        private void LoadGenres()
+        private async Task LoadGenres()
         {
             try
             {
                 const string sql = "SELECT ID_Gener, TitleGener FROM GenersBook ORDER BY TitleGener";
-
-                _allGenres.Clear();
-                _allGenres.Add(new GenreItem { ID_Gener = 0, TitleGener = "Все жанры" });
+                var genresList = new List<GenreItem>();
+                genresList.Add(new GenreItem { ID_Gener = 0, TitleGener = "Все жанры" });
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            _allGenres.Add(new GenreItem
+                            genresList.Add(new GenreItem
                             {
                                 ID_Gener = Convert.ToInt32(reader["ID_Gener"]),
                                 TitleGener = reader["TitleGener"]?.ToString() ?? ""
@@ -482,39 +589,49 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                if (FilterGenreCombo != null)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    FilterGenreCombo.ItemsSource = _allGenres;
-                    FilterGenreCombo.DisplayMemberPath = "DisplayName";
-                    FilterGenreCombo.SelectedValuePath = "ID_Gener";
-                    FilterGenreCombo.SelectedIndex = 0;
-                }
+                    _allGenres.Clear();
+                    foreach (var genre in genresList)
+                        _allGenres.Add(genre);
+
+                    if (FilterGenreCombo != null)
+                    {
+                        FilterGenreCombo.ItemsSource = null;
+                        FilterGenreCombo.ItemsSource = _allGenres;
+                        FilterGenreCombo.DisplayMemberPath = "DisplayName";
+                        FilterGenreCombo.SelectedValuePath = "ID_Gener";
+                        FilterGenreCombo.SelectedIndex = 0;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки жанров: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
 
-        private void LoadPublishers()
+        private async Task LoadPublishers()
         {
             try
             {
                 const string sql = "SELECT IDPublishingHouse, TitlePublishingHouse FROM PublishingHouse ORDER BY TitlePublishingHouse";
-
-                _allPublishers.Clear();
-                _allPublishers.Add(new PublisherItem { ID_Publisher = 0, TitlePublishingHouse = "Все издательства" });
+                var publishersList = new List<PublisherItem>();
+                publishersList.Add(new PublisherItem { ID_Publisher = 0, TitlePublishingHouse = "Все издательства" });
 
                 using (var conn = new SqlConnection(_conn))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            _allPublishers.Add(new PublisherItem
+                            publishersList.Add(new PublisherItem
                             {
                                 ID_Publisher = Convert.ToInt32(reader["IDPublishingHouse"]),
                                 TitlePublishingHouse = reader["TitlePublishingHouse"]?.ToString() ?? ""
@@ -523,18 +640,29 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                if (FilterPublisherCombo != null)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    FilterPublisherCombo.ItemsSource = _allPublishers;
-                    FilterPublisherCombo.DisplayMemberPath = "DisplayName";
-                    FilterPublisherCombo.SelectedValuePath = "ID_Publisher";
-                    FilterPublisherCombo.SelectedIndex = 0;
-                }
+                    _allPublishers.Clear();
+                    foreach (var publisher in publishersList)
+                        _allPublishers.Add(publisher);
+
+                    if (FilterPublisherCombo != null)
+                    {
+                        FilterPublisherCombo.ItemsSource = null;
+                        FilterPublisherCombo.ItemsSource = _allPublishers;
+                        FilterPublisherCombo.DisplayMemberPath = "DisplayName";
+                        FilterPublisherCombo.SelectedValuePath = "ID_Publisher";
+                        FilterPublisherCombo.SelectedIndex = 0;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    CustomMessageBox.Show($"Ошибка загрузки издательств: {ex.Message}", "Ошибка",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                });
             }
         }
 
@@ -756,7 +884,9 @@ namespace Diplom_Bibl.Pages
                 filtered = filtered.Where(b => b.AuthorID == selectedAuthorId);
 
             if (selectedStatusId > 0)
-                filtered = filtered.Where(b => b.StatusID == selectedStatusId);
+            {
+                filtered = filtered.Where(b => b.GetStatusIdForFilter() == selectedStatusId);
+            }
 
             if (selectedGenreId > 0)
                 filtered = filtered.Where(b => b.GenreID == selectedGenreId);
@@ -882,6 +1012,7 @@ namespace Diplom_Bibl.Pages
             int availableCopies = _allBooks.Sum(b => b.AvailableCopies);
             int issuedCopies = _allBooks.Sum(b => b.IssuedCopies);
             int disposedCopies = _allBooks.Sum(b => b.DisposedCopies);
+            int reservedCopies = _allBooks.Sum(b => b.ReservedCopies);
 
             if (TotalCopiesCount != null)
                 TotalCopiesCount.Text = totalCopies.ToString();
@@ -889,10 +1020,17 @@ namespace Diplom_Bibl.Pages
                 AvailableBooksCount.Text = availableCopies.ToString();
             if (IssuedBooksCount != null)
                 IssuedBooksCount.Text = issuedCopies.ToString();
-            if (DisposedBooksCount != null)
-                DisposedBooksCount.Text = disposedCopies.ToString();
+            if (ReservedBooksCount != null)
+                ReservedBooksCount.Text = reservedCopies.ToString();
+            //if (DisposedBooksCount != null)
+            //    DisposedBooksCount.Text = disposedCopies.ToString();
+
+            // Опционально: добавить отображение зарезервированных в панель статистики
+            // Для этого необходимо добавить соответствующий TextBlock в XAML
         }
 
         #endregion
+
+
     }
 }

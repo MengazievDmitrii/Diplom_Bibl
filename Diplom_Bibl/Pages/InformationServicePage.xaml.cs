@@ -52,6 +52,7 @@ namespace Diplom_Bibl.Pages
         private int _pendingQuantity = 1;
 
         private DateTime _selectedReturnDate;
+        private bool _isInitialDataLoaded = false;
 
         #endregion
 
@@ -87,7 +88,7 @@ namespace Diplom_Bibl.Pages
             InitializePlaceholders();
             InitializeReturnDatePicker();
 
-            LoadInitialData();
+            this.Loaded += Page_Loaded;
         }
 
         public InformationServicePage(
@@ -142,9 +143,7 @@ namespace Diplom_Bibl.Pages
                 }
             }
 
-            LoadInitialData();
-
-            this.Loaded += Page_Loaded_FinalInit;
+            this.Loaded += Page_Loaded;
         }
         #endregion
 
@@ -193,56 +192,67 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadInitialData()
+        private async void Page_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadStatusIds();
-            LoadTodayIssues();
-            LoadReaders();
-            LoadGroups();
-            LoadTeachers();
-            LoadBooks();
-            UpdateStatistics();
-            this.Loaded += (s, e) => UpdateInventoryPreview();
+            this.Loaded -= Page_Loaded;
+            if (_isInitialDataLoaded) return;
+            _isInitialDataLoaded = true;
+
+            try
+            {
+                await LoadInitialDataAsync();
+
+                if (_pendingRequestId.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Запуск автозаполнения для заявки {_pendingRequestId}");
+                    AutoFillFromRequest();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в Page_Loaded: {ex.Message}");
+                ShowError("Ошибка загрузки страницы", ex);
+            }
         }
 
-        private void Page_Loaded_FinalInit(object sender, RoutedEventArgs e)
+        private async Task LoadInitialDataAsync()
         {
-            System.Diagnostics.Debug.WriteLine($"=== Page_Loaded_FinalInit ===");
-            UpdateStatistics();
-            LoadTeachers();
-            LoadTodayIssues();
-
-            if (_pendingRequestId.HasValue)
-            {
-                System.Diagnostics.Debug.WriteLine($"Запуск автозаполнения для заявки {_pendingRequestId}");
-                AutoFillFromRequest();
-            }
+            await Task.Yield();
+            await LoadStatusIdsAsync();
+            await LoadReadersAsync();
+            await LoadGroupsAsync();
+            await LoadTeachersAsync();
+            await LoadBooksAsync();
+            await LoadTodayIssuesAsync();
+            await UpdateStatisticsAsync();
+            UpdateInventoryPreview();
         }
 
         #endregion
 
         #region Загрузка справочных данных
 
-        private void LoadStatusIds()
+        private async Task LoadStatusIdsAsync()
         {
             try
             {
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     var statuses = new Dictionary<string, int>();
                     string query = @"
                         SELECT Title_Status, ID_Status 
                         FROM StatusBook 
                         WHERE Title_Status IN ('В наличии', 'Зарезервирована', 'Выдан')";
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
                             statuses[reader.GetString(0)] = reader.GetInt32(1);
                         }
                     }
+
                     _statusAvailableId = statuses.ContainsKey("В наличии") ? statuses["В наличии"] : 1;
                     _statusReservedId = statuses.ContainsKey("Зарезервирована") ? statuses["Зарезервирована"] : 6;
                     _statusIssuedId = statuses.ContainsKey("Выдан") ? statuses["Выдан"] : 3;
@@ -257,23 +267,35 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadReaders()
-        {
-            try { _readers = _issuanceService.GetReaders(); }
-            catch (Exception ex) { ShowError("Ошибка загрузки читателей", ex); }
-        }
-
-        private void LoadGroups()
-        {
-            try { _groups = _issuanceService.GetGroups(); }
-            catch (Exception ex) { ShowError("Ошибка загрузки групп", ex); }
-        }
-
-        private void LoadTeachers()
+        private async Task LoadReadersAsync()
         {
             try
             {
-                _teachers = _issuanceService.GetTeachers();
+                _readers = await Task.Run(() => _issuanceService.GetReaders());
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки читателей", ex);
+            }
+        }
+
+        private async Task LoadGroupsAsync()
+        {
+            try
+            {
+                _groups = await Task.Run(() => _issuanceService.GetGroups());
+            }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки групп", ex);
+            }
+        }
+
+        private async Task LoadTeachersAsync()
+        {
+            try
+            {
+                _teachers = await Task.Run(() => _issuanceService.GetTeachers());
             }
             catch (Exception ex)
             {
@@ -282,7 +304,7 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        private void LoadBooks()
+        private async Task LoadBooksAsync()
         {
             try
             {
@@ -304,17 +326,17 @@ namespace Diplom_Bibl.Pages
                     HAVING ISNULL(SUM(b.AvailableCopies), 0) > 0
                     ORDER BY b.TitleBook";
 
-                _books = new ObservableCollection<BookIssuanceService.BookInfo>();
+                var books = new ObservableCollection<BookIssuanceService.BookInfo>();
 
                 using (var conn = new SqlConnection(_connectionString))
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     using (var cmd = new SqlCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        while (reader.Read())
+                        while (await reader.ReadAsync())
                         {
-                            _books.Add(new BookIssuanceService.BookInfo
+                            books.Add(new BookIssuanceService.BookInfo
                             {
                                 IDBook = reader.GetInt32(0),
                                 TitleBook = reader.GetString(1),
@@ -324,31 +346,41 @@ namespace Diplom_Bibl.Pages
                         }
                     }
                 }
+
+                _books = books;
             }
-            catch (Exception ex) { ShowError("Ошибка загрузки книг", ex); }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки книг", ex);
+            }
         }
 
-        private void LoadTodayIssues()
+        private async Task LoadTodayIssuesAsync()
         {
             try
             {
-                _todayIssues = _issuanceService.GetIssuancesByDate(DateTime.Today);
-                foreach (var item in _todayIssues)
+                var issues = await Task.Run(() => _issuanceService.GetIssuancesByDate(DateTime.Today));
+                foreach (var item in issues)
                 {
                     item.OverdueColor = item.IsOverdue
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"))
                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
                 }
+
+                _todayIssues = issues;
                 IssuesDataGrid.ItemsSource = _todayIssues;
             }
-            catch (Exception ex) { ShowError("Ошибка загрузки выдач", ex); }
+            catch (Exception ex)
+            {
+                ShowError("Ошибка загрузки выдач", ex);
+            }
         }
 
         #endregion
 
         #region Автоматическая статистика
 
-        private async void UpdateStatistics()
+        private async Task UpdateStatisticsAsync()
         {
             try
             {
@@ -537,7 +569,7 @@ namespace Diplom_Bibl.Pages
 
                 var first = booksFromRequest.First();
 
-                // Получаем реальное количество доступных экземпляров (включая зарезервированные для этой заявки)
+                // ИСПРАВЛЕНО: Доступно = Всего - Выдано - Списано (не вычитаем зарезервированные!)
                 first.AvailableCopies = await GetRealAvailableCopiesForRequest(first.TitleBook, requestId);
 
                 var selected = _books.FirstOrDefault(b => b.TitleBook == first.TitleBook && b.AuthorName == first.AuthorName);
@@ -566,7 +598,7 @@ namespace Diplom_Bibl.Pages
                 BookSearchBox.Foreground = Brushes.Black;
                 AvailableQuantityText.Text = selected.AvailableCopies.ToString();
 
-                System.Diagnostics.Debug.WriteLine($"Книга загружена: {selected.TitleBook}, Доступно (с учётом резерва): {selected.AvailableCopies}");
+                System.Diagnostics.Debug.WriteLine($"Книга загружена: {selected.TitleBook}, Доступно (Всего-Выдано-Списано): {selected.AvailableCopies}");
             }
             catch (Exception ex)
             {
@@ -574,42 +606,32 @@ namespace Diplom_Bibl.Pages
                 ShowError("Ошибка загрузки книг из заявки", ex);
             }
         }
-
         /// <summary>
-        /// Получение реального количества доступных экземпляров (включая зарезервированные для этой заявки)
+        /// Получение реального количества доступных экземпляров (НЕ вычитаем зарезервированные!)
         /// </summary>
         private async Task<int> GetRealAvailableCopiesForRequest(string title, int requestId)
         {
             try
             {
+                // Используем CopiesInUse, а не подзапросы!
                 string sql = @"
-            SELECT ISNULL(SUM(b.AvailableCopies), 0)
+            SELECT 
+                ISNULL(SUM(b.TotalCopies), 0) - 
+                ISNULL(SUM(b.CopiesInUse), 0) AS AvailableCopies
             FROM Books b
-            WHERE b.TitleBook = @Title 
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )";
-
-                using (var conn = new SqlConnection(_connectionString))
+            WHERE b.TitleBook = @Title
+              AND b.StatusBook NOT IN (5) 
+              AND b.ID_Disposal IS NULL"; 
+        
+        using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@Title", title);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
-                        cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
-                        cmd.Parameters.AddWithValue("@RequestId", requestId);
                         var result = await cmd.ExecuteScalarAsync();
-                        return result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                        int available = result != DBNull.Value ? Convert.ToInt32(result) : 0;
+                        return available;
                     }
                 }
             }
@@ -946,12 +968,9 @@ namespace Diplom_Bibl.Pages
 
                 // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ СТАТИСТИКИ И СПИСКА ВЫДАЧ
                 await Task.Delay(100); // Небольшая задержка для синхронизации БД
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    UpdateStatistics();           // Обновляем статистику
-                    LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today); // Обновляем список выдач
-                    LoadBooks();                  // Перезагружаем список книг
-                });
+                await UpdateStatisticsAsync();           // Обновляем статистику
+                await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today); // Обновляем список выдач
+                await LoadBooksAsync();                  // Перезагружаем список книг
 
                 ShowSuccess($"Индивидуальная выдача успешно создана!\nВыдано книг: {quantity}");
             }
@@ -966,23 +985,13 @@ namespace Diplom_Bibl.Pages
             var bookIds = new List<int>();
             try
             {
-                // Для заявки - учитываем зарезервированные экземпляры
+                // ИСПРАВЛЕНО: Выбираем ТОЛЬКО зарезервированные книги для этой заявки
                 string sql = @"
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
-            WHERE b.TitleBook = (SELECT TitleBook FROM Books WHERE IDBook = @BookId)
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )
+            INNER JOIN RequestItems ri ON b.IDBook = ri.BookID
+            WHERE ri.RequestID = @RequestId
+              AND b.StatusBook = @StatusReservedId
               AND b.AvailableCopies > 0
             ORDER BY b.IDBook";
 
@@ -993,9 +1002,8 @@ namespace Diplom_Bibl.Pages
                     {
                         cmd.Parameters.AddWithValue("@BookId", bookId);
                         cmd.Parameters.AddWithValue("@Qty", requiredQuantity);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
                         cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
-                        cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.HasValue ? _pendingRequestId.Value : (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@RequestId", _pendingRequestId.Value);
 
                         using (var reader = await cmd.ExecuteReaderAsync())
                         {
@@ -1011,7 +1019,6 @@ namespace Diplom_Bibl.Pages
             }
             return bookIds;
         }
-
         private async void CreateGroupIssuance(int quantity)
         {
             try
@@ -1050,8 +1057,8 @@ namespace Diplom_Bibl.Pages
 
                             UpdateRequestStatusIfNeeded(conn, transaction);
                             transaction.Commit();
-                            UpdateStatistics();
-                            LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today);
+                            await UpdateStatisticsAsync();
+                            await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today);
                         }
                         catch
                         {
@@ -1137,23 +1144,10 @@ namespace Diplom_Bibl.Pages
                 string sql = @"
             SELECT TOP (@Qty) b.IDBook
             FROM Books b
-            LEFT JOIN Authors a ON b.Author = a.ID_Autor
-            WHERE b.TitleBook = @Title 
-              AND ISNULL(a.SurnameAuthor + ' ' + a.NameAuthor + ' ' + a.PatronymicAuthor, '') = @Author
+            INNER JOIN RequestItems ri ON b.IDBook = ri.BookID
+            WHERE ri.RequestID = @RequestId
+              AND b.StatusBook = @StatusReservedId
               AND b.AvailableCopies > 0
-              AND (
-                  b.StatusBook = @StatusAvailableId 
-                  OR (
-                      b.StatusBook = @StatusReservedId 
-                      AND @RequestId IS NOT NULL 
-                      AND EXISTS (
-                          SELECT 1 FROM RequestItems ri 
-                          WHERE ri.BookID = b.IDBook 
-                            AND ri.RequestID = @RequestId 
-                            AND ri.StatusID = 2
-                      )
-                  )
-              )
             ORDER BY b.IDBook";
 
                 using (var conn = new SqlConnection(_connectionString))
@@ -1164,7 +1158,6 @@ namespace Diplom_Bibl.Pages
                         cmd.Parameters.AddWithValue("@Title", title);
                         cmd.Parameters.AddWithValue("@Author", author);
                         cmd.Parameters.AddWithValue("@Qty", requiredQuantity);
-                        cmd.Parameters.AddWithValue("@StatusAvailableId", _statusAvailableId);
                         cmd.Parameters.AddWithValue("@StatusReservedId", _statusReservedId);
                         cmd.Parameters.AddWithValue("@RequestId", requestId.HasValue ? (object)requestId.Value : DBNull.Value);
 
@@ -1212,23 +1205,24 @@ namespace Diplom_Bibl.Pages
             ResetQuantity();
         }
 
-        private void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+        private async void DatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
-            UpdateStatistics();
-            LoadIssuancesByDate(DatePicker.SelectedDate ?? DateTime.Today);
+            await UpdateStatisticsAsync();
+            await LoadIssuancesByDateAsync(DatePicker.SelectedDate ?? DateTime.Today);
         }
 
-        private void LoadIssuancesByDate(DateTime date)
+        private async Task LoadIssuancesByDateAsync(DateTime date)
         {
             try
             {
-                _todayIssues = _issuanceService.GetIssuancesByDate(date);
-                foreach (var item in _todayIssues)
+                var issues = await Task.Run(() => _issuanceService.GetIssuancesByDate(date));
+                foreach (var item in issues)
                 {
                     item.OverdueColor = item.IsOverdue
                         ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC3545"))
                         : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#28A745"));
                 }
+                _todayIssues = issues;
                 IssuesDataGrid.ItemsSource = _todayIssues;
             }
             catch (Exception ex)
