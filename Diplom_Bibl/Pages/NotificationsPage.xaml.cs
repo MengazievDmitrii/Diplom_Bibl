@@ -283,41 +283,7 @@ namespace Diplom_Bibl.Pages
                 NavigationService.GoBack();
         }
 
-        private async void Notification_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is FrameworkElement element && element.DataContext is NotificationDisplayItem notification)
-            {
-                // Отмечаем как прочитанное (асинхронно, без ожидания)
-                if (!notification.IsRead)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        await _notificationService.MarkAsReadAsync(notification.ID_Notification);
-                        await Dispatcher.InvokeAsync(() => notification.MarkAsRead());
-                    });
-                }
-
-                ShowLoading(true, "Загрузка страницы...");
-
-                try
-                {
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        NavigationService?.Navigate(new BookRequestsManagement(notification.RequestID));
-                    }, System.Windows.Threading.DispatcherPriority.Background);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"❌ Ошибка навигации: {ex.Message}");
-                    CustomMessageBox.Show($"Ошибка открытия заявки: {ex.Message}", "Ошибка",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-                }
-                finally
-                {
-                    ShowLoading(false);
-                }
-            }
-        }
+       
 
         private async void ViewRequest_Click(object sender, RoutedEventArgs e)
         {

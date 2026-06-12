@@ -1,20 +1,23 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
 using Microsoft.Win32;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Data.SqlClient;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Diplom_Bibl.Pages
 {
@@ -27,11 +30,13 @@ namespace Diplom_Bibl.Pages
         {
             InitializeComponent();
 
+      
+
             // Устанавливаем значения по умолчанию
             StartDatePicker.SelectedDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
             EndDatePicker.SelectedDate = DateTime.Now.Date;
 
-            // Подписываемся на события изменения дат (если ещё не сделано)
+            // Подписываемся на события изменения дат
             StartDatePicker.SelectedDateChanged += StartDatePicker_SelectedDateChanged;
             EndDatePicker.SelectedDateChanged += EndDatePicker_SelectedDateChanged;
         }
@@ -55,14 +60,12 @@ namespace Diplom_Bibl.Pages
                 CustomMessageBox.Show("Дата 'с' не может быть позже даты 'по'.", "Ошибка ввода",
                     CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
 
-                // Опционально: автоматически корректируем, если пользователь ошибся
                 EndDatePicker.SelectedDate = start;
                 return false;
             }
 
             return true;
         }
-
 
         // ========== ОТЧЁТ 1: ВЫДАЧА ЛИТЕРАТУРЫ ==========
 
@@ -189,7 +192,7 @@ namespace Diplom_Bibl.Pages
                                 ReturnDate = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
                                 Status = reader.GetString(7),
                                 DaysOverdue = reader.GetInt32(8),
-                                IssuanceType = reader.GetString(9)  // Добавляем тип выдачи
+                                IssuanceType = reader.GetString(9)
                             };
                             data.Add(report);
                         }
@@ -507,21 +510,18 @@ namespace Diplom_Bibl.Pages
         WHERE gi.ReturnDate IS NOT NULL 
             AND gi.Status = 'Возвращена'
             AND CAST(gi.ReturnDate AS DATE) BETWEEN @StartDate AND @EndDate
-        GROUP BY CAST(gi.ReturnDate AS DATE)
-    ";
+        GROUP BY CAST(gi.ReturnDate AS DATE)";
 
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
 
-                // Получаем все даты в диапазоне
                 var allDates = new List<DateTime>();
                 for (var date = start.Date; date <= end.Date; date = date.AddDays(1))
                 {
                     allDates.Add(date);
                 }
 
-                // Группируем результаты по датам
                 var resultDict = allDates.ToDictionary(d => d, d => new { Issued = 0, Returned = 0 });
 
                 using (SqlCommand cmd = new SqlCommand(query, connection))
@@ -552,7 +552,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Формируем результат
                 foreach (var date in allDates)
                 {
                     data.Add(new InfoServiceReport
@@ -669,7 +668,7 @@ namespace Diplom_Bibl.Pages
                     case "TotalCopies": e.Column.Header = "Всего"; break;
                     case "AvailableCopies": e.Column.Header = "Доступно"; break;
                     case "CopiesInUse": e.Column.Header = "В использовании"; break;
-                    case "DisposedCopies": e.Column.Header = "Списано"; break;  // 👈 ДОБАВЛЕННАЯ СТРОКА
+                    case "DisposedCopies": e.Column.Header = "Списано"; break;
                     case "Title": e.Column.Header = "Название книги"; break;
                     case "OperationDate":
                         e.Column.Header = "Дата";
@@ -684,10 +683,9 @@ namespace Diplom_Bibl.Pages
 
             mainPanel.Children.Add(dataGrid);
 
-            // 👇 ДОБАВЛЕННАЯ ИТОГОВАЯ СТРОКА ДЛЯ ОТЧЁТА О ФОНДЕ
             if (title == "Состояние библиотечного фонда" && enumerableData is ObservableCollection<BookFundGroupedReport> fundData && fundData.Any())
             {
-                var totalPanel = new Border
+                var totalPanel = new System.Windows.Controls.Border
                 {
                     Background = System.Windows.Media.Brushes.LightGray,
                     CornerRadius = new CornerRadius(6),
@@ -743,6 +741,7 @@ namespace Diplom_Bibl.Pages
             reportWindow.Content = mainPanel;
             reportWindow.ShowDialog();
         }
+
         private void ShowInfoServiceReportWindow(ObservableCollection<InfoServiceReport> data, DateTime startDate, DateTime endDate)
         {
             int totalIssued = data.Sum(x => x.BooksIssued);
@@ -817,7 +816,7 @@ namespace Diplom_Bibl.Pages
 
             mainPanel.Children.Add(dataGrid);
 
-            var totalPanel = new Border
+            var totalPanel = new System.Windows.Controls.Border
             {
                 Background = System.Windows.Media.Brushes.LightGray,
                 CornerRadius = new CornerRadius(6),
@@ -853,15 +852,8 @@ namespace Diplom_Bibl.Pages
             reportWindow.Content = mainPanel;
             reportWindow.ShowDialog();
         }
-        // Дополнительный класс для отображения с накопленными итогами
-        public class InfoServiceReportWithCumulative : InfoServiceReport
-        {
-            public int CumulativeIssued { get; set; }
-            public int CumulativeReturned { get; set; }
-            public int CurrentlyOnHand { get; set; }
-        }
 
-        // ========== ЭКСПОРТ В EXCEL ==========
+        // ========== ЭКСПОРТ В EXCEL (EPPlus) ==========
 
         private async void ExportExcelButton_Click(object sender, RoutedEventArgs e)
         {
@@ -906,100 +898,77 @@ namespace Diplom_Bibl.Pages
                 FileName = $"Отчёт_Информационное_обслуживание_{DateTime.Now:yyyyMMdd_HHmm}.xlsx"
             };
 
-            if (saveFileDialog.ShowDialog() == true)
+            if (saveFileDialog.ShowDialog() != true) return;
+
+            int totalIssued = data.Sum(x => x.BooksIssued);
+            int totalReturned = data.Sum(x => x.BooksReturned);
+
+            using (var package = new ExcelPackage())
             {
-                int totalIssued = data.Sum(x => x.BooksIssued);
-                int totalReturned = data.Sum(x => x.BooksReturned);
+                var worksheet = package.Workbook.Worksheets.Add("Информационное обслуживание");
 
-                Excel.Application excelApp = null;
-                Excel.Workbook workbook = null;
-                Excel.Worksheet worksheet = null;
+                // Заголовок
+                worksheet.Cells[1, 1].Value = "Информационное обслуживание (Выдача и возврат книг)";
+                worksheet.Cells[1, 1, 1, 3].Merge = true;
+                worksheet.Cells[1, 1].Style.Font.Bold = true;
+                worksheet.Cells[1, 1].Style.Font.Size = 16;
+                worksheet.Cells[1, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
-                try
+                int currentRow = 3;
+
+                // Период
+                worksheet.Cells[currentRow, 1].Value = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}";
+                currentRow++;
+
+                // Дата формирования
+                worksheet.Cells[currentRow, 1].Value = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                currentRow += 2;
+
+                // Заголовки таблицы
+                worksheet.Cells[currentRow, 1].Value = "Дата";
+                worksheet.Cells[currentRow, 2].Value = "Выдано книг";
+                worksheet.Cells[currentRow, 3].Value = "Возвращено книг";
+
+                using (var range = worksheet.Cells[currentRow, 1, currentRow, 3])
                 {
-                    excelApp = new Excel.Application();
-                    excelApp.Visible = false;
-
-                    workbook = excelApp.Workbooks.Add();
-                    worksheet = workbook.ActiveSheet;
-                    worksheet.Name = "Информационное обслуживание";
-
-                    int currentRow = 1;
-
-                    worksheet.Cells[currentRow, 1] = "Информационное обслуживание (Выдача и возврат книг)";
-                    var titleRange = (Excel.Range)worksheet.Cells[currentRow, 1];
-                    titleRange.Font.Bold = true;
-                    titleRange.Font.Size = 16;
-                    titleRange.Merge(worksheet.Cells[currentRow, 3]);
-                    currentRow += 2;
-
-                    worksheet.Cells[currentRow, 1] = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}";
-                    currentRow++;
-
-                    worksheet.Cells[currentRow, 1] = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
-                    currentRow += 2;
-
-                    worksheet.Cells[currentRow, 1] = "Дата";
-                    worksheet.Cells[currentRow, 2] = "Выдано книг";
-                    worksheet.Cells[currentRow, 3] = "Возвращено книг";
-                    var headerRange = (Excel.Range)worksheet.Cells[currentRow, 1];
-                    headerRange.Font.Bold = true;
-                    headerRange.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
-                    currentRow++;
-
-                    foreach (var item in data)
-                    {
-                        worksheet.Cells[currentRow, 1] = item.DisplayDate;
-                        worksheet.Cells[currentRow, 2] = item.BooksIssued;
-                        worksheet.Cells[currentRow, 3] = item.BooksReturned;
-                        currentRow++;
-                    }
-
-                    currentRow++;
-                    worksheet.Cells[currentRow, 1] = "ИТОГО:";
-                    var totalCell = (Excel.Range)worksheet.Cells[currentRow, 1];
-                    totalCell.Font.Bold = true;
-                    worksheet.Cells[currentRow, 2] = totalIssued;
-                    worksheet.Cells[currentRow, 3] = totalReturned;
-                    ((Excel.Range)worksheet.Cells[currentRow, 2]).Font.Bold = true;
-                    ((Excel.Range)worksheet.Cells[currentRow, 3]).Font.Bold = true;
-
-                    worksheet.Columns.AutoFit();
-                    workbook.SaveAs(saveFileDialog.FileName, Excel.XlFileFormat.xlOpenXMLWorkbook);
-
-                    MessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                 }
-                catch (Exception ex)
+                currentRow++;
+
+                // Данные
+                foreach (var item in data)
                 {
-                    MessageBox.Show($"Ошибка при экспорте: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    worksheet.Cells[currentRow, 1].Value = item.DisplayDate;
+                    worksheet.Cells[currentRow, 2].Value = item.BooksIssued;
+                    worksheet.Cells[currentRow, 3].Value = item.BooksReturned;
+                    currentRow++;
                 }
-                finally
-                {
-                    // Освобождаем COM-объекты в правильном порядке
-                    if (worksheet != null)
-                    {
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
-                    }
-                    if (workbook != null)
-                    {
-                        workbook.Close(false);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
-                    }
-                    if (excelApp != null)
-                    {
-                        excelApp.Quit();
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
-                    }
-                }
+
+                // Итоги
+                currentRow++;
+                worksheet.Cells[currentRow, 1].Value = "ИТОГО:";
+                worksheet.Cells[currentRow, 1].Style.Font.Bold = true;
+                worksheet.Cells[currentRow, 2].Value = totalIssued;
+                worksheet.Cells[currentRow, 2].Style.Font.Bold = true;
+                worksheet.Cells[currentRow, 3].Value = totalReturned;
+                worksheet.Cells[currentRow, 3].Style.Font.Bold = true;
+
+                // Авто-подбор ширины колонок
+                worksheet.Cells.AutoFitColumns();
+
+                // Сохраняем файл
+                File.WriteAllBytes(saveFileDialog.FileName, package.GetAsByteArray());
             }
+
+            CustomMessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
+                CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
         }
+
         // ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ЭКСПОРТА ДЛЯ ОТЧЁТА 1 ==========
 
-        /// <summary>
-        /// Экспорт отчета "Выдача литературы" в Excel
-        /// </summary>
         private async void ExportExcel_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateDates()) return;
@@ -1035,189 +1004,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Экспорт отчета "Выдача литературы" в PDF (печать)
-        /// </summary>
-        /// <summary>
-        /// Экспорт отчета "Выдача литературы" в PDF (печать)
-        /// </summary>
-        private async void PrintReport_Click(object sender, RoutedEventArgs e)
-        {
-            if (!ValidateDates()) return;
-            if (_isLoading) return;
-
-            try
-            {
-                _isLoading = true;
-                Mouse.OverrideCursor = Cursors.Wait;
-
-                var data = await LoadBookIssuanceReportAsync(
-                    StartDatePicker.SelectedDate.Value,
-                    EndDatePicker.SelectedDate.Value);
-
-                if (data.Count == 0)
-                {
-                    CustomMessageBox.Show("Нет данных за выбранный период.", "Информация",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                    return;
-                }
-
-                // Создаём копию данных для фонового потока
-                var dataCopy = data.ToList();
-
-                await Task.Run(() => CreateAndShowPDFFromCopy(
-                    dataCopy,
-                    "Отчёт_Выдача_литературы",
-                    StartDatePicker.SelectedDate.Value,
-                    EndDatePicker.SelectedDate.Value,
-                    new[]
-                    {
-                "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
-                "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки"
-                    },
-                    item => new string[]
-                    {
-                ((BookIssuanceReport)item).IssuanceDate.ToString("dd.MM.yyyy HH:mm"),
-                ((BookIssuanceReport)item).BookTitle,
-                ((BookIssuanceReport)item).InventoryNumber,
-                ((BookIssuanceReport)item).ReaderName,
-                ((BookIssuanceReport)item).GroupOrPost,
-                ((BookIssuanceReport)item).PlannedReturnDate.ToString("dd.MM.yyyy"),
-                ((BookIssuanceReport)item).ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена",
-                ((BookIssuanceReport)item).Status,
-                ((BookIssuanceReport)item).DaysOverdue.ToString()
-                    }
-                ));
-            }
-            catch (Exception ex) when (ex is InvalidOperationException || ex.InnerException is InvalidOperationException)
-            {
-                CustomMessageBox.Show(
-                    "Ошибка при создании PDF: невозможно работать с UI‑элементами в фоновом потоке. Попробуйте ещё раз.",
-                    "Ошибка печати",
-                    CustomMessageBoxButton.OK,
-                    CustomMessageBoxImage.Error);
-            }
-            catch (Exception ex)
-            {
-                CustomMessageBox.Show($"Ошибка печати: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-            }
-            finally
-            {
-                _isLoading = false;
-                Mouse.OverrideCursor = null;
-            }
-        }
-        private void CreateAndShowPDFFromCopy<T>(List<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
-        {
-            string tempFile = Path.GetTempFileName() + ".pdf";
-
-            try
-            {
-                using (PdfDocument document = new PdfDocument())
-                {
-                    document.Info.Title = reportName;
-                    document.Info.Author = "Библиотечная система";
-                    document.Info.CreationDate = DateTime.Now;
-
-                    PdfPage page = document.AddPage();
-                    page.Orientation = PdfSharp.PageOrientation.Landscape;
-
-                    using (XGraphics gfx = XGraphics.FromPdfPage(page))
-                    {
-                        XFont titleFont = new XFont("Arial", 16, XFontStyle.Bold);
-                        XFont headerFont = new XFont("Arial", 10, XFontStyle.Bold);
-                        XFont dataFont = new XFont("Arial", 9, XFontStyle.Regular);
-                        XFont italicFont = new XFont("Arial", 9, XFontStyle.Italic);
-
-                        double yPoint = 40;
-                        double leftMargin = 30;
-                        double rowHeight = 25;
-
-                        double[] columnWidths = new double[headers.Length];
-                        for (int i = 0; i < headers.Length; i++)
-                        {
-                            columnWidths[i] = 80;
-                        }
-
-                        gfx.DrawString(reportName, titleFont, XBrushes.Black, new XRect(0, yPoint, page.Width.Point, 30), XStringFormats.TopCenter);
-                        yPoint += 35;
-
-                        if (startDate.HasValue && endDate.HasValue)
-                        {
-                            string periodText = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}";
-                            gfx.DrawString(periodText, italicFont, XBrushes.Gray,
-                                new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
-                            yPoint += 18;
-                        }
-
-                        string dateGenerated = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
-                        gfx.DrawString(dateGenerated, italicFont, XBrushes.Gray,
-                            new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
-                        yPoint += 25;
-
-                        double currentX = leftMargin;
-                        for (int i = 0; i < headers.Length; i++)
-                        {
-                            gfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
-                            gfx.DrawString(headers[i], headerFont, XBrushes.Black,
-                                new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
-                            currentX += columnWidths[i];
-                        }
-                        yPoint += rowHeight;
-
-                        foreach (var item in data)
-                        {
-                            string[] values = getValues(item);
-                            currentX = leftMargin;
-
-                            for (int i = 0; i < values.Length; i++)
-                            {
-                                gfx.DrawRectangle(XBrushes.White, currentX, yPoint, columnWidths[i], rowHeight);
-                                string displayText = values[i];
-                                if (displayText.Length > 20) displayText = displayText.Substring(0, 17) + "...";
-                                gfx.DrawString(displayText, dataFont, XBrushes.Black,
-                                    new XRect(currentX + 3, yPoint, columnWidths[i] - 6, rowHeight), XStringFormats.TopLeft);
-                                currentX += columnWidths[i];
-                            }
-                            yPoint += rowHeight;
-
-                            if (yPoint > page.Height.Point - 50)
-                            {
-                                page = document.AddPage();
-                                page.Orientation = PdfSharp.PageOrientation.Landscape;
-                                using (XGraphics newGfx = XGraphics.FromPdfPage(page))
-                                {
-                                    yPoint = 40;
-                                    currentX = leftMargin;
-                                    for (int i = 0; i < headers.Length; i++)
-                                    {
-                                        newGfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
-                                        newGfx.DrawString(headers[i], headerFont, XBrushes.Black,
-                                            new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
-                                        currentX += columnWidths[i];
-                                    }
-                                    yPoint += rowHeight;
-                                }
-                            }
-                        }
-                    }
-
-                    document.Save(tempFile);
-                }
-
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempFile) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Ошибка создания PDF: {ex.Message}", ex);
-            }
-        }
-
-
-        /// <summary>
-        /// Экспорт отчета "Выдача литературы" в Excel (вспомогательный метод)
-        /// </summary>
         private void ExportBookIssuanceToExcel(ObservableCollection<BookIssuanceReport> data, DateTime startDate, DateTime endDate)
         {
             var saveFileDialog = new SaveFileDialog
@@ -1226,95 +1012,73 @@ namespace Diplom_Bibl.Pages
                 FileName = $"Отчёт_Выдача_литературы_{DateTime.Now:yyyyMMdd_HHmm}.xlsx"
             };
 
-            if (saveFileDialog.ShowDialog() == true)
+            if (saveFileDialog.ShowDialog() != true) return;
+
+            using (var package = new ExcelPackage())
             {
-                Excel.Application excelApp = null;
-                Excel.Workbook workbook = null;
-                Excel.Worksheet worksheet = null;
+                var worksheet = package.Workbook.Worksheets.Add("Выдача литературы");
 
-                try
+                // Заголовок
+                worksheet.Cells[1, 1].Value = "Отчёт по выдаче литературы";
+                worksheet.Cells[1, 1, 1, 9].Merge = true;
+                worksheet.Cells[1, 1].Style.Font.Bold = true;
+                worksheet.Cells[1, 1].Style.Font.Size = 16;
+                worksheet.Cells[1, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+                int currentRow = 3;
+
+                // Период
+                worksheet.Cells[currentRow, 1].Value = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}";
+                currentRow++;
+
+                // Дата формирования
+                worksheet.Cells[currentRow, 1].Value = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                currentRow += 2;
+
+                // Заголовки таблицы
+                string[] headers = { "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
+                    "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки" };
+
+                for (int i = 0; i < headers.Length; i++)
                 {
-                    excelApp = new Excel.Application();
-                    excelApp.Visible = false;
+                    worksheet.Cells[currentRow, i + 1].Value = headers[i];
+                }
 
-                    workbook = excelApp.Workbooks.Add();
-                    worksheet = workbook.ActiveSheet;
-                    worksheet.Name = "Выдача литературы";
+                using (var range = worksheet.Cells[currentRow, 1, currentRow, 9])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                }
+                currentRow++;
 
-                    int currentRow = 1;
-
-                    worksheet.Cells[currentRow, 1] = "Отчёт по выдаче литературы";
-                    var titleRange = (Excel.Range)worksheet.Cells[currentRow, 1];
-                    titleRange.Font.Bold = true;
-                    titleRange.Font.Size = 16;
-                    titleRange.Merge(worksheet.Cells[currentRow, 9]);
-                    currentRow += 2;
-
-                    worksheet.Cells[currentRow, 1] = $"Период: с {startDate:dd.MM.yyyy} по {endDate:dd.MM.yyyy}";
+                // Данные
+                foreach (var item in data)
+                {
+                    worksheet.Cells[currentRow, 1].Value = item.IssuanceDate.ToString("dd.MM.yyyy HH:mm");
+                    worksheet.Cells[currentRow, 2].Value = item.BookTitle;
+                    worksheet.Cells[currentRow, 3].Value = item.InventoryNumber;
+                    worksheet.Cells[currentRow, 4].Value = item.ReaderName;
+                    worksheet.Cells[currentRow, 5].Value = item.GroupOrPost;
+                    worksheet.Cells[currentRow, 6].Value = item.PlannedReturnDate.ToString("dd.MM.yyyy");
+                    worksheet.Cells[currentRow, 7].Value = item.ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена";
+                    worksheet.Cells[currentRow, 8].Value = item.Status;
+                    worksheet.Cells[currentRow, 9].Value = item.DaysOverdue;
                     currentRow++;
-
-                    worksheet.Cells[currentRow, 1] = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
-                    currentRow += 2;
-
-                    string[] headers = { "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
-                "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки" };
-
-                    for (int i = 0; i < headers.Length; i++)
-                    {
-                        worksheet.Cells[currentRow, i + 1] = headers[i];
-                        var range = (Excel.Range)worksheet.Cells[currentRow, i + 1];
-                        range.Font.Bold = true;
-                        range.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
-                    }
-                    currentRow++;
-
-                    foreach (var item in data)
-                    {
-                        worksheet.Cells[currentRow, 1] = item.IssuanceDate.ToString("dd.MM.yyyy HH:mm");
-                        worksheet.Cells[currentRow, 2] = item.BookTitle;
-                        worksheet.Cells[currentRow, 3] = item.InventoryNumber;
-                        worksheet.Cells[currentRow, 4] = item.ReaderName;
-                        worksheet.Cells[currentRow, 5] = item.GroupOrPost;
-                        worksheet.Cells[currentRow, 6] = item.PlannedReturnDate.ToString("dd.MM.yyyy");
-                        worksheet.Cells[currentRow, 7] = item.ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена";
-                        worksheet.Cells[currentRow, 8] = item.Status;
-                        worksheet.Cells[currentRow, 9] = item.DaysOverdue;
-                        currentRow++;
-                    }
-
-                    worksheet.Columns.AutoFit();
-                    workbook.SaveAs(saveFileDialog.FileName, Excel.XlFileFormat.xlOpenXMLWorkbook);
-
-                    MessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка при экспорте: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                finally
-                {
-                    if (worksheet != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
-                    if (workbook != null)
-                    {
-                        workbook.Close(false);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
-                    }
-                    if (excelApp != null)
-                    {
-                        excelApp.Quit();
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
-                    }
-                }
+
+                worksheet.Cells.AutoFitColumns();
+
+                File.WriteAllBytes(saveFileDialog.FileName, package.GetAsByteArray());
             }
+
+            CustomMessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
+                CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
         }
 
         // ========== ЭКСПОРТ ДЛЯ ОТЧЁТА 2 (ЧИТАТЕЛЬСКАЯ АКТИВНОСТЬ) ==========
 
-        /// <summary>
-        /// Экспорт отчета "Читательская активность" в Excel
-        /// </summary>
         private async void ExportReaderActivityExcel_Click(object sender, RoutedEventArgs e)
         {
             if (_isLoading) return;
@@ -1347,59 +1111,6 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        /// <summary>
-        /// Экспорт отчета "Читательская активность" в PDF
-        /// </summary>
-        private async void ExportReaderActivityPDF_Click(object sender, RoutedEventArgs e)
-        {
-            if (_isLoading) return;
-
-            try
-            {
-                _isLoading = true;
-                Mouse.OverrideCursor = Cursors.Wait;
-
-                var data = await LoadReaderActivityReportAsync();
-
-                if (data.Count == 0)
-                {
-                    CustomMessageBox.Show("Нет данных о читателях.", "Информация",
-                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                    return;
-                }
-
-                await Task.Run(() => CreateAndShowPDF(data, "Отчёт_Читательская_активность", null, null, new[]
-                {
-            "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
-            "Возвращено", "На руках", "Просрочено", "Последняя выдача"
-        }, item => new string[]
-        {
-            ((ReaderActivityReport)item).CardNumber,
-            ((ReaderActivityReport)item).FullName,
-            ((ReaderActivityReport)item).TypeName,
-            ((ReaderActivityReport)item).GroupOrPost,
-            ((ReaderActivityReport)item).BooksIssued.ToString(),
-            ((ReaderActivityReport)item).BooksReturned.ToString(),
-            ((ReaderActivityReport)item).CurrentlyIssued.ToString(),
-            ((ReaderActivityReport)item).OverdueBooks.ToString(),
-            ((ReaderActivityReport)item).LastIssuanceDate?.ToString("dd.MM.yyyy") ?? "Нет выдач"
-        }));
-            }
-            catch (Exception ex)
-            {
-                CustomMessageBox.Show($"Ошибка экспорта PDF: {ex.Message}", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
-            }
-            finally
-            {
-                _isLoading = false;
-                Mouse.OverrideCursor = null;
-            }
-        }
-
-        /// <summary>
-        /// Экспорт отчета "Читательская активность" в Excel (вспомогательный метод)
-        /// </summary>
         private void ExportReaderActivityToExcel(ObservableCollection<ReaderActivityReport> data)
         {
             var saveFileDialog = new SaveFileDialog
@@ -1408,92 +1119,69 @@ namespace Diplom_Bibl.Pages
                 FileName = $"Отчёт_Читательская_активность_{DateTime.Now:yyyyMMdd_HHmm}.xlsx"
             };
 
-            if (saveFileDialog.ShowDialog() == true)
+            if (saveFileDialog.ShowDialog() != true) return;
+
+            using (var package = new ExcelPackage())
             {
-                Excel.Application excelApp = null;
-                Excel.Workbook workbook = null;
-                Excel.Worksheet worksheet = null;
+                var worksheet = package.Workbook.Worksheets.Add("Читательская активность");
 
-                try
+                // Заголовок
+                worksheet.Cells[1, 1].Value = "Отчёт по читательской активности";
+                worksheet.Cells[1, 1, 1, 9].Merge = true;
+                worksheet.Cells[1, 1].Style.Font.Bold = true;
+                worksheet.Cells[1, 1].Style.Font.Size = 16;
+                worksheet.Cells[1, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+
+                int currentRow = 3;
+
+                // Дата формирования
+                worksheet.Cells[currentRow, 1].Value = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                currentRow += 2;
+
+                // Заголовки таблицы
+                string[] headers = { "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
+                    "Возвращено", "На руках", "Просрочено", "Последняя выдача" };
+
+                for (int i = 0; i < headers.Length; i++)
                 {
-                    excelApp = new Excel.Application();
-                    excelApp.Visible = false;
+                    worksheet.Cells[currentRow, i + 1].Value = headers[i];
+                }
 
-                    workbook = excelApp.Workbooks.Add();
-                    worksheet = workbook.ActiveSheet;
-                    worksheet.Name = "Читательская активность";
+                using (var range = worksheet.Cells[currentRow, 1, currentRow, 9])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
+                    range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                }
+                currentRow++;
 
-                    int currentRow = 1;
-
-                    worksheet.Cells[currentRow, 1] = "Отчёт по читательской активности";
-                    var titleRange = (Excel.Range)worksheet.Cells[currentRow, 1];
-                    titleRange.Font.Bold = true;
-                    titleRange.Font.Size = 16;
-                    titleRange.Merge(worksheet.Cells[currentRow, 9]);
-                    currentRow += 2;
-
-                    worksheet.Cells[currentRow, 1] = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
-                    currentRow += 2;
-
-                    string[] headers = { "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
-                "Возвращено", "На руках", "Просрочено", "Последняя выдача" };
-
-                    for (int i = 0; i < headers.Length; i++)
-                    {
-                        worksheet.Cells[currentRow, i + 1] = headers[i];
-                        var range = (Excel.Range)worksheet.Cells[currentRow, i + 1];
-                        range.Font.Bold = true;
-                        range.Interior.Color = System.Drawing.Color.LightGray.ToArgb();
-                    }
+                // Данные
+                foreach (var item in data)
+                {
+                    worksheet.Cells[currentRow, 1].Value = item.CardNumber;
+                    worksheet.Cells[currentRow, 2].Value = item.FullName;
+                    worksheet.Cells[currentRow, 3].Value = item.TypeName;
+                    worksheet.Cells[currentRow, 4].Value = item.GroupOrPost;
+                    worksheet.Cells[currentRow, 5].Value = item.BooksIssued;
+                    worksheet.Cells[currentRow, 6].Value = item.BooksReturned;
+                    worksheet.Cells[currentRow, 7].Value = item.CurrentlyIssued;
+                    worksheet.Cells[currentRow, 8].Value = item.OverdueBooks;
+                    worksheet.Cells[currentRow, 9].Value = item.LastIssuanceDate?.ToString("dd.MM.yyyy") ?? "Нет выдач";
                     currentRow++;
-
-                    foreach (var item in data)
-                    {
-                        worksheet.Cells[currentRow, 1] = item.CardNumber;
-                        worksheet.Cells[currentRow, 2] = item.FullName;
-                        worksheet.Cells[currentRow, 3] = item.TypeName;
-                        worksheet.Cells[currentRow, 4] = item.GroupOrPost;
-                        worksheet.Cells[currentRow, 5] = item.BooksIssued;
-                        worksheet.Cells[currentRow, 6] = item.BooksReturned;
-                        worksheet.Cells[currentRow, 7] = item.CurrentlyIssued;
-                        worksheet.Cells[currentRow, 8] = item.OverdueBooks;
-                        worksheet.Cells[currentRow, 9] = item.LastIssuanceDate?.ToString("dd.MM.yyyy") ?? "Нет выдач";
-                        currentRow++;
-                    }
-
-                    worksheet.Columns.AutoFit();
-                    workbook.SaveAs(saveFileDialog.FileName, Excel.XlFileFormat.xlOpenXMLWorkbook);
-
-                    MessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка при экспорте: {ex.Message}", "Ошибка",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                finally
-                {
-                    if (worksheet != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(worksheet);
-                    if (workbook != null)
-                    {
-                        workbook.Close(false);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(workbook);
-                    }
-                    if (excelApp != null)
-                    {
-                        excelApp.Quit();
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
-                    }
-                }
+
+                worksheet.Cells.AutoFitColumns();
+
+                File.WriteAllBytes(saveFileDialog.FileName, package.GetAsByteArray());
             }
+
+            CustomMessageBox.Show($"Отчёт сохранён:\n{saveFileDialog.FileName}", "Успешно",
+                CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
         }
 
         // ========== ЭКСПОРТ ДЛЯ ОТЧЁТА 3 (ФОНД БИБЛИОТЕКИ) ==========
 
-        /// <summary>
-        /// Экспорт отчета "Фонд библиотеки" в PDF
-        /// </summary>
         private async void ExportFundReportPDF_Click(object sender, RoutedEventArgs e)
         {
             if (_isLoading) return;
@@ -1514,19 +1202,19 @@ namespace Diplom_Bibl.Pages
 
                 await Task.Run(() => CreateAndShowPDF(data, "Отчёт_Фонд_библиотеки", null, null, new[]
                 {
-            "Название книги", "Автор", "Издательство", "Год", "Жанр",
-            "Всего", "Доступно", "В использовании"
-        }, item => new string[]
-        {
-            ((BookFundGroupedReport)item).Title,
-            ((BookFundGroupedReport)item).AuthorName,
-            ((BookFundGroupedReport)item).Publisher,
-            ((BookFundGroupedReport)item).Year.ToString(),
-            ((BookFundGroupedReport)item).Genre,
-            ((BookFundGroupedReport)item).TotalCopies.ToString(),
-            ((BookFundGroupedReport)item).AvailableCopies.ToString(),
-            ((BookFundGroupedReport)item).CopiesInUse.ToString()
-        }));
+                    "Название книги", "Автор", "Издательство", "Год", "Жанр",
+                    "Всего", "Доступно", "В использовании"
+                }, item => new string[]
+                {
+                    ((BookFundGroupedReport)item).Title,
+                    ((BookFundGroupedReport)item).AuthorName,
+                    ((BookFundGroupedReport)item).Publisher,
+                    ((BookFundGroupedReport)item).Year.ToString(),
+                    ((BookFundGroupedReport)item).Genre,
+                    ((BookFundGroupedReport)item).TotalCopies.ToString(),
+                    ((BookFundGroupedReport)item).AvailableCopies.ToString(),
+                    ((BookFundGroupedReport)item).CopiesInUse.ToString()
+                }));
             }
             catch (Exception ex)
             {
@@ -1540,7 +1228,113 @@ namespace Diplom_Bibl.Pages
             }
         }
 
-        // ========== МЕТОДЫ СОЗДАНИЯ PDF ==========
+        // ========== PDF МЕТОДЫ ==========
+
+        private async void PrintReport_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ValidateDates()) return;
+            if (_isLoading) return;
+
+            try
+            {
+                _isLoading = true;
+                Mouse.OverrideCursor = Cursors.Wait;
+
+                var data = await LoadBookIssuanceReportAsync(
+                    StartDatePicker.SelectedDate.Value,
+                    EndDatePicker.SelectedDate.Value);
+
+                if (data.Count == 0)
+                {
+                    CustomMessageBox.Show("Нет данных за выбранный период.", "Информация",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    return;
+                }
+
+                var dataCopy = data.ToList();
+
+                await Task.Run(() => CreateAndShowPDFFromCopy(
+                    dataCopy,
+                    "Отчёт_Выдача_литературы",
+                    StartDatePicker.SelectedDate.Value,
+                    EndDatePicker.SelectedDate.Value,
+                    new[]
+                    {
+                        "Дата выдачи", "Название книги", "Инв. номер", "Читатель",
+                        "Группа/Должность", "План. возврат", "Дата возврата", "Статус", "Дней просрочки"
+                    },
+                    item => new string[]
+                    {
+                        ((BookIssuanceReport)item).IssuanceDate.ToString("dd.MM.yyyy HH:mm"),
+                        ((BookIssuanceReport)item).BookTitle,
+                        ((BookIssuanceReport)item).InventoryNumber,
+                        ((BookIssuanceReport)item).ReaderName,
+                        ((BookIssuanceReport)item).GroupOrPost,
+                        ((BookIssuanceReport)item).PlannedReturnDate.ToString("dd.MM.yyyy"),
+                        ((BookIssuanceReport)item).ReturnDate?.ToString("dd.MM.yyyy") ?? "Не возвращена",
+                        ((BookIssuanceReport)item).Status,
+                        ((BookIssuanceReport)item).DaysOverdue.ToString()
+                    }
+                ));
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка печати: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
+            finally
+            {
+                _isLoading = false;
+                Mouse.OverrideCursor = null;
+            }
+        }
+
+        private async void ExportReaderActivityPDF_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isLoading) return;
+
+            try
+            {
+                _isLoading = true;
+                Mouse.OverrideCursor = Cursors.Wait;
+
+                var data = await LoadReaderActivityReportAsync();
+
+                if (data.Count == 0)
+                {
+                    CustomMessageBox.Show("Нет данных о читателях.", "Информация",
+                        CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                    return;
+                }
+
+                await Task.Run(() => CreateAndShowPDF(data, "Отчёт_Читательская_активность", null, null, new[]
+                {
+                    "№ билета", "ФИО", "Тип", "Группа/Должность", "Всего выдано",
+                    "Возвращено", "На руках", "Просрочено", "Последняя выдача"
+                }, item => new string[]
+                {
+                    ((ReaderActivityReport)item).CardNumber,
+                    ((ReaderActivityReport)item).FullName,
+                    ((ReaderActivityReport)item).TypeName,
+                    ((ReaderActivityReport)item).GroupOrPost,
+                    ((ReaderActivityReport)item).BooksIssued.ToString(),
+                    ((ReaderActivityReport)item).BooksReturned.ToString(),
+                    ((ReaderActivityReport)item).CurrentlyIssued.ToString(),
+                    ((ReaderActivityReport)item).OverdueBooks.ToString(),
+                    ((ReaderActivityReport)item).LastIssuanceDate?.ToString("dd.MM.yyyy") ?? "Нет выдач"
+                }));
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show($"Ошибка экспорта PDF: {ex.Message}", "Ошибка",
+                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+            }
+            finally
+            {
+                _isLoading = false;
+                Mouse.OverrideCursor = null;
+            }
+        }
 
         private void CreateAndShowPDF<T>(ObservableCollection<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
         {
@@ -1647,11 +1441,117 @@ namespace Diplom_Bibl.Pages
                 throw new Exception($"Ошибка создания PDF: {ex.Message}", ex);
             }
         }
+
+        private void CreateAndShowPDFFromCopy<T>(List<T> data, string reportName, DateTime? startDate, DateTime? endDate, string[] headers, Func<T, string[]> getValues)
+        {
+            string tempFile = Path.GetTempFileName() + ".pdf";
+
+            try
+            {
+                using (PdfDocument document = new PdfDocument())
+                {
+                    document.Info.Title = reportName;
+                    document.Info.Author = "Библиотечная система";
+                    document.Info.CreationDate = DateTime.Now;
+
+                    PdfPage page = document.AddPage();
+                    page.Orientation = PdfSharp.PageOrientation.Landscape;
+
+                    using (XGraphics gfx = XGraphics.FromPdfPage(page))
+                    {
+                        XFont titleFont = new XFont("Arial", 16, XFontStyle.Bold);
+                        XFont headerFont = new XFont("Arial", 10, XFontStyle.Bold);
+                        XFont dataFont = new XFont("Arial", 9, XFontStyle.Regular);
+                        XFont italicFont = new XFont("Arial", 9, XFontStyle.Italic);
+
+                        double yPoint = 40;
+                        double leftMargin = 30;
+                        double rowHeight = 25;
+
+                        double[] columnWidths = new double[headers.Length];
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            columnWidths[i] = 80;
+                        }
+
+                        gfx.DrawString(reportName, titleFont, XBrushes.Black, new XRect(0, yPoint, page.Width.Point, 30), XStringFormats.TopCenter);
+                        yPoint += 35;
+
+                        if (startDate.HasValue && endDate.HasValue)
+                        {
+                            string periodText = $"Период: с {startDate.Value:dd.MM.yyyy} по {endDate.Value:dd.MM.yyyy}";
+                            gfx.DrawString(periodText, italicFont, XBrushes.Gray,
+                                new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
+                            yPoint += 18;
+                        }
+
+                        string dateGenerated = $"Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm:ss}";
+                        gfx.DrawString(dateGenerated, italicFont, XBrushes.Gray,
+                            new XRect(leftMargin, yPoint, page.Width.Point - 60, 20), XStringFormats.TopLeft);
+                        yPoint += 25;
+
+                        double currentX = leftMargin;
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            gfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
+                            gfx.DrawString(headers[i], headerFont, XBrushes.Black,
+                                new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
+                            currentX += columnWidths[i];
+                        }
+                        yPoint += rowHeight;
+
+                        foreach (var item in data)
+                        {
+                            string[] values = getValues(item);
+                            currentX = leftMargin;
+
+                            for (int i = 0; i < values.Length; i++)
+                            {
+                                gfx.DrawRectangle(XBrushes.White, currentX, yPoint, columnWidths[i], rowHeight);
+                                string displayText = values[i];
+                                if (displayText.Length > 20) displayText = displayText.Substring(0, 17) + "...";
+                                gfx.DrawString(displayText, dataFont, XBrushes.Black,
+                                    new XRect(currentX + 3, yPoint, columnWidths[i] - 6, rowHeight), XStringFormats.TopLeft);
+                                currentX += columnWidths[i];
+                            }
+                            yPoint += rowHeight;
+
+                            if (yPoint > page.Height.Point - 50)
+                            {
+                                page = document.AddPage();
+                                page.Orientation = PdfSharp.PageOrientation.Landscape;
+                                using (XGraphics newGfx = XGraphics.FromPdfPage(page))
+                                {
+                                    yPoint = 40;
+                                    currentX = leftMargin;
+                                    for (int i = 0; i < headers.Length; i++)
+                                    {
+                                        newGfx.DrawRectangle(XBrushes.LightGray, currentX, yPoint, columnWidths[i], rowHeight);
+                                        newGfx.DrawString(headers[i], headerFont, XBrushes.Black,
+                                            new XRect(currentX, yPoint, columnWidths[i], rowHeight), XStringFormats.Center);
+                                        currentX += columnWidths[i];
+                                    }
+                                    yPoint += rowHeight;
+                                }
+                            }
+                        }
+                    }
+
+                    document.Save(tempFile);
+                }
+
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempFile) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Ошибка создания PDF: {ex.Message}", ex);
+            }
+        }
+
         private void StartDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
             if (StartDatePicker.SelectedDate.HasValue && EndDatePicker.SelectedDate.HasValue)
             {
-                // Автоматически проверяем корректность дат при изменении
                 ValidateDates();
             }
         }
@@ -1663,7 +1563,6 @@ namespace Diplom_Bibl.Pages
                 ValidateDates();
             }
         }
-
     }
 
     // ========== МОДЕЛИ ДАННЫХ ==========
@@ -1679,7 +1578,7 @@ namespace Diplom_Bibl.Pages
         public DateTime? ReturnDate { get; set; }
         public string Status { get; set; } = "";
         public int DaysOverdue { get; set; }
-        public string IssuanceType { get; set; } = ""; 
+        public string IssuanceType { get; set; } = "";
     }
 
     public class ReaderActivityReport
@@ -1707,7 +1606,6 @@ namespace Diplom_Bibl.Pages
         public int AvailableCopies { get; set; }
         public int CopiesInUse { get; set; }
         public int DisposedCopies { get; set; }
-
     }
 
     public class InfoServiceReport

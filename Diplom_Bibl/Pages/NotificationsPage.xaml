@@ -118,7 +118,7 @@
                                     Cursor="Hand"
                                     BorderBrush="#DEE2E6"
                                     BorderThickness="1"
-                                    MouseLeftButtonDown="Notification_Click">
+                                    >
 
                                 <Grid>
                                     <Grid.ColumnDefinitions>

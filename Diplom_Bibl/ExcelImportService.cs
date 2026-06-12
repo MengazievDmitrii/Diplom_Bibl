@@ -491,9 +491,10 @@ namespace Diplom_Bibl.Services
                     }
                     catch (Exception ex)
                     {
-                        CustomMessageBox.Show("Ошибка при импорте данных: " + ex.Message);
+                        // Убираем MessageBox из транзакции - просто добавляем ошибку в результат
+                        result.Errors.Add($"Строка {row.RowNumber}: Ошибка импорта - {ex.Message}");
                         transaction.Rollback();
-                        throw;
+                        // Не выбрасываем исключение, чтобы продолжить обработку остальных строк
                     }
                 }
             }
