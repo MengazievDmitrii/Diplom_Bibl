@@ -77,6 +77,18 @@ namespace Diplom_Bibl.Windows
             MainFrame.Navigating += MainFrame_Navigating;
             MainFrame.LoadCompleted += MainFrame_LoadCompleted;
             MainFrame.NavigationFailed += MainFrame_NavigationFailed;
+            this.KeyDown += MainWindow_KeyDown;
+        }
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                if (MainFrame != null && MainFrame.CanGoBack)
+                {
+                    MainFrame.GoBack();
+                    e.Handled = true;
+                }
+            }
         }
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -796,12 +808,15 @@ namespace Diplom_Bibl.Windows
         /// <summary>
         /// Обработчик клика по панели уведомлений - открытие страницы уведомлений
         /// </summary>
-        private void NotificationPanel_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void NotificationPanel_Click(object sender, MouseButtonEventArgs e)
         {
             if (_notificationService != null)
-                MainFrame.Navigate(new NotificationsPage(_notificationService));
+            {
+                // Передаём роли пользователя на страницу уведомлений
+                MainFrame.Navigate(new NotificationsPage(_notificationService, _userRoles));
+            }
         }
-       
+
 
         #endregion
 

@@ -300,6 +300,7 @@
                     <DataGridTextColumn Header="Жанр" Binding="{Binding GenreName}" Width="120" MinWidth="100"/>
                     <DataGridTextColumn Header="Всего" Binding="{Binding TotalCopies}" Width="70"/>
                     <DataGridTextColumn Header="В наличии" Binding="{Binding AvailableCopies}" Width="85"/>
+                    <DataGridTextColumn Header="Зарезервировано" Binding="{Binding ReservedCopies}" Width="100"/>
                     <DataGridTextColumn Header="Выдано" Binding="{Binding IssuedCopies}" Width="70"/>
                     <DataGridTemplateColumn Header="Статус" Width="110">
                         <DataGridTemplateColumn.CellTemplate>
@@ -341,9 +342,11 @@
 
                 <TextBlock Text="Выдано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
                 <TextBlock x:Name="IssuedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource WarningColor}" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Зарезервировано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="ReservedBooksCount" Text="0" Margin="0,0,20,0" Foreground="{StaticResource PrimaryColor}" FontWeight="Bold" FontSize="13"/>
 
-                <TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
-                <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>
+                <!--<TextBlock Text="Списано: " FontWeight="Bold" Foreground="{StaticResource TextColor}" FontSize="13"/>
+                <TextBlock x:Name="DisposedBooksCount" Text="0" Foreground="{StaticResource DangerColor}" FontWeight="Bold" FontSize="13"/>-->
             </WrapPanel>
         </Border>
     </Grid>

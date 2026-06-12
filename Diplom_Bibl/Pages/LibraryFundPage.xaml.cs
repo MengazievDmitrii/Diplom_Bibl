@@ -91,6 +91,7 @@ namespace Diplom_Bibl.Pages
             public int TotalCopies { get; set; }
             public int AvailableCopies { get; set; }
             public int IssuedCopies { get; set; }
+            public int ReservedCopies { get; set; }
             public int DisposedCopies { get; set; }
             public string StatusName { get; set; } = "";
             public int? StatusID { get; set; }
@@ -319,6 +320,14 @@ namespace Diplom_Bibl.Pages
                 FROM Books
                 WHERE StatusBook = 5
                 GROUP BY TitleBook
+            ),
+            ReservedStats AS (
+                SELECT 
+                    TitleBook,
+                    COUNT(*) AS ReservedCount
+                FROM Books
+                WHERE StatusBook = 6
+                GROUP BY TitleBook
             )
             SELECT 
                 MIN(b.IDBook) AS GroupId,
@@ -334,10 +343,12 @@ namespace Diplom_Bibl.Pages
                 COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) AS AvailableCopies,
                 ISNULL(MAX(ti.TotalIssued), 0) AS IssuedCopies,
                 ISNULL(MAX(ds.DisposedCount), 0) AS DisposedCopies,
+                ISNULL(MAX(rs.ReservedCount), 0) AS ReservedCopies,
                 CASE 
                     WHEN ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'Списана'
                     WHEN COUNT(*) - ISNULL(MAX(ti.TotalIssued), 0) - ISNULL(MAX(ds.DisposedCount), 0) > 0 THEN 'В наличии'
                     WHEN ISNULL(MAX(ti.TotalIssued), 0) > 0 THEN 'Выдана'
+                    WHEN ISNULL(MAX(rs.ReservedCount), 0) > 0 THEN 'Зарезервирована'
                     ELSE 'Неизвестно'
                 END AS StatusName,
                 NULL AS StatusID
@@ -347,17 +358,18 @@ namespace Diplom_Bibl.Pages
             LEFT JOIN GenersBook g ON b.Gener = g.ID_Gener
             LEFT JOIN TotalIssued ti ON b.TitleBook = ti.TitleBook
             LEFT JOIN DisposedStats ds ON b.TitleBook = ds.TitleBook
+            LEFT JOIN ReservedStats rs ON b.TitleBook = rs.TitleBook
             GROUP BY b.TitleBook, a.SurnameAuthor, a.NameAuthor, a.PatronymicAuthor
             ORDER BY b.TitleBook";
 
                 var yearsSet = new HashSet<int>();
-                var booksList = new List<BookGroupItem>(); // Временный список
+                var booksList = new List<BookGroupItem>();
 
                 using (var conn = new SqlConnection(_conn))
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))
-                    using (var reader = await cmd.ExecuteReaderAsync()) // ДОБАВЛЕН await
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
                         while (await reader.ReadAsync())
                         {
@@ -376,6 +388,7 @@ namespace Diplom_Bibl.Pages
                                 AvailableCopies = Convert.ToInt32(reader["AvailableCopies"]),
                                 IssuedCopies = Convert.ToInt32(reader["IssuedCopies"]),
                                 DisposedCopies = Convert.ToInt32(reader["DisposedCopies"]),
+                                ReservedCopies = Convert.ToInt32(reader["ReservedCopies"]),
                                 StatusName = reader["StatusName"]?.ToString() ?? "Неизвестно",
                                 StatusID = reader["StatusID"] != DBNull.Value ? Convert.ToInt32(reader["StatusID"]) : (int?)null
                             };
@@ -385,7 +398,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // Обновляем UI в потоке диспетчера
                 await Dispatcher.InvokeAsync(() =>
                 {
                     _allBooks.Clear();
@@ -505,7 +517,7 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-                const string sql = "SELECT ID_Status, LTRIM(RTRIM(Title_Status)) AS Title_Status FROM StatusBook ORDER BY Title_Status";
+                const string sql = "SELECT ID_Status, LTRIM(RTRIM(Title_Status)) AS Title_Status FROM StatusBook WHERE ID_Status NOT IN (4, 6) ORDER BY Title_Status";
                 var statusesList = new List<StatusItem>();
                 statusesList.Add(new StatusItem { ID_Status = 0, Title_Status = "Все статусы" });
 
@@ -526,7 +538,6 @@ namespace Diplom_Bibl.Pages
                     }
                 }
 
-                // ВАЖНО: Обновляем UI через Dispatcher
                 await Dispatcher.InvokeAsync(() =>
                 {
                     _allStatuses.Clear();
@@ -535,7 +546,7 @@ namespace Diplom_Bibl.Pages
 
                     if (FilterStatusCombo != null)
                     {
-                        FilterStatusCombo.ItemsSource = null; // Сначала сбрасываем
+                        FilterStatusCombo.ItemsSource = null;
                         FilterStatusCombo.ItemsSource = _allStatuses;
                         FilterStatusCombo.DisplayMemberPath = "DisplayName";
                         FilterStatusCombo.SelectedValuePath = "ID_Status";
@@ -1001,6 +1012,7 @@ namespace Diplom_Bibl.Pages
             int availableCopies = _allBooks.Sum(b => b.AvailableCopies);
             int issuedCopies = _allBooks.Sum(b => b.IssuedCopies);
             int disposedCopies = _allBooks.Sum(b => b.DisposedCopies);
+            int reservedCopies = _allBooks.Sum(b => b.ReservedCopies);
 
             if (TotalCopiesCount != null)
                 TotalCopiesCount.Text = totalCopies.ToString();
@@ -1008,12 +1020,17 @@ namespace Diplom_Bibl.Pages
                 AvailableBooksCount.Text = availableCopies.ToString();
             if (IssuedBooksCount != null)
                 IssuedBooksCount.Text = issuedCopies.ToString();
-            if (DisposedBooksCount != null)
-                DisposedBooksCount.Text = disposedCopies.ToString();
+            if (ReservedBooksCount != null)
+                ReservedBooksCount.Text = reservedCopies.ToString();
+            //if (DisposedBooksCount != null)
+            //    DisposedBooksCount.Text = disposedCopies.ToString();
+
+            // Опционально: добавить отображение зарезервированных в панель статистики
+            // Для этого необходимо добавить соответствующий TextBlock в XAML
         }
 
         #endregion
 
-       
+
     }
 }

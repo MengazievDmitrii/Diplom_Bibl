@@ -185,6 +185,7 @@
                                             BorderThickness="0" 
                                             Click="ViewRequest_Click"
                                             Tag="{Binding RequestID}"
+                                            Visibility="{Binding GoToButtonVisibility}"
                                             VerticalAlignment="Center"
                                             Margin="10,0,0,0"
                                             Cursor="Hand"/>

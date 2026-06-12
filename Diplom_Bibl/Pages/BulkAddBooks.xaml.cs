@@ -36,6 +36,8 @@ namespace Diplom_Bibl.Pages
         private ObservableCollection<StatusItem> _statuses;
         private ObservableCollection<UserItem> _responsibleUsers;
         private ObservableCollection<SupplierItem> _suppliers;
+        private const int MIN_YEAR = 1450;
+        private const int MAX_YEAR = 2100;
 
         // ========== ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ДЛЯ КОМБОБОКСОВ ==========
 
@@ -142,6 +144,13 @@ namespace Diplom_Bibl.Pages
             // Подписка на события для обновления предпросмотра
             QuantityBox.TextChanged += QuantityBox_TextChanged;
             StartInventoryBox.TextChanged += StartInventoryBox_TextChanged;
+
+            // ПОДПИСКА НА СОБЫТИЕ ПОТЕРИ ФОКУСА ДЛЯ ПОЛЯ "ГОД"
+            YearBox.LostFocus += YearBox_LostFocus;
+
+            // Дополнительные подписки для валидации ввода года
+            YearBox.PreviewTextInput += YearBox_PreviewTextInput;
+            DataObject.AddPastingHandler(YearBox, YearBox_Pasting);
 
             // Обновление предпросмотра при загрузке страницы
             this.Loaded += (s, e) => UpdateInventoryPreview();
@@ -744,9 +753,35 @@ namespace Diplom_Bibl.Pages
                 e.CancelCommand();
             }
         }
+        /// <summary>
+        /// Валидация ввода для поля "Год" - только цифры
+        /// </summary>
+        private void YearBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            // Разрешаем только цифры
+            e.Handled = !char.IsDigit(e.Text, 0);
+        }
+        /// <summary>
+        /// Запрет вставки нецифровых символов в поле "Год"
+        /// </summary>
+        private void YearBox_Pasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(string)))
+            {
+                string text = (string)e.DataObject.GetData(typeof(string));
+                if (!Regex.IsMatch(text, @"^\d+$"))
+                {
+                    e.CancelCommand();
+                }
+            }
+            else
+            {
+                e.CancelCommand();
+            }
+        }
 
         /// <summary>
-        /// Обработка потери фокуса для поля "Год"
+        /// Обработка потери фокуса для поля "Год" с валидацией диапазона
         /// </summary>
         private void YearBox_LostFocus(object sender, RoutedEventArgs e)
         {
@@ -754,29 +789,48 @@ namespace Diplom_Bibl.Pages
             if (textBox == null) return;
 
             string text = textBox.Text.Trim();
-            if (string.IsNullOrEmpty(text)) return;
 
-            if (int.TryParse(text, out int year))
+            // Если поле пустое - не выполняем валидацию
+            if (string.IsNullOrEmpty(text))
             {
-                int currentYear = DateTime.Now.Year;
-                if (year < 1000)
-                {
-                    textBox.Text = "1000";
-                    CustomMessageBox.Show("Год издания не может быть меньше 1000.",
-                        "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                }
-                else if (year > currentYear)
-                {
-                    textBox.Text = currentYear.ToString();
-                    CustomMessageBox.Show($"Год издания не может быть больше текущего ({currentYear}).",
-                        "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                }
+                return;
             }
-            else if (!string.IsNullOrEmpty(text))
+
+            // Проверяем, что введены только цифры
+            if (!int.TryParse(text, out int year))
             {
                 textBox.Clear();
-                CustomMessageBox.Show("Введите корректный год (только цифры).",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Введите корректный год (только цифры).\nДопустимый диапазон: {MIN_YEAR}-{MAX_YEAR}",
+                    "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                textBox.Focus();
+                return;
+            }
+
+            int currentYear = DateTime.Now.Year;
+            string errorMessage = null;
+
+            // Проверка на минимальный год
+            if (year < MIN_YEAR)
+            {
+                errorMessage = $"Год издания не может быть меньше {MIN_YEAR}.";
+            }
+            // Проверка на максимальный год
+            else if (year > MAX_YEAR)
+            {
+                errorMessage = $"Год издания не может быть больше {MAX_YEAR}.";
+            }
+            // Проверка на будущий год (не может быть больше текущего)
+            else if (year > currentYear)
+            {
+                errorMessage = $"Год издания не может быть больше текущего ({currentYear}).";
+            }
+
+            if (errorMessage != null)
+            {
+                textBox.Clear();
+                CustomMessageBox.Show($"{errorMessage}\nДопустимый диапазон: {MIN_YEAR}-{currentYear}",
+                    "Некорректный год", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                textBox.Focus();
             }
         }
 

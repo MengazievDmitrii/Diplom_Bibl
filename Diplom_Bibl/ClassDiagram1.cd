@@ -1,0 +1,650 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="Diplom_Bibl.App" Collapsed="true">
+    <Position X="0.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAAAAAAAAAAAAAAAAAAAAAAAAAMIAAQAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.BoolToVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.InvertBoolToVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.NotificationTypeToIconConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.StatusToColorConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="2.25" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.StringToVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.DateToVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="2.25" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.BoolToBrushConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.BoolToFontWeightConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="2.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.InverseBooleanConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.DateDisplayConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>DateDisplayConverter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.IdDisplayConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="14.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>IdDisplayConverter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.InfoRecord" Collapsed="true">
+    <Position X="0.5" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAAAAAAAAAAAAAAAAAAAABgAAACAAAAAAAgAAAAA=</HashCode>
+      <FileName>InfoRecord.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.ReportRow" Collapsed="true">
+    <Position X="4" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAAAAAAAAAAAAAAAACAAABgAAACAAAAAAAgAAAAA=</HashCode>
+      <FileName>ReportRow.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Controls.AddressSearchTextBox" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAgACIIAAgAACAAAAApBAAAACAAEFEAAACABAAhQ=</HashCode>
+      <FileName>Controls\AddressSearchTextBox.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Controls.CustomMessageBox" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QABAACAAAAAAAABCAAAAABAgAAIERIAgAAEAAAIAAAA=</HashCode>
+      <FileName>Controls\CustomMessageBox.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Controls.CustomMessageBoxHelper" Collapsed="true">
+    <Position X="14.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAACAAEAAAAAAAgCAAAAAA=</HashCode>
+      <FileName>Controls\CustomMessageBoxHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Converters.StatusColorConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Converters\StatusColorConverter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Converters.IsNullOrEmptyToVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>IsNullOrEmptyToVisibilityConverter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Helpers.DatabaseHelper" Collapsed="true">
+    <Position X="16.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIACAAABAAAAA=</HashCode>
+      <FileName>DatabaseHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ReceiptActPdfService" Collapsed="true">
+    <Position X="16.25" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAABAAIAAAABACgAAAAAABAAAAAACAAIgAAAQA=</HashCode>
+      <FileName>DocumentService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ExcelImportService" Collapsed="true">
+    <Position X="7.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAgAAYCAAAgAAAEAAAiAACAAAAAEAAAIAAAAAFaCAAA=</HashCode>
+      <FileName>ExcelImportService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.DisposalActPdfService" Collapsed="true">
+    <Position X="5.75" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgABAAAAAAAAAgAAAAAAAAAAAAAAQAAABCAAIAAAAAA=</HashCode>
+      <FileName>Pages\DisposalActPdfService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ReaderCardPdfService" Collapsed="true">
+    <Position X="11" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAwEAoAAAAAAAAAAAQFAIAAAABAAAAQgAAAAEAABAA=</HashCode>
+      <FileName>ReaderCardPdfService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.AddressSuggestionService" Collapsed="true">
+    <Position X="5.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAACAAAAAAAAAAAABAAAAAAAAAAAQABAAAAAAAAAAA=</HashCode>
+      <FileName>Services\AddressSuggestionService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.AddressSuggestionResponse" Collapsed="true">
+    <Position X="4" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Services\AddressSuggestionService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.AddressSuggestion" Collapsed="true">
+    <Position X="2.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAQAgAAAAAAA=</HashCode>
+      <FileName>Services\AddressSuggestionService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.AuthorService" Collapsed="true">
+    <Position X="2.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAA=</HashCode>
+      <FileName>Services\AuthorService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.BookIssuanceService" Collapsed="true">
+    <Position X="9.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAIAAAQAAAAAQAEAgggAAQAAAAMAAABAAAAAAQ=</HashCode>
+      <FileName>Services\BookIssuanceService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.BookService" Collapsed="true">
+    <Position X="16.25" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAABAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Services\BookService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ComputerSessionService" Collapsed="true">
+    <Position X="7.5" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgAAAAAAAAAAAAAAAAABAAAQAAAAAAAoAAAAIAAgAQo=</HashCode>
+      <FileName>Services\ComputerSessionService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.GenreService" Collapsed="true">
+    <Position X="11" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAABAAiAAAAAAAAEAAAAAAAAAAAQAAAAAAAA=</HashCode>
+      <FileName>Services\GenreService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.NotificationService" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QAACGAACEKAAAQBIAQAEAAiAAIAQAAgIAABABAAYAIA=</HashCode>
+      <FileName>Services\NotificationService.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ReceiptNumberGenerator" Collapsed="true">
+    <Position X="0.5" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Services\ReceiptNumberGenerator.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.ReceiptService" Collapsed="true">
+    <Position X="2.25" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAABAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Services\ReceiptService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Services.UserService" Collapsed="true">
+    <Position X="7.5" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAABAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAA=</HashCode>
+      <FileName>Services\UserService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddAuthor" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AADAAQAAQQAAIAgEAAAAACAEAQBABAAABAAAAACAAEI=</HashCode>
+      <FileName>Pages\AddAuthor.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BookListItem" Collapsed="true">
+    <Position X="11" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAABQCAAEAACAIIAAAAAAgAAAAAAAAABAAACAA=</HashCode>
+      <FileName>Pages\AddBook.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddBook" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="2.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAJAAIQCIABhkAEgAAAAYGAB4FwAoEIIAOggCEchIEI=</HashCode>
+      <FileName>Pages\AddBook.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddBookCategory" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAEAAAEIEAAAAAAAEAAQABAAgIAAAgAAQAAAI=</HashCode>
+      <FileName>Pages\AddBookCategory.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddEditionType" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAEAEACAAIEAAAEAAAEAAQAAAAAIAAAgAAwAAAI=</HashCode>
+      <FileName>Pages\AddEditionType.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddGener" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AABAAQAAEQAAAAgBAAIAAAAEAQAACAAABAAAAACAAAI=</HashCode>
+      <FileName>Pages\AddGener.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddGroup" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AABAAQAAgQAAACgAAAAAAAgEAAEAAIAABAIAgACAAAI=</HashCode>
+      <FileName>Pages\AddGroup.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddPost" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BABAAAAKEQEAAAAAAAAAYAAEARAAAAAIIAAgECAgAAY=</HashCode>
+      <FileName>Pages\AddPost.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddPublicationFormat" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BAJAAAACUAEAAIEAAAAAYBAAAQgAAAAIAAAgAgQAAAY=</HashCode>
+      <FileName>Pages\AddPublicationFormat.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddPublishingHouse" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="14.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AABAAQAIAwIAAAggAAAAAEAEAQEAAABAAAAAAgCgAAI=</HashCode>
+      <FileName>Pages\AddPublishingHouse.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddReader" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="16.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AkQAAkESUCAOIAiAIIAAAgAAQxEAAoAAAIIgAOJAENY=</HashCode>
+      <FileName>Pages\AddReader.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddSpeciality" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BABAAQACASEgAAwEAAAAIAAEAQAACIAAAAAAAACAAAY=</HashCode>
+      <FileName>Pages\AddSpeciality.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddStatusBook" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ACBAAQAAAQAAAAgAAAAAAAAEAQAACAAAFAAAIACAAAI=</HashCode>
+      <FileName>Pages\AddStatusBook.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddSupplier" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BCJABAACEAMAEAEAIAAAYAgAAQAEAkAICABoBAQkAAY=</HashCode>
+      <FileName>Pages\AddSupplier.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddUser" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>lEJAQAACCAAEAAEEQgAGYIUAARBAAIAIAAYgAEQAQIQ=</HashCode>
+      <FileName>Pages\AddUser.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AddViewBook" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="14.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AIFAAQAAAQAAACgAAgAAQAAEAAAAAAAAAIAAAACAAAI=</HashCode>
+      <FileName>Pages\AddViewBook.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.AdmissionBook" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="16.25" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CABgAAAAAAAAAAAAAAAAQAAAAQAAAAIIAACAAAAAIAE=</HashCode>
+      <FileName>Pages\AdmissionBook.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BookRequestsManagement" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>DAAASIAICACgBAAAEAkYQIQAgSAAcEBIABiIUQAAAAg=</HashCode>
+      <FileName>Pages\BookRequestsManagement.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BulkAddBooks" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BQMgggALMDTQUAQIAIAKQKEKI4wwowJMCACwAJAAKAA=</HashCode>
+      <FileName>Pages\BulkAddBooks.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.SessionDisplayItem" Collapsed="true">
+    <Position X="12.75" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAgAAAgEAACCAIAAEAAAQAgAMAAoAACAIEAAAAAAAAA=</HashCode>
+      <FileName>Pages\ComputerSessionsManagement.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ComputerSessionsManagement" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>wIAAAEAAAAAAEAEAAAACAQAAEQAAAAAIAABAAAAABAA=</HashCode>
+      <FileName>Pages\ComputerSessionsManagement.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ReasonDisposalBook" Collapsed="true">
+    <Position X="14.5" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAEAAAAAAAAAAAACAAAAAAAAAAAAA=</HashCode>
+      <FileName>Pages\DisposalAct.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BookSearchResult" Collapsed="true">
+    <Position X="14.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAQAAAEAACAIIQAAAAAAAAAAAAACAAAAAAAA=</HashCode>
+      <FileName>Pages\DisposalAct.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.DisposalAct" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>YEAAAAAAEQAABAABBIiABEBAAJDFAAAAAAAgEAACAFA=</HashCode>
+      <FileName>Pages\DisposalAct.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.FundMovementPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="9.25" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QABAQAALCAEABAAQAAAAQAEAgYAAAAAIAAAAAAAQAAQ=</HashCode>
+      <FileName>Pages\FundMovementPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ImportReaders" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="16.25" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAAAAAAAAAAAACQAAAEAAAQAgAAAIACAABAAAAAA=</HashCode>
+      <FileName>Pages\ImportReaders.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.InformationServicePage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="2.25" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>JkP+EjqQHVAwAFBWAJSFkuEFQ0zJIJiLFQK8pCAniiI=</HashCode>
+      <FileName>Pages\InformationServicePage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.InventoryActReport" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAACAAgAEAAAAAAgAQABAIUAAoAgJAAAJQAAAAAA=</HashCode>
+      <FileName>Pages\InventoryActReport.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.LibraryFundPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>RCBIAgAIHmDgAAAQAhIAIIAAsBBAAAIIgQBAUQACAFA=</HashCode>
+      <FileName>Pages\LibraryFundPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.MyBooksPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="16.25" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAIAAAAAAAQAAgAAAAIAAAAAAEARAAIA=</HashCode>
+      <FileName>Pages\MyBooksPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.MyRequestsPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>TAAAQIAAAAAAAAAAAAAQQAQAAQAAAAAIAAgIAAAIAAA=</HashCode>
+      <FileName>Pages\MyRequestsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.NotificationsPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACSAEIUAKACAAwgAAAAACAASASAABAAABAAQEBAAA=</HashCode>
+      <FileName>Pages\NotificationsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.NotificationDisplayItem" Collapsed="true">
+    <Position X="2.25" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAEEAAEAAAASAAAAgEQAECAAAAAAAggAAIAAAEAA=</HashCode>
+      <FileName>Pages\NotificationsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.Readers" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>RARAAhEKACIEAAwoABEASAACAQEADoAIAAAAAAAIQBY=</HashCode>
+      <FileName>Pages\Readers.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ReportsPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="5.75" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAgIEGAIBhSAAAABAASIQQAQAAAAAIAMAAAIAAAAQAA=</HashCode>
+      <FileName>Pages\ReportsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BookIssuanceReport" Collapsed="true">
+    <Position X="7.5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BAAAAAAEAAAAAAAAAAQIAAAAAAAAQAAAABAIAiAABAA=</HashCode>
+      <FileName>Pages\ReportsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ReaderActivityReport" Collapsed="true">
+    <Position X="9.25" Y="6.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAgEAAAAAAIAAAAAAAAAAAAEAQBCAAAAAACAAACA=</HashCode>
+      <FileName>Pages\ReportsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.BookFundGroupedReport" Collapsed="true">
+    <Position X="5.75" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIEAAAABAAAAEAACAIIQAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Pages\ReportsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.InfoServiceReport" Collapsed="true">
+    <Position X="4" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAEAAAAAAAAAAAAAAAIAAAAAQAQAAAAAAAAAAAA=</HashCode>
+      <FileName>Pages\ReportsPage.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.RequestBook" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="7.5" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EECgACBQECDAVgAAgAAAAABwCAFgAIgIBRCwEUAAAoE=</HashCode>
+      <FileName>Pages\RequestBook.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.ReturnBooksPage" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAJgAAGAAAFAAhgCAAARgAAAAwAJIIAIBgAIAAAAAAA=</HashCode>
+      <FileName>Pages\ReturnBooksPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.GroupTypeVisibilityConverter" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAAAAAAAAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Pages\ReturnBooksPage.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Pages.Settings" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="14.5" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IgAAAAAAQAAAAAAAAAAAAAAFAAAAAABAAAMAAAAAAAA=</HashCode>
+      <FileName>Pages\Settings.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Properties.Resources" Collapsed="true">
+    <Position X="9.25" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAABEAAAAQAAAAAAAAAAAAAAAIA=</HashCode>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Properties.Settings" Collapsed="true">
+    <Position X="16.25" Y="7.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAIAAAAAABAAAAAAAAAAAAAAA=</HashCode>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Models.User" Collapsed="true">
+    <Position X="5.75" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IASAAGAAAACAAIAAAAAQAAQADggAABCgAAAQCAAAAAg=</HashCode>
+      <FileName>User.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Diplom_Bibl.Windows.AutorisationWindow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="4" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAEAAQAAAgAAQAIAAAAAQAAAAAAAACIKCCBAEBAAAA=</HashCode>
+      <FileName>Windows\AutorisationWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Windows.ComputerSessionWindow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="11" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAACAABAgAEAACAAAAAAIAAAAACAIIAAEgAEAICAA=</HashCode>
+      <FileName>Windows\ComputerSessionWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="Diplom_Bibl.Windows.MainWindow" Collapsed="true" BaseTypeListCollapsed="true">
+    <Position X="14.5" Y="5.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QwAAAgETEZyQDAACIAgkgCiAIYZQC4nJAASABClIAIA=</HashCode>
+      <FileName>Windows\MainWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Font Name="Segoe UI" Size="9.6" />
+</ClassDiagram>

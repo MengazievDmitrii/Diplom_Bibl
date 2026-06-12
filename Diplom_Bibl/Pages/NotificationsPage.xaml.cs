@@ -1,6 +1,7 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Services;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ namespace Diplom_Bibl.Pages
     {
         private readonly NotificationService _notificationService;
         private ObservableCollection<NotificationDisplayItem> _notifications;
+        private readonly List<string> _userRoles;
         private bool _isLoading = false;
         private bool _isInitialLoad = true;
 
@@ -25,9 +27,10 @@ namespace Diplom_Bibl.Pages
         private int _totalItems = 0;
         private ScrollViewer _scrollViewer;
 
-        public NotificationsPage(NotificationService notificationService)
+        public NotificationsPage(NotificationService notificationService, List<string> userRoles)
         {
             InitializeComponent();
+            _userRoles = userRoles ?? new List<string>();
             _notificationService = notificationService;
             _notifications = new ObservableCollection<NotificationDisplayItem>();
 
@@ -54,8 +57,15 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"📊 UnreadCountChanged: {count}");
                 Dispatcher.Invoke(() => UpdateUnreadBadge(count));
             };
+            
         }
-
+        /// <summary>
+        /// Проверка, является ли пользователь библиотекарем
+        /// </summary>
+        private bool IsLibrarian()
+        {
+            return _userRoles.Contains("LIBRARIAN");
+        }
         /// <summary>
         /// Настройка слушателя прокрутки для бесконечной загрузки
         /// </summary>
@@ -121,6 +131,8 @@ namespace Diplom_Bibl.Pages
             try
             {
                 await Dispatcher.InvokeAsync(() => ShowLoading(true, "Загрузка уведомлений..."));
+                bool isLibrarian = IsLibrarian();
+
 
                 // Загружаем уведомления с пагинацией в фоновом потоке
                 var (items, totalCount) = await Task.Run(() => GetNotificationsWithPagination(_currentPage, PAGE_SIZE));
@@ -136,7 +148,7 @@ namespace Diplom_Bibl.Pages
 
                     foreach (var item in items)
                     {
-                        _notifications.Add(new NotificationDisplayItem(item));
+                        _notifications.Add(new NotificationDisplayItem(item, isLibrarian));
                     }
 
                     NotificationsList.ItemsSource = _notifications;
@@ -369,7 +381,14 @@ namespace Diplom_Bibl.Pages
     {
         private NotificationService.NotificationItem _source;
         private bool _isRead;
+        private bool _isLibrarian;
 
+        public NotificationDisplayItem(NotificationService.NotificationItem source, bool isLibrarian)
+        {
+            _source = source;
+            _isRead = source.IsRead;
+            _isLibrarian = isLibrarian;
+        }
         public NotificationDisplayItem(NotificationService.NotificationItem source)
         {
             _source = source;
@@ -414,6 +433,7 @@ namespace Diplom_Bibl.Pages
                 return new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3498DB"));
             }
         }
+        public Visibility GoToButtonVisibility => _isLibrarian ? Visibility.Visible : Visibility.Collapsed;
 
         public void MarkAsRead()
         {

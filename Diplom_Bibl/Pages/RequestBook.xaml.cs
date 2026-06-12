@@ -931,7 +931,7 @@ namespace Diplom_Bibl.Pages
                 // ПОКАЗЫВАЕМ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЮ (СРАЗУ)
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\nПосле обработки библиотекарем вы получите уведомление.",
+                    CustomMessageBox.Show($"Заявка №{generatedNumber} успешно создана!\n\n",
                         "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                 });
 

@@ -102,13 +102,6 @@
                              MaxLength="500"
                              VerticalScrollBarVisibility="Auto"/>
                 </StackPanel>
-
-                <!-- Информационное сообщение -->
-                <Border Background="#E3F2FD" CornerRadius="6" Padding="10" Margin="0,10,0,0">
-                    <TextBlock Text="ℹ️ После нажатия кнопки &quot;Записаться&quot; окно будет заблокировано. 
-    Для завершения сессии используйте кнопку &quot;Выход&quot; на панели библиотекаря или закройте приложение."
-                               FontSize="12" Foreground="#0056B3" TextWrapping="Wrap"/>
-                </Border>
             </StackPanel>
         </ScrollViewer>
 

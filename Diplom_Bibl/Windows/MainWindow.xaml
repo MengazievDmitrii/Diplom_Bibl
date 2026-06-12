@@ -9,7 +9,7 @@
         Loaded="Window_Loaded"
         MinWidth="1024" 
         MinHeight="700"
-        WindowState="Maximized">
+        WindowState="Maximized" KeyDown="MainWindow_KeyDown">
 
     <Window.Resources>
         <!-- Цветовая схема интерфейса -->
