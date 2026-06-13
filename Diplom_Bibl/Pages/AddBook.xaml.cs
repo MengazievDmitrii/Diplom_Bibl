@@ -880,80 +880,146 @@ namespace Diplom_Bibl.Pages
 
         private async void BtnSaveChanges_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentIDBook.HasValue)
-            {
-                CustomMessageBox.Show("Нет выбранной книги для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(TbInventoryNumber.Text) || string.IsNullOrWhiteSpace(TbTitle.Text) ||
-                CbAuthor.SelectedValue == null || !int.TryParse(TbYear.Text, out int year))
-            {
-                CustomMessageBox.Show("Заполните обязательные поля (*).", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
-                return;
-            }
+            if (_isLoadingBooks) return;
 
-            decimal price = 0;
+            // 1. Комплексная валидация текстовых полей формы перед отправкой в БД
+            if (string.IsNullOrWhiteSpace(TbTitle.Text)) { CustomMessageBox.Show("Введите название книги.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning); return; }
+            if (string.IsNullOrWhiteSpace(TbInventoryNumber.Text)) { CustomMessageBox.Show("Введите инвентарный номер.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning); return; }
+            if (!int.TryParse(TbYear.Text, out int year) || year < 1000 || year > DateTime.Now.Year + 1) { CustomMessageBox.Show("Введите корректный год издания.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning); return; }
+
+            // Парсинг стоимости с учетом региональных стандартов (запятые/точки)
             string priceText = TbPrice.Text?.Trim() ?? "";
+            decimal price = 0;
             if (!string.IsNullOrEmpty(priceText))
             {
                 priceText = priceText.Replace(',', '.');
                 if (!decimal.TryParse(priceText, NumberStyles.Any, CultureInfo.InvariantCulture, out price))
                 {
-                    CustomMessageBox.Show("Укажите корректную цену.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                    CustomMessageBox.Show("Введите корректную стоимость книги.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                     return;
                 }
             }
 
-            int IDBook = _currentIDBook.Value;
-            string inventoryNumber = TbInventoryNumber.Text.Trim();
-            string title = TbTitle.Text.Trim();
-            int authorId = (int)CbAuthor.SelectedValue;
-            object publisherId = CbPublisher.SelectedValue ?? DBNull.Value;
-            object genreId = CbGenre.SelectedValue ?? DBNull.Value;
-            object statusId = CbStatus.SelectedValue ?? DBNull.Value;
-            string annotation = TbAnnotation.Text.Trim();
-            object receiptId = CbReceipt.SelectedValue ?? DBNull.Value;
+            // 2. Проверки на то, что в обязательных выпадающих списках действительно выбраны элементы
+            if (CbAuthor.SelectedValue == null) { CustomMessageBox.Show("Выберите автора.", "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning); return; }
 
             try
             {
-                await Task.Run(() =>
+                // Вытаскиваем числовые идентификаторы (ID) из выбранных элементов управления (ComboBox)
+                int authorId = (int)CbAuthor.SelectedValue;
+                object publisherId = CbPublisher.SelectedValue ?? DBNull.Value;
+                object genreId = CbGenre.SelectedValue ?? DBNull.Value;
+                object statusId = CbStatus.SelectedValue ?? (object)_defaultStatusId;
+                object receiptId = CbReceipt.SelectedValue ?? DBNull.Value;
+
+                // Значения из дополнительных ComboBox (Категория, Вид, Формат)
+                object categoryId = CbCategory.SelectedValue ?? DBNull.Value;
+                object editionTypeId = CbEditionType.SelectedValue ?? DBNull.Value;
+                object formatId = CbFormat.SelectedValue ?? DBNull.Value;
+
+                string invNum = TbInventoryNumber.Text.Trim();
+                string title = TbTitle.Text.Trim();
+                string annotation = TbAnnotation.Text?.Trim() ?? "";
+
+                using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
-                    const string updateQuery = @"
-                        UPDATE Books SET InventaryNumber=@Inv, TitleBook=@Title, Author=@Author, PublishingHouse=@Pub,
-                            YearPublishing=@Year, Gener=@Genre, StatusBook=@Status, Anotation=@Annot,
-                            IDReceip=@Receipt, Price=@Price
-                        WHERE IDBook=@Id";
-                    using (var conn = new SqlConnection(_connectionString))
+                    await conn.OpenAsync();
+
+                    // Проверяем уникальность инвентарного номера среди других книг, чтобы не вызвать сбой СУБД
+                    string checkInvQuery = "SELECT COUNT(*) FROM Books WHERE InventaryNumber = @inv AND IDBook != @id";
+                    using (SqlCommand checkCmd = new SqlCommand(checkInvQuery, conn))
                     {
-                        conn.Open();
-                        using (var cmd = new SqlCommand(updateQuery, conn))
+                        checkCmd.Parameters.AddWithValue("@inv", invNum);
+                        checkCmd.Parameters.AddWithValue("@id", _currentIDBook ?? -1);
+                        if ((int)await checkCmd.ExecuteScalarAsync() > 0)
                         {
-                            cmd.Parameters.AddWithValue("@Inv", inventoryNumber);
-                            cmd.Parameters.AddWithValue("@Title", title);
-                            cmd.Parameters.AddWithValue("@Author", authorId);
-                            cmd.Parameters.AddWithValue("@Pub", publisherId);
-                            cmd.Parameters.AddWithValue("@Year", year);
-                            cmd.Parameters.AddWithValue("@Genre", genreId);
-                            cmd.Parameters.AddWithValue("@Status", statusId);
-                            cmd.Parameters.AddWithValue("@Annot", string.IsNullOrEmpty(annotation) ? DBNull.Value : (object)annotation);
-                            cmd.Parameters.AddWithValue("@Receipt", receiptId);
-                            cmd.Parameters.AddWithValue("@Price", price);
-                            cmd.Parameters.AddWithValue("@Id", IDBook);
-                            cmd.ExecuteNonQuery();
+                            CustomMessageBox.Show("Книга с таким инвентарным номером уже зарегистрирована!", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                            return;
                         }
                     }
-                });
-                CustomMessageBox.Show("Книга успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
-                await Dispatcher.InvokeAsync(() => ClearForm());
-                _cancellationTokenSource = new CancellationTokenSource();
-                await LoadBooksToListAsync(_cancellationTokenSource.Token);
+
+                    string actionQuery;
+                    if (_currentIDBook == null)
+                    {
+                        // Запрос на добавление новой книги (аналог BtnSaveNew_Click)
+                        actionQuery = @"
+                    INSERT INTO Books (InventaryNumber, TitleBook, Author, PublishingHouse, YearPublishing,
+                                       Gener, StatusBook, Anotation, IDReceip, Price, TotalCopies, AvailableCopies, CopiesInUse, 
+                                       CategoryID, EditionTypeID, FormatID)
+                    VALUES (@inv, @title, @author, @pub, @year, @genre, @status, @annot, @receipt, @price, 1, 1, 0, 
+                            @categoryId, @editionTypeId, @formatId)";
+                    }
+                    else
+                    {
+                        // ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ запрос на обновление структуры:
+                        // Названия столбцов теперь строго соответствуют схеме таблицы (Price, IDReceip, CategoryID, EditionTypeID, FormatID)
+                        actionQuery = @"
+                    UPDATE Books 
+                    SET InventaryNumber = @inv, 
+                        TitleBook = @title, 
+                        Author = @author, 
+                        PublishingHouse = @pub, 
+                        YearPublishing = @year, 
+                        Price = @price, 
+                        Gener = @genre, 
+                        StatusBook = @status, 
+                        Anotation = @annot,
+                        IDReceip = @receipt,
+                        CategoryID = @categoryId, 
+                        EditionTypeID = @editionTypeId, 
+                        FormatID = @formatId
+                    WHERE IDBook = @id";
+                    }
+
+                    using (SqlCommand cmd = new SqlCommand(actionQuery, conn))
+                    {
+                        // Привязка параметров для SQL-запроса (защита от SQL-инъекций)
+                        cmd.Parameters.AddWithValue("@inv", invNum);
+                        cmd.Parameters.AddWithValue("@title", title);
+                        cmd.Parameters.AddWithValue("@author", authorId);
+                        cmd.Parameters.AddWithValue("@pub", publisherId);
+                        cmd.Parameters.AddWithValue("@year", year);
+                        cmd.Parameters.AddWithValue("@price", price);
+                        cmd.Parameters.AddWithValue("@genre", genreId);
+                        cmd.Parameters.AddWithValue("@status", statusId);
+                        cmd.Parameters.AddWithValue("@annot", string.IsNullOrEmpty(annotation) ? DBNull.Value : (object)annotation);
+                        cmd.Parameters.AddWithValue("@receipt", receiptId);
+
+                        // Исправленные параметры категорий, типов и форматов под структуру СУБД
+                        cmd.Parameters.AddWithValue("@categoryId", categoryId);
+                        cmd.Parameters.AddWithValue("@editionTypeId", editionTypeId);
+                        cmd.Parameters.AddWithValue("@formatId", formatId);
+
+                        // Если происходит редактирование, добавляем параметр ID записи
+                        if (_currentIDBook != null)
+                            cmd.Parameters.AddWithValue("@id", _currentIDBook.Value);
+
+                        // Выполняем асинхронную команду внесения изменений в базу данных
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+
+                CustomMessageBox.Show(_currentIDBook == null ? "Книга успешно добавлена в фонд!" : "Данные о книге (включая категорию, вид, формат и цену) успешно обновлены.", "Успех", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+
+                // Очищаем элементы UI формы и заново перечитываем список для DataGrid
+                ClearForm();
+
+                // Обновляем коллекцию данных на странице
+                if (typeof(AddBook).GetMethod("LoadDataAsync") != null)
+                {
+                    await LoadDataAsync();
+                }
+                else
+                {
+                    _cancellationTokenSource = new CancellationTokenSource();
+                    await LoadBooksToListAsync(_cancellationTokenSource.Token);
+                }
             }
             catch (Exception ex)
             {
-                await Dispatcher.InvokeAsync(() => CustomMessageBox.Show($"Ошибка обновления: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error));
+                CustomMessageBox.Show($"Ошибка при сохранении/обновлении данных: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-
         private async void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             if (!_currentIDBook.HasValue)
