@@ -6,7 +6,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Media;
 
 namespace Diplom_Bibl.Services
@@ -570,9 +569,9 @@ namespace Diplom_Bibl.Services
                 throw;
             }
         }
-            
 
-            
+
+
 
         /// <summary>
         /// Получает список выдач за указанную дату

@@ -34,7 +34,7 @@ namespace Diplom_Bibl.Pages
         private BookIssuanceService.GroupInfo _selectedGroup;
         private BookIssuanceService.TeacherInfo _selectedTeacher;
         private BookIssuanceService.ReaderInfo _selectedStudent;
-        
+
 
         private int _statusAvailableId = 1;
         private int _statusReservedId = 6;
@@ -621,9 +621,9 @@ namespace Diplom_Bibl.Pages
             FROM Books b
             WHERE b.TitleBook = @Title
               AND b.StatusBook NOT IN (5) 
-              AND b.ID_Disposal IS NULL"; 
-        
-        using (var conn = new SqlConnection(_connectionString))
+              AND b.ID_Disposal IS NULL";
+
+                using (var conn = new SqlConnection(_connectionString))
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(sql, conn))

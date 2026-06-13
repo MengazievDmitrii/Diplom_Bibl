@@ -1,21 +1,14 @@
 ﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Diplom_Bibl.Pages
 {
@@ -34,8 +27,8 @@ namespace Diplom_Bibl.Pages
             LoadSpecialities();
         }
 
-       
-            private void LoadGroups()
+
+        private void LoadGroups()
         {
             try
             {
@@ -82,8 +75,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки групп:\n{ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки групп:\n{ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 LvGroups.ItemsSource = null;
             }
         }
@@ -150,8 +143,8 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки специальностей:\n{ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки специальностей:\n{ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 NameSpecialityCB.ItemsSource = null;
             }
         }
@@ -173,7 +166,7 @@ namespace Diplom_Bibl.Pages
             string groupCode = CodeGroup.Text?.Trim();
             if (string.IsNullOrEmpty(groupCode))
             {
-                 CustomMessageBox.Show("Введите код группы.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Введите код группы.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -198,32 +191,32 @@ namespace Diplom_Bibl.Pages
                             int rows = command.ExecuteNonQuery();
                             if (rows > 0)
                             {
-                                 CustomMessageBox.Show($"Группа «{groupCode}» успешно добавлена.",
-                                    "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                                CustomMessageBox.Show($"Группа «{groupCode}» успешно добавлена.",
+                                   "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                                 ClearFields();
                                 LoadGroups();
                             }
                             else
                             {
-                                 CustomMessageBox.Show("Не удалось добавить группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                                CustomMessageBox.Show("Не удалось добавить группу.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                             }
                         }
                     }
                 }
                 catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 547)
                 {
-                     CustomMessageBox.Show("Группа с таким кодом уже существует или нарушено ограничение целостности.",
-                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show("Группа с таким кодом уже существует или нарушено ограничение целостности.",
+                       "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 catch (Exception ex)
                 {
-                     CustomMessageBox.Show($"Ошибка при добавлении группы:\n{ex.Message}",
-                        "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка при добавлении группы:\n{ex.Message}",
+                       "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             else
             {
-                 CustomMessageBox.Show("Выберите специальность.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Выберите специальность.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
         }
@@ -234,14 +227,14 @@ namespace Diplom_Bibl.Pages
 
             if (!_currentGroupId.HasValue)
             {
-                 CustomMessageBox.Show("Нет выбранной группы для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show("Нет выбранной группы для редактирования.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 return;
             }
 
             string groupCode = CodeGroup.Text?.Trim();
             if (string.IsNullOrEmpty(groupCode))
             {
-                 CustomMessageBox.Show("Введите код группы.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show("Введите код группы.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 return;
             }
 
@@ -264,8 +257,8 @@ namespace Diplom_Bibl.Pages
 
             if (groupExists)
             {
-                 CustomMessageBox.Show("Группа с таким кодом уже существует.", "Ошибка",
-                    CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Группа с таким кодом уже существует.", "Ошибка",
+                   CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -292,13 +285,13 @@ namespace Diplom_Bibl.Pages
                         int rows = command.ExecuteNonQuery();
                         if (rows > 0)
                         {
-                             CustomMessageBox.Show("Группа успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.None);
+                            CustomMessageBox.Show("Группа успешно обновлена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.None);
                             ClearFields();
                             LoadGroups();
                         }
                         else
                         {
-                             CustomMessageBox.Show("Группа не найдена (возможно, удалена).", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                            CustomMessageBox.Show("Группа не найдена (возможно, удалена).", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearFields();
                         }
                     }
@@ -306,23 +299,23 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при обновлении: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-       
+
         // 5. УДАЛЕНИЕ ГРУППЫ
-       
+
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
 
             if (!_currentGroupId.HasValue)
             {
-                 CustomMessageBox.Show("Нет выбранной группы для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет выбранной группы для удаления.", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            var result =  CustomMessageBox.Show(
+            var result = CustomMessageBox.Show(
                 "Вы уверены, что хотите удалить эту группу?",
                 "Подтверждение", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
@@ -342,13 +335,13 @@ namespace Diplom_Bibl.Pages
 
                         if (rows > 0)
                         {
-                             CustomMessageBox.Show("Группа удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                            CustomMessageBox.Show("Группа удалена.", "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
                             ClearFields();
                             LoadGroups();
                         }
                         else
                         {
-                             CustomMessageBox.Show("Группа уже удалена.", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                            CustomMessageBox.Show("Группа уже удалена.", "Внимание", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearFields();
                         }
                     }
@@ -356,19 +349,19 @@ namespace Diplom_Bibl.Pages
             }
             catch (SqlException ex) when (ex.Number == 547)
             {
-                 CustomMessageBox.Show("Невозможно удалить группу: на неё ссылаются другие записи (например, студенты).",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show("Невозможно удалить группу: на неё ссылаются другие записи (например, студенты).",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при удалении:\n{ex.Message}",
-                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при удалении:\n{ex.Message}",
+                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
-       
+
         // 6. ЗАГРУЗКА ГРУППЫ ПО ДВОЙНОМУ КЛИКУ (предполагается, что у вас есть LvGroups)
-       
+
         // ⚠️ У вас сейчас LvSpecialities_MouseDoubleClick — но редактируем мы ГРУППЫ!
         // Если вы хотите редактировать ГРУППУ по двойному клику — переименуйте обработчик и привяжите к LvGroups.
         private void LvGroups_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -394,7 +387,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка при загрузке группы: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка при загрузке группы: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -426,7 +419,7 @@ namespace Diplom_Bibl.Pages
             NavigationService.Navigate(new AddSpeciality());
         }
     }
-    
+
 }
 
 

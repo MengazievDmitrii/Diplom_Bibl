@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Diplom_Bibl.Controls;
+using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
 using System.Linq;
@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Controls;
 
 namespace Diplom_Bibl.Pages
 {
@@ -137,7 +136,7 @@ namespace Diplom_Bibl.Pages
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Ошибка загрузки специальностей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Ошибка загрузки специальностей: {ex.Message}", "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -190,8 +189,8 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(codespeciality) || string.IsNullOrEmpty(namespeciality))
             {
-                 CustomMessageBox.Show("Пожалуйста, введите код и название специальности.",
-                                "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Пожалуйста, введите код и название специальности.",
+                               "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -213,8 +212,8 @@ namespace Diplom_Bibl.Pages
 
                         if (rowsAffected > 0)
                         {
-                             CustomMessageBox.Show($"Специальность '{codespeciality} {namespeciality}' успешно сохранена.",
-                                            "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                            CustomMessageBox.Show($"Специальность '{codespeciality} {namespeciality}' успешно сохранена.",
+                                           "Успешно", CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             ClearInputFields();
                             LoadSpecialities();
@@ -226,8 +225,8 @@ namespace Diplom_Bibl.Pages
                         }
                         else
                         {
-                             CustomMessageBox.Show("Данные не были сохранены. Проверьте введённые значения.",
-                                            "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                            CustomMessageBox.Show("Данные не были сохранены. Проверьте введённые значения.",
+                                           "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                         }
                     }
                 }
@@ -236,19 +235,19 @@ namespace Diplom_Bibl.Pages
             {
                 if (sqlEx.Number == 2627) // Нарушение уникальности
                 {
-                     CustomMessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
-                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
+                                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 else
                 {
-                     CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
-                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
+                               "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -256,8 +255,8 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentSpecialityId.HasValue)
             {
-                 CustomMessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.",
-                               "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет загруженной записи для сохранения. Выберите специальность.",
+                              "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -266,8 +265,8 @@ namespace Diplom_Bibl.Pages
 
             if (string.IsNullOrEmpty(codespeciality) || string.IsNullOrEmpty(namespeciality))
             {
-                 CustomMessageBox.Show("Пожалуйста, введите код и название специальности.",
-                                "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Пожалуйста, введите код и название специальности.",
+                               "Ошибка ввода", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
@@ -291,8 +290,8 @@ namespace Diplom_Bibl.Pages
 
                         if (rowsAffected > 0)
                         {
-                             CustomMessageBox.Show("Запись успешно обновлена.", "Успешно",
-                                          CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                            CustomMessageBox.Show("Запись успешно обновлена.", "Успешно",
+                                         CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                             LoadSpecialities();
 
@@ -305,8 +304,8 @@ namespace Diplom_Bibl.Pages
                         }
                         else
                         {
-                             CustomMessageBox.Show("Запись не была обновлена. Возможно, она была удалена.",
-                                          "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                            CustomMessageBox.Show("Запись не была обновлена. Возможно, она была удалена.",
+                                         "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             ClearInputFields();
                         }
                     }
@@ -316,19 +315,19 @@ namespace Diplom_Bibl.Pages
             {
                 if (sqlEx.Number == 2627) // Нарушение уникальности
                 {
-                     CustomMessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
-                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Специальность с кодом '{codespeciality}' уже существует.",
+                                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
                 else
                 {
-                     CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                    "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                   "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                 CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
-                                "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
+                               "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
 
@@ -336,12 +335,12 @@ namespace Diplom_Bibl.Pages
         {
             if (!_currentSpecialityId.HasValue)
             {
-                 CustomMessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.",
-                               "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                CustomMessageBox.Show("Нет загруженной записи для удаления. Выберите специальность.",
+                              "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                 return;
             }
 
-            var result =  CustomMessageBox.Show("Вы уверены, что хотите удалить выбранную специальность?",
+            var result = CustomMessageBox.Show("Вы уверены, что хотите удалить выбранную специальность?",
                                          "Подтверждение удаления", CustomMessageBoxButton.YesNo, CustomMessageBoxImage.Question);
 
             if (result == CustomMessageBoxResult.Yes)
@@ -361,8 +360,8 @@ namespace Diplom_Bibl.Pages
 
                             if (rowsAffected > 0)
                             {
-                                 CustomMessageBox.Show("Запись успешно удалена.", "Успешно",
-                                              CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
+                                CustomMessageBox.Show("Запись успешно удалена.", "Успешно",
+                                             CustomMessageBoxButton.OK, CustomMessageBoxImage.Information);
 
                                 ClearInputFields();
                                 LoadSpecialities();
@@ -373,8 +372,8 @@ namespace Diplom_Bibl.Pages
                             }
                             else
                             {
-                                 CustomMessageBox.Show("Запись не была удалена. Возможно, она уже удалена.",
-                                              "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
+                                CustomMessageBox.Show("Запись не была удалена. Возможно, она уже удалена.",
+                                             "Предупреждение", CustomMessageBoxButton.OK, CustomMessageBoxImage.Warning);
                             }
                         }
                     }
@@ -383,19 +382,19 @@ namespace Diplom_Bibl.Pages
                 {
                     if (sqlEx.Number == 547) // Нарушение внешнего ключа
                     {
-                         CustomMessageBox.Show("Невозможно удалить специальность, так как на неё ссылаются другие записи.",
-                                      "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                        CustomMessageBox.Show("Невозможно удалить специальность, так как на неё ссылаются другие записи.",
+                                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                     else
                     {
-                         CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
-                                      "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                        CustomMessageBox.Show($"Ошибка базы данных: {sqlEx.Message}",
+                                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                     }
                 }
                 catch (Exception ex)
                 {
-                     CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
-                                  "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Произошла ошибка: {ex.Message}",
+                                 "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
         }
@@ -422,8 +421,8 @@ namespace Diplom_Bibl.Pages
                 }
                 catch (Exception ex)
                 {
-                     CustomMessageBox.Show($"Ошибка загрузки специальности: {ex.Message}",
-                                  "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
+                    CustomMessageBox.Show($"Ошибка загрузки специальности: {ex.Message}",
+                                 "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
                 }
             }
         }

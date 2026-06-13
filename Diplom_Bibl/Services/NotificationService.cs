@@ -545,8 +545,8 @@ namespace Diplom_Bibl.Services
                                 NotificationsUpdated?.Invoke(this, _notifications);
                                 UnreadCountChanged?.Invoke(this, GetUnreadCount());
                             });
-                            
-                           
+
+
                             ShowAllUnreadNotifications();
                         }
                     }

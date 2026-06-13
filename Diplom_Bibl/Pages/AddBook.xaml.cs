@@ -90,17 +90,17 @@ namespace Diplom_Bibl.Pages
         {
             try
             {
-            
+
                 var loadTasks = new[]
                 {
-                   Task.Run(() => LoadAuthors()),           
-                   Task.Run(() => LoadPublishers()),       
-                   Task.Run(() => LoadGenres()),            
-                    Task.Run(() => LoadStatusesFiltered()),  
-                    Task.Run(() => LoadReceipts()),          
-                    Task.Run(() => LoadEditionTypes()),     
-                   Task.Run(() => LoadCategories()),       
-                   Task.Run(() => LoadFormats())            
+                   Task.Run(() => LoadAuthors()),
+                   Task.Run(() => LoadPublishers()),
+                   Task.Run(() => LoadGenres()),
+                    Task.Run(() => LoadStatusesFiltered()),
+                    Task.Run(() => LoadReceipts()),
+                    Task.Run(() => LoadEditionTypes()),
+                   Task.Run(() => LoadCategories()),
+                   Task.Run(() => LoadFormats())
                };
                 await Task.WhenAll(loadTasks);
                 _cancellationTokenSource = new CancellationTokenSource();

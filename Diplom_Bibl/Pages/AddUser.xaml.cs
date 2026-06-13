@@ -1,5 +1,5 @@
 ﻿using Diplom_Bibl.Controls;
-using Org.BouncyCastle.Crypto.Generators;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {

@@ -221,10 +221,8 @@
                                     Foreground="White"
                                     Margin="0,0,8,0"
                                     Click="ExportExcel_Click"/>
-                            <Button Content="Печать" 
-                                    Style="{StaticResource ReportButtonStyle}"
-                                    Background="{StaticResource LightGray}"
-                                    Foreground="#495057"
+                            <Button Content="PDF" Style="{StaticResource ReportButtonStyle}"
+        Background="#6F42C1" Foreground="White"
                                     Click="PrintReport_Click"/>
                         </StackPanel>
                     </Grid>

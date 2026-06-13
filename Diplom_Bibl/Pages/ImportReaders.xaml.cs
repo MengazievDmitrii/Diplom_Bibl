@@ -9,8 +9,6 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using ExcelDataReader;
-using System.Data;
 
 namespace Diplom_Bibl.Pages
 {

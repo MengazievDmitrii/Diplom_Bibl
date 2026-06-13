@@ -7,7 +7,6 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 
 namespace Diplom_Bibl.Pages
 {
@@ -32,7 +31,7 @@ namespace Diplom_Bibl.Pages
         public AdmissionBook()
         {
             InitializeComponent();
-            
+
         }
 
         /// <summary>
@@ -210,7 +209,7 @@ namespace Diplom_Bibl.Pages
                     "Ошибка", CustomMessageBoxButton.OK, CustomMessageBoxImage.Error);
             }
         }
-        
+
 
     }
 }

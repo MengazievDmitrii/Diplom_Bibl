@@ -35,7 +35,7 @@ namespace Diplom_Bibl.Pages
         private bool _isSearchPlaceholderActive = true;
         private bool _isSearchProgrammatic = false;
         private bool _isLoading = false;
-        private bool _isDataLoaded = false; 
+        private bool _isDataLoaded = false;
 
 
 
@@ -202,7 +202,7 @@ namespace Diplom_Bibl.Pages
             if (LoadingOverlay != null)
                 LoadingOverlay.Visibility = Visibility.Collapsed;
 
-           
+
 
             this.Loaded += async (s, e) => await LibraryFundPage_LoadedAsync();
         }
@@ -221,7 +221,7 @@ namespace Diplom_Bibl.Pages
 
         #region Загрузка данных
 
-       
+
         private async Task LoadDataAsync()
         {
             if (_isLoading) return;
@@ -231,7 +231,7 @@ namespace Diplom_Bibl.Pages
             {
                 if (LoadingOverlay != null)
                     LoadingOverlay.Visibility = Visibility.Visible;
-               
+
             });
 
             try
@@ -268,7 +268,7 @@ namespace Diplom_Bibl.Pages
                 {
                     if (LoadingOverlay != null)
                         LoadingOverlay.Visibility = Visibility.Collapsed;
-                    
+
                 });
                 _isLoading = false;
             }

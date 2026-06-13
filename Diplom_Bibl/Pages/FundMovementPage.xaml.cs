@@ -183,7 +183,8 @@ namespace Diplom_Bibl.Pages
         private ObservableCollection<GroupedFundMovementItem> GroupAndSortItems(ObservableCollection<FundMovementItem> items)
         {
             var grouped = items
-                .GroupBy(x => new {
+                .GroupBy(x => new
+                {
                     x.IssuanceType,
                     x.RecipientId,
                     x.RecipientName,
@@ -197,7 +198,8 @@ namespace Diplom_Bibl.Pages
                     x.Status,
                     x.IsOverdue
                 })
-                .Select(g => {
+                .Select(g =>
+                {
                     // Внутри GroupAndSortItems(), в Select для каждой группы
                     DateTime? returnDate = g.Key.ReturnDate;
                     DateTime plannedReturnDate = g.Key.PlannedReturnDate;

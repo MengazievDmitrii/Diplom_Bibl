@@ -3,7 +3,6 @@ using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -13,11 +12,11 @@ namespace Diplom_Bibl.Windows
 {
     public partial class AutorisationWindow : Window
     {
-       
 
-    private readonly string _connectionString = DatabaseHelper.ConnectionString;
 
-    public AutorisationWindow()
+        private readonly string _connectionString = DatabaseHelper.ConnectionString;
+
+        public AutorisationWindow()
         {
             InitializeComponent();
             LoginPlaceholder.Visibility = string.IsNullOrEmpty(LoginBox.Text) ? Visibility.Visible : Visibility.Hidden;

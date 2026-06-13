@@ -46,7 +46,7 @@ namespace Diplom_Bibl.Services
             public string StatusDisplay => Status == "Active" ? "Активна" : (Status == "Completed" ? "Завершена" : "Прервана");
 
         }
-       
+
 
         // Создание новой сессии
         public async Task<int> CreateSessionAsync(string computerNumber, int userId, string fullName,

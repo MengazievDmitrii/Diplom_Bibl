@@ -1,13 +1,12 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {
@@ -15,14 +14,14 @@ namespace Diplom_Bibl.Pages
     {
         private readonly string _connectionString = DatabaseHelper.ConnectionString;
         private ObservableCollection<EditionTypeItem> _allEditionType;
-        private int?_currentEditionTypeId = null;
+        private int? _currentEditionTypeId = null;
 
         public class EditionTypeItem
         {
             public int ID_EditionType { get; set; }
             public string EditionTypeName { get; set; } = "";
             public string Description { get; set; } = "";
- 
+
         }
 
         public AddEditionType()
@@ -72,7 +71,7 @@ namespace Diplom_Bibl.Pages
         {
             TbEditionTypeName.Clear();
             TbDescription.Clear();
-           _currentEditionTypeId = null;
+            _currentEditionTypeId = null;
             BtnSaveNew.Visibility = Visibility.Visible;
             BtnSaveChanges.Visibility = Visibility.Collapsed;
             BtnDelete.Visibility = Visibility.Collapsed;
@@ -259,7 +258,7 @@ namespace Diplom_Bibl.Pages
         {
             if (DgEditionType.SelectedItem is EditionTypeItem selected)
             {
-               _currentEditionTypeId = selected.ID_EditionType;
+                _currentEditionTypeId = selected.ID_EditionType;
                 TbEditionTypeName.Text = selected.EditionTypeName;
                 TbDescription.Text = selected.Description;
                 BtnSaveNew.Visibility = Visibility.Collapsed;

@@ -1,5 +1,4 @@
-﻿using Dadata.Model;
-using Diplom_Bibl.Controls;
+﻿using Diplom_Bibl.Controls;
 using Diplom_Bibl.Helpers;
 using Microsoft.Win32;
 using System;
@@ -674,7 +673,7 @@ namespace Diplom_Bibl.Pages
             return value;
         }
 
-        
+
         private void AddReader_Click(object sender, RoutedEventArgs e)
         {
             NavigationService?.Navigate(new AddReader());
@@ -695,21 +694,21 @@ namespace Diplom_Bibl.Pages
     }
 }
 // Модель для экспорта
-        public class ReaderExportModel
-        {
-            public int ReaderID { get; set; }
-            public string CardNumber { get; set; }
-            public string LastName { get; set; }
-            public string FirstName { get; set; }
-            public string MiddleName { get; set; }
-            public string TypeName { get; set; }
-            public string GroupCode { get; set; }
-            public string PostName { get; set; }
-            public string Speciality { get; set; }
-            public string PhoneNumber { get; set; }
-            public string HomeAddress { get; set; }
-            public DateTime MembershipStartDate { get; set; }
-            public DateTime FormFillDate { get; set; }
-            public string Login { get; set; }
-            public string Password { get; set; }
-        }
+public class ReaderExportModel
+{
+    public int ReaderID { get; set; }
+    public string CardNumber { get; set; }
+    public string LastName { get; set; }
+    public string FirstName { get; set; }
+    public string MiddleName { get; set; }
+    public string TypeName { get; set; }
+    public string GroupCode { get; set; }
+    public string PostName { get; set; }
+    public string Speciality { get; set; }
+    public string PhoneNumber { get; set; }
+    public string HomeAddress { get; set; }
+    public DateTime MembershipStartDate { get; set; }
+    public DateTime FormFillDate { get; set; }
+    public string Login { get; set; }
+    public string Password { get; set; }
+}

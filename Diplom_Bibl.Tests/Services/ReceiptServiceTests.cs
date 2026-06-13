@@ -30,7 +30,7 @@ namespace Diplom_Bibl.Tests.Services
 
             // Настраиваем mock: GetNextReceiptNumber возвращает 42
             _mockRepo.Setup(repo => repo.GetNextReceiptNumber()).Returns(nextNumber);
-            
+
             // Настраиваем mock: InsertReceipt возвращает ожидаемый ID
             _mockRepo.Setup(repo => repo.InsertReceipt(
                 "ПН-0042", It.IsAny<DateTime>(), responsibleId, comment))
@@ -41,11 +41,11 @@ namespace Diplom_Bibl.Tests.Services
 
             // Assert (Проверка)
             Assert.Equal(expectedId, result);
-            
+
             // Проверяем, что методы были вызваны с правильными параметрами
             _mockRepo.Verify(repo => repo.GetNextReceiptNumber(), Times.Once);
             _mockRepo.Verify(repo => repo.InsertReceipt(
-                "ПН-0042", It.IsAny<DateTime>(), responsibleId, comment), 
+                "ПН-0042", It.IsAny<DateTime>(), responsibleId, comment),
                 Times.Once);
         }
 
@@ -69,7 +69,7 @@ namespace Diplom_Bibl.Tests.Services
             // Assert
             Assert.Equal(expectedId, result);
             _mockRepo.Verify(repo => repo.InsertReceipt(
-                "ПН-0042", It.IsAny<DateTime>(), responsibleId, ""), 
+                "ПН-0042", It.IsAny<DateTime>(), responsibleId, ""),
                 Times.Once);
         }
 
@@ -82,13 +82,13 @@ namespace Diplom_Bibl.Tests.Services
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() =>
                 _service.AddReceipt(responsibleId, "comment"));
-            
+
             Assert.Contains("ID ответственного", ex.Message);
-            
+
             // Проверяем, что методы репозитория НЕ вызывались
             _mockRepo.Verify(repo => repo.GetNextReceiptNumber(), Times.Never);
             _mockRepo.Verify(repo => repo.InsertReceipt(
-                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<string>()), 
+                It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<int>(), It.IsAny<string>()),
                 Times.Never);
         }
 
@@ -101,7 +101,7 @@ namespace Diplom_Bibl.Tests.Services
             // Act & Assert
             var ex = Assert.Throws<ArgumentException>(() =>
                 _service.AddReceipt(responsibleId, "comment"));
-            
+
             Assert.Contains("ID ответственного", ex.Message);
         }
 
@@ -139,7 +139,7 @@ namespace Diplom_Bibl.Tests.Services
             // Assert
             Assert.Equal(expectedId, result);
             _mockRepo.Verify(repo => repo.InsertReceipt(
-                "ПН-0042", It.IsAny<DateTime>(), responsibleId, ""), 
+                "ПН-0042", It.IsAny<DateTime>(), responsibleId, ""),
                 Times.Once);
         }
 
@@ -162,10 +162,10 @@ namespace Diplom_Bibl.Tests.Services
 
             // Assert - проверяем, что дата установлена корректно (текущая)
             _mockRepo.Verify(repo => repo.InsertReceipt(
-                "ПН-0042", 
-                It.Is<DateTime>(d => d >= beforeCall && d <= DateTime.Now.AddSeconds(1)), 
-                responsibleId, 
-                comment), 
+                "ПН-0042",
+                It.Is<DateTime>(d => d >= beforeCall && d <= DateTime.Now.AddSeconds(1)),
+                responsibleId,
+                comment),
                 Times.Once);
         }
 
@@ -185,7 +185,7 @@ namespace Diplom_Bibl.Tests.Services
             // Act & Assert
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 _service.AddReceipt(responsibleId, comment));
-            
+
             Assert.Contains("Ошибка базы данных", ex.Message);
         }
 
@@ -195,7 +195,7 @@ namespace Diplom_Bibl.Tests.Services
             // Arrange
             int responsibleId = 5;
             string comment = "Тест";
-            
+
             // Первый вызов
             _mockRepo.SetupSequence(repo => repo.GetNextReceiptNumber())
                 .Returns(42)  // первый вызов
@@ -210,14 +210,14 @@ namespace Diplom_Bibl.Tests.Services
 
             // Act - первый вызов
             int result1 = _service.AddReceipt(responsibleId, comment);
-            
+
             // Act - второй вызов
             int result2 = _service.AddReceipt(responsibleId, comment);
 
             // Assert
             Assert.Equal(100, result1);
             Assert.Equal(101, result2);
-            
+
             _mockRepo.Verify(repo => repo.InsertReceipt(
                 "ПН-0042", It.IsAny<DateTime>(), responsibleId, comment), Times.Once);
             _mockRepo.Verify(repo => repo.InsertReceipt(

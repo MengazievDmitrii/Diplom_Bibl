@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
 
@@ -57,7 +56,7 @@ namespace Diplom_Bibl.Pages
                 System.Diagnostics.Debug.WriteLine($"📊 UnreadCountChanged: {count}");
                 Dispatcher.Invoke(() => UpdateUnreadBadge(count));
             };
-            
+
         }
         /// <summary>
         /// Проверка, является ли пользователь библиотекарем
@@ -283,7 +282,7 @@ namespace Diplom_Bibl.Pages
                 NavigationService.GoBack();
         }
 
-       
+
 
         private async void ViewRequest_Click(object sender, RoutedEventArgs e)
         {

@@ -1,4 +1,5 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
@@ -7,7 +8,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Diplom_Bibl.Helpers;
 
 namespace Diplom_Bibl.Pages
 {

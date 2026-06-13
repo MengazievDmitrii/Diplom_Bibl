@@ -52,7 +52,7 @@ namespace Diplom_Bibl.Windows
         private static DateTime _lastNotificationTime = DateTime.MinValue;
         private static readonly TimeSpan _minNotificationInterval = TimeSpan.FromSeconds(1.5);
 
-   
+
 
         #endregion
 
@@ -125,8 +125,8 @@ namespace Diplom_Bibl.Windows
                 System.Diagnostics.Debug.WriteLine($"❌ Ошибка загрузки: {ex.Message}");
             }
         }
-            
-       
+
+
         /// <summary>
         /// Загрузка начальной страницы в зависимости от роли пользователя
         /// </summary>
@@ -1349,7 +1349,7 @@ namespace Diplom_Bibl.Windows
             }
         }
 
-        
+
         #endregion
     }
 }

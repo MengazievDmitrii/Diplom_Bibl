@@ -13,7 +13,7 @@ namespace Diplom_Bibl.Controls
         /// </summary>
         public static MessageBoxResult Show(string message)
         {
-            var result =  CustomMessageBox.Show(message);
+            var result = CustomMessageBox.Show(message);
             return ConvertResult(result);
         }
 
@@ -22,7 +22,7 @@ namespace Diplom_Bibl.Controls
         /// </summary>
         public static MessageBoxResult Show(string message, string caption)
         {
-            var result =  CustomMessageBox.Show(message, caption);
+            var result = CustomMessageBox.Show(message, caption);
             return ConvertResult(result);
         }
 
@@ -32,7 +32,7 @@ namespace Diplom_Bibl.Controls
         public static MessageBoxResult Show(string message, string caption, CustomMessageBoxButton button)
         {
             var customButton = ConvertButton(button);
-            var result =  CustomMessageBox.Show(message, caption, customButton);
+            var result = CustomMessageBox.Show(message, caption, customButton);
             return ConvertResult(result);
         }
 
@@ -43,7 +43,7 @@ namespace Diplom_Bibl.Controls
         {
             var customButton = ConvertButton(button);
             var customIcon = ConvertIcon(icon);
-            var result =  CustomMessageBox.Show(message, caption, customButton, customIcon);
+            var result = CustomMessageBox.Show(message, caption, customButton, customIcon);
             return ConvertResult(result);
         }
 
@@ -54,7 +54,7 @@ namespace Diplom_Bibl.Controls
         {
             var customButton = ConvertButton(button);
             var customIcon = ConvertIcon(icon);
-            var result =  CustomMessageBox.Show(owner, message, caption, customButton, customIcon);
+            var result = CustomMessageBox.Show(owner, message, caption, customButton, customIcon);
             return ConvertResult(result);
         }
 

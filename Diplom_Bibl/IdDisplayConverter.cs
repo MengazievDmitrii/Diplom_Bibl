@@ -24,10 +24,10 @@ namespace Diplom_Bibl // Убедитесь, что namespace совпадает
             // ConvertBack не нужен для отображения, только для редактирования
             throw new NotImplementedException();
         }
-        
 
-        
+
+
     }
 
-        
-    }
+
+}

@@ -1,14 +1,13 @@
 ﻿using Diplom_Bibl.Controls;
+using Diplom_Bibl.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Diplom_Bibl.Helpers;
-using System.Threading.Tasks;
 
 
 namespace Diplom_Bibl.Pages
@@ -24,7 +23,7 @@ namespace Diplom_Bibl.Pages
             public int ID_Category { get; set; }
             public string CategoryName { get; set; } = "";
             public string Description { get; set; } = "";
-          
+
         }
 
         public AddBookCategory()
@@ -122,7 +121,7 @@ namespace Diplom_Bibl.Pages
                 return;
             }
 
-           
+
 
             try
             {
@@ -218,7 +217,7 @@ namespace Diplom_Bibl.Pages
                 using (var cmd = new SqlCommand("SELECT COUNT(*) FROM Books WHERE CategoryID = @Id", conn))
                 {
                     cmd.Parameters.AddWithValue("@Id", _currentCategoryId.Value);
-int count = (int)await cmd.ExecuteScalarAsync();
+                    int count = (int)await cmd.ExecuteScalarAsync();
                     isUsed = count > 0;
                 }
             }

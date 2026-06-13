@@ -429,7 +429,7 @@ namespace Diplom_Bibl.Pages
         }
 
 
-        
+
         /// <summary>
         /// Обработчик изменения текста в комбобоксе (поиск)
         /// </summary>
@@ -476,7 +476,7 @@ namespace Diplom_Bibl.Pages
                 FilterGroups("");
             }
         }
-       
+
         /// <summary>
         /// Получение ID выбранной группы
         /// </summary>

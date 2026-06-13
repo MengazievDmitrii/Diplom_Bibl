@@ -1,10 +1,6 @@
 ﻿using Diplom_Bibl.Controls;
 using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Data;
 using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
@@ -68,8 +64,8 @@ namespace Diplom_Bibl
                 Environment.Exit(1);
             }
         }
-    
-}
+
+    }
     public class BoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

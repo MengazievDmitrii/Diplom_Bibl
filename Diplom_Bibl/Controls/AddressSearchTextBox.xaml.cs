@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Dadata;
+using Dadata.Model;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Net.NetworkInformation;
@@ -7,9 +9,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Dadata;
-using Dadata.Model;
-using Diplom_Bibl.Controls; // для CustomMessageBox
 
 namespace Diplom_Bibl.Controls
 {
@@ -191,7 +190,7 @@ namespace Diplom_Bibl.Controls
             var testSuggestions = new List<string>
             {
                {query}
-               
+
             };
 
             SuggestionsListBox.ItemsSource = testSuggestions;
